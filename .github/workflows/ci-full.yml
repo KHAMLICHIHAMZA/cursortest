@@ -1,0 +1,91 @@
+name: CI Complet - Tous les Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend Tests
+    uses: ./.github/workflows/ci-backend.yml
+    secrets: inherit
+
+  mobile:
+    name: Mobile Tests
+    uses: ./.github/workflows/ci-mobile.yml
+    secrets: inherit
+
+  full-integration:
+    name: Tests d'Intégration Complets
+    runs-on: ubuntu-latest
+    needs: [backend, mobile]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: malocauto_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Backend
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run prisma:generate
+          npx prisma migrate deploy
+          npm run prisma:seed
+          npm run build
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+
+      - name: Setup Mobile
+        working-directory: ./mobile-agent
+        run: npm ci
+
+      - name: Start Backend
+        working-directory: ./backend
+        run: |
+          npm run start &
+          sleep 15
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          JWT_SECRET: test-secret-key
+          PORT: 3000
+          NODE_ENV: test
+
+      - name: Run Full Integration Tests
+        working-directory: .
+        run: |
+          npm install -g newman
+          # Ici vous pouvez ajouter des tests Postman/Newman ou d'autres tests d'intégration
+          echo "Tests d'intégration complets à implémenter"
+        env:
+          API_URL: http://localhost:3000/api/v1
+
+      - name: Stop Backend
+        if: always()
+        run: pkill -f "node dist/main" || true
+
+
+
+

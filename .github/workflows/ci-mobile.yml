@@ -1,0 +1,165 @@
+name: Mobile Agent CI - Tests Automatiques
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'mobile-agent/**'
+      - '.github/workflows/ci-mobile.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'mobile-agent/**'
+      - '.github/workflows/ci-mobile.yml'
+
+jobs:
+  test:
+    name: Tests Mobile Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile-agent/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile-agent
+        run: npm ci
+
+      - name: Verify TypeScript
+        working-directory: ./mobile-agent
+        run: npx tsc --noEmit --skipLibCheck
+
+      - name: Run unit tests
+        working-directory: ./mobile-agent
+        run: npm run test
+        env:
+          CI: true
+
+      - name: Run tests with coverage
+        working-directory: ./mobile-agent
+        run: npm run test:coverage
+        env:
+          CI: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./mobile-agent/coverage/lcov.info
+          flags: mobile-agent
+          name: mobile-agent-coverage
+
+  integration-test:
+    name: Tests d'Intégration Mobile
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: malocauto_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+
+      - name: Run database migrations
+        working-directory: ./backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+
+      - name: Seed test database
+        working-directory: ./backend
+        run: npm run prisma:seed
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Start backend server
+        working-directory: ./backend
+        run: |
+          npm run start &
+          sleep 10
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          JWT_SECRET: test-secret-key
+          PORT: 3000
+          NODE_ENV: test
+
+      - name: Install mobile dependencies
+        working-directory: ./mobile-agent
+        run: npm ci
+
+      - name: Run mobile integration tests
+        working-directory: ./mobile-agent
+        run: npm run test:integration
+        env:
+          CI: true
+          API_URL: http://localhost:3000/api/v1
+
+      - name: Stop backend server
+        if: always()
+        run: pkill -f "node dist/main" || true
+
+  lint:
+    name: Lint Mobile Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile-agent/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile-agent
+        run: npm ci
+
+      - name: Run TypeScript check
+        working-directory: ./mobile-agent
+        run: npx tsc --noEmit --skipLibCheck
+
+
+
+

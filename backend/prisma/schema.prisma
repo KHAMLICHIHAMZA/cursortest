@@ -1,0 +1,1201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  AGENCY_MANAGER
+  AGENT
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+  UNAVAILABLE
+  TEMP_UNAVAILABLE // Temporairement indisponible (ajout pour compléter les états métier)
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  EXTENDED // Prolongation (ajout pour compléter les états métier)
+  LATE
+  RETURNED
+  CANCELLED
+  NO_SHOW
+}
+
+enum MaintenanceStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PlanningEventType {
+  BOOKING
+  MAINTENANCE
+  BLOCKAGE
+  PREPARATION_TIME
+}
+
+enum DocumentType {
+  ID_CARD
+  DRIVING_LICENSE
+  VEHICLE_REGISTRATION
+  INSURANCE
+  PHOTO
+  CONTRACT
+  INVOICE
+  OTHER
+}
+
+enum IncidentType {
+  DAMAGE
+  FINE
+  ACCIDENT
+  THEFT
+  OTHER
+}
+
+enum IncidentStatus {
+  REPORTED
+  UNDER_REVIEW
+  RESOLVED
+  DISPUTED
+}
+
+enum DepositDecisionSource {
+  COMPANY
+  AGENCY
+}
+
+enum DepositStatusCheckIn {
+  PENDING
+  COLLECTED
+}
+
+enum DepositStatusFinal {
+  REFUNDED
+  PARTIAL
+  FORFEITED
+  DISPUTED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIAL
+}
+
+enum PaymentMethod {
+  ONLINE_CMI
+  CASH
+  BANK_TRANSFER
+  OTHER
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+  PUSH
+  SMS
+}
+
+enum NotificationType {
+  TRANSACTIONAL
+  MARKETING
+  SYSTEM
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+  PAYMENT
+  BOOKING_STATUS_CHANGE
+  OTHER
+}
+
+// ============================================
+// SAAS ENUMS - Facturation et Modules
+// ============================================
+
+// Statut d'une Company dans le cycle de vie SaaS
+// ACTIVE: Company active et opérationnelle
+// SUSPENDED: Company suspendue (paiement non reçu, restauration possible jusqu'à J+90)
+// DELETED: Company supprimée définitivement (soft delete irréversible après J+100)
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+// Statut d'une Agency dans le cycle de vie SaaS
+// ACTIVE: Agency active et opérationnelle
+// SUSPENDED: Agency suspendue (hérite du statut Company ou suspension spécifique)
+// DELETED: Agency supprimée définitivement (soft delete)
+enum AgencyStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+// Statut d'un abonnement (Subscription)
+// ACTIVE: Abonnement actif et payé
+// SUSPENDED: Abonnement suspendu (paiement en retard)
+// EXPIRED: Abonnement expiré (non renouvelé)
+// CANCELLED: Abonnement annulé manuellement
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  CANCELLED
+}
+
+// Codes des modules SaaS disponibles
+// Chaque module peut être activé/désactivé indépendamment
+// Dépendances gérées via ModuleDependency
+enum ModuleCode {
+  VEHICLES // Gestion des véhicules
+  BOOKINGS // Gestion des réservations
+  INVOICES // Facturation clients
+  MAINTENANCE // Gestion maintenance
+  FINES // Gestion amendes
+  ANALYTICS // Analytics et rapports
+}
+
+// Périodicité de facturation SaaS
+// MONTHLY: Mensuel
+// QUARTERLY: Trimestriel
+// YEARLY: Annuel
+enum BillingPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// Permissions d'un User sur une Agency
+// READ: Lecture seule
+// WRITE: Lecture + Écriture (pas de suppression)
+// FULL: Lecture + Écriture + Suppression
+enum UserAgencyPermission {
+  READ
+  WRITE
+  FULL
+}
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+model Company {
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  phone    String?
+  address  String?
+  isActive Boolean @default(true) // ⚠️ CONSERVÉ pour rétrocompatibilité
+
+  // SaaS: Cycle de vie et statut
+  status          CompanyStatus @default(ACTIVE) // Statut SaaS (ACTIVE, SUSPENDED, DELETED)
+  suspendedAt     DateTime? // Date de suspension (date pivot pour J+90 et J+100)
+  suspendedReason String? // Raison de la suspension
+
+  // SaaS: Configuration métier
+  currency String @default("MAD") // Devise par Company (ex: MAD, EUR, USD)
+
+  // Branding
+  logoUrl        String?
+  secondaryColor String? // Couleur secondaire pour branding
+  faviconUrl     String?
+
+  // Soft delete
+  deletedAt DateTime?
+
+  // Enterprise: Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agencies                Agency[]
+  users                   User[]
+  businessRules           BusinessRule[]
+  auditLogs               AuditLog[]
+  businessEventLogs       BusinessEventLog[]
+  subscriptions           Subscription[]
+  companyModules          CompanyModule[]
+  notificationPreferences NotificationPreference[]
+  PaymentSaas             PaymentSaas[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([status])
+  @@index([suspendedAt])
+  @@index([deletedAt])
+}
+
+model Agency {
+  id        String  @id @default(cuid())
+  name      String
+  companyId String
+  phone     String?
+  address   String?
+
+  // SaaS: Cycle de vie et statut
+  status          AgencyStatus @default(ACTIVE) // Statut SaaS (ACTIVE, SUSPENDED, DELETED)
+  suspendedAt     DateTime? // Date de suspension
+  suspendedReason String? // Raison de la suspension
+
+  // SaaS: Configuration métier
+  timezone String @default("Africa/Casablanca") // Fuseau horaire par Agency
+  capacity Int? // Capacité maximale (nombre de véhicules, utilisateurs, etc.)
+  preparationTimeMinutes Int @default(60) // Temps de préparation après retour (en minutes, > 0)
+
+  // Soft delete
+  deletedAt DateTime?
+
+  // Enterprise: Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vehicles          Vehicle[]
+  bookings          Booking[]
+  fines             Fine[]
+  maintenance       Maintenance[]
+  clients           Client[]
+  userAgencies      UserAgency[]
+  incidents         Incident[]
+  payments          Payment[]
+  businessRules     BusinessRule[]
+  planningEvents    PlanningEvent[]
+  businessEventLogs BusinessEventLog[]
+  agencyModules     AgencyModule[]
+  invoices          Invoice[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([suspendedAt])
+  @@index([deletedAt])
+}
+
+model User {
+  id        String  @id @default(cuid())
+  email     String  @unique
+  password  String
+  name      String
+  role      Role
+  companyId String?
+  isActive  Boolean @default(true)
+
+  // 2FA
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean @default(false)
+
+  // Soft delete
+  deletedAt DateTime?
+
+  // Enterprise: Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company             Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userAgencies        UserAgency[]
+  passwordResetTokens PasswordResetToken[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
+
+  @@index([email])
+  @@index([companyId])
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model UserAgency {
+  id       String @id @default(cuid())
+  userId   String
+  agencyId String
+
+  // SaaS: Permissions par agence
+  permission UserAgencyPermission @default(FULL) // Permission sur cette agence (READ, WRITE, FULL)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agencyId])
+  @@index([userId])
+  @@index([agencyId])
+  @@index([permission])
+}
+
+// ============================================
+// VEHICLE MODELS
+// ============================================
+
+model Vehicle {
+  id                 String        @id @default(cuid())
+  agencyId           String
+  registrationNumber String        @unique
+  brand              String
+  model              String
+  year               Int
+  mileage            Int           @default(0)
+  fuel               String?
+  gearbox            String?
+  dailyRate          Float
+  depositAmount      Float
+  status             VehicleStatus @default(AVAILABLE)
+  imageUrl           String? // URL de l'image du véhicule
+  horsepower         Int? // Puissance en CV
+  color              String? // Couleur du véhicule
+
+  // Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  // Soft delete
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency         Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  bookings       Booking[]
+  maintenance    Maintenance[]
+  documents      Document[]
+  incidents      Incident[]
+  planningEvents PlanningEvent[]
+
+  @@index([agencyId])
+  @@index([status])
+  @@index([registrationNumber])
+  @@index([deletedAt])
+}
+
+// ============================================
+// CLIENT MODELS
+// ============================================
+
+model Client {
+  id              String  @id @default(cuid())
+  agencyId        String
+  name            String
+  email           String?
+  phone           String?
+  note            String?
+  licenseImageUrl String? // URL de l'image du permis de conduite
+
+  // Nationalité et origine
+  isMoroccan      Boolean @default(true) // Si le client est marocain
+  countryOfOrigin String? // Pays d'origine si non marocain
+
+  // Informations du permis de conduite
+  licenseNumber     String? // Numéro du permis
+  licenseExpiryDate DateTime // Date de validité du permis (NOT NULL - obligatoire)
+  isForeignLicense  Boolean   @default(false) // Si le permis est étranger
+
+  // Pièce d'identité (pour non-marocains ou marocains résidant à l'étranger)
+  idCardNumber       String? // Numéro de pièce d'identité
+  idCardExpiryDate   DateTime? // Date d'expiration de la pièce d'identité
+  passportNumber     String? // Numéro de passeport
+  passportExpiryDate DateTime? // Date d'expiration du passeport
+
+  // Conformité
+  isCompliant         Boolean   @default(false)
+  complianceCheckedAt DateTime?
+
+  // Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  // Soft delete
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency    Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+  documents Document[]
+  incidents Incident[]
+
+  @@index([agencyId])
+  @@index([deletedAt])
+  @@index([isCompliant])
+}
+
+// ============================================
+// BOOKING MODELS
+// ============================================
+
+model Booking {
+  id         String        @id @default(cuid())
+  agencyId   String
+  vehicleId  String
+  clientId   String
+  startDate  DateTime
+  endDate    DateTime
+  totalPrice Float
+  status     BookingStatus @default(DRAFT)
+
+  // Prolongation
+  originalEndDate DateTime? // Date de fin originale si prolongation
+  extensionDays   Int? // Nombre de jours de prolongation
+
+  // Swap véhicule
+  swappedFromVehicleId String?
+  swapReason           String?
+
+  // Caution (définie à la réservation)
+  depositRequired        Boolean              @default(false)
+  depositAmount          Decimal?             @db.Decimal(10, 2)
+  depositDecisionSource  DepositDecisionSource?
+  depositStatusCheckIn   DepositStatusCheckIn @default(PENDING)
+  depositStatusFinal     DepositStatusFinal?
+
+  // Frais de retard
+  lateFeeAmount              Decimal?  @db.Decimal(10, 2)
+  lateFeeCalculatedAt        DateTime?
+  lateFeeOverride            Boolean   @default(false)
+  lateFeeOverrideJustification String? @db.Text
+  lateFeeOverrideBy           String?
+  lateFeeOverrideAt          DateTime?
+
+  // Clôture financière
+  financialClosureBlocked        Boolean @default(false)
+  financialClosureBlockedReason  String? @db.Text
+
+  // Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  // Soft delete
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency         Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  fines          Fine[]
+  payments       Payment[]
+  incidents      Incident[]
+  documents      Document[]
+  planningEvents PlanningEvent[]
+  invoices       Invoice[]
+
+  @@index([agencyId])
+  @@index([vehicleId])
+  @@index([clientId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([deletedAt])
+}
+
+// ============================================
+// PLANNING MODELS (SOURCE DE VÉRITÉ)
+// ============================================
+
+model PlanningEvent {
+  id            String  @id @default(cuid())
+  agencyId      String
+  vehicleId     String?
+  bookingId     String?
+  maintenanceId String?
+
+  type        PlanningEventType
+  title       String
+  description String?
+
+  startDate DateTime
+  endDate   DateTime
+
+  // Temps de préparation
+  isPreparationTime Boolean @default(false)
+  isLate            Boolean @default(false) // Si créé après retard
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency      Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  booking     Booking?     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  maintenance Maintenance? @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([vehicleId])
+  @@index([bookingId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([type])
+}
+
+// ============================================
+// MAINTENANCE MODELS
+// ============================================
+
+model Maintenance {
+  id          String            @id @default(cuid())
+  agencyId    String
+  vehicleId   String
+  description String
+  plannedAt   DateTime?
+  cost        Float?
+  status      MaintenanceStatus @default(PLANNED)
+  documentUrl String? // URL de la facture ou du devis
+
+  // Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  // Soft delete
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency         Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  documents      Document[]
+  planningEvents PlanningEvent[]
+
+  @@index([agencyId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([plannedAt])
+  @@index([deletedAt])
+}
+
+// ============================================
+// INCIDENT MODELS
+// ============================================
+
+model Incident {
+  id       String         @id @default(cuid())
+  agencyId String
+  type     IncidentType
+  status   IncidentStatus @default(REPORTED)
+
+  // Relations
+  bookingId String?
+  vehicleId String?
+  clientId  String?
+
+  title       String
+  description String
+  amount      Float? // Pour amendes
+
+  // Résolution
+  resolvedAt DateTime?
+  resolvedBy String? // User ID
+  resolution String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency    Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  booking   Booking?   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle?   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  client    Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([agencyId])
+  @@index([bookingId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([type])
+}
+
+// ============================================
+// FINE MODELS (Legacy - maintenant dans Incident)
+// ============================================
+
+model Fine {
+  id            String  @id @default(cuid())
+  agencyId      String
+  bookingId     String
+  amount        Float
+  description   String
+  number        String? // Numéro de l'amende
+  location      String? // Lieu de l'amende
+  attachmentUrl String? // URL de la pièce jointe
+
+  // Audit fields (auto-populated by backend, never editable from frontend)
+  createdByUserId String?
+  updatedByUserId String?
+  deletedByUserId String?
+  deletedReason   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([bookingId])
+}
+
+// ============================================
+// DOCUMENT MODELS
+// ============================================
+
+model Document {
+  id          String       @id @default(cuid())
+  type        DocumentType
+  title       String
+  description String?
+
+  // Stockage S3
+  url      String // URL S3
+  key      String // Key S3
+  size     Int? // Taille en bytes
+  mimeType String?
+
+  // Relations (polymorphique)
+  clientId      String?
+  vehicleId     String?
+  bookingId     String?
+  maintenanceId String?
+  incidentId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client      Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  booking     Booking?     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  maintenance Maintenance? @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  incident    Incident?    @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([vehicleId])
+  @@index([bookingId])
+  @@index([type])
+}
+
+// ============================================
+// PAYMENT MODELS
+// ============================================
+
+model Payment {
+  id        String @id @default(cuid())
+  agencyId  String
+  bookingId String
+
+  amount Float
+  method PaymentMethod
+  status PaymentStatus @default(PENDING)
+
+  // CMI
+  cmiTransactionId String?
+  cmiResponse      Json? // Réponse complète CMI
+
+  // Acompte ou total
+  isDeposit     Boolean @default(false)
+  depositAmount Float? // Si acompte
+
+  // Caution
+  depositHeld     Float? // Caution retenue
+  depositReturned Float? // Caution retournée
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([cmiTransactionId])
+}
+
+// ============================================
+// INVOICE MODELS
+// ============================================
+
+model Invoice {
+  id           String        @id @default(cuid())
+  agencyId     String
+  bookingId    String
+  invoiceNumber String       @unique // Numéro incrémental par agence
+  issuedAt     DateTime
+  totalAmount  Decimal       @db.Decimal(10, 2)
+  status       InvoiceStatus @default(ISSUED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([bookingId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([issuedAt])
+}
+
+// ============================================
+// BUSINESS EVENT LOG MODELS
+// ============================================
+
+enum BusinessEventType {
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_CANCELLED
+  BOOKING_STATUS_CHANGED
+  VEHICLE_CREATED
+  VEHICLE_UPDATED
+  VEHICLE_DELETED
+  VEHICLE_STATUS_CHANGED
+  CLIENT_CREATED
+  CLIENT_UPDATED
+  CLIENT_DELETED
+  MAINTENANCE_CREATED
+  MAINTENANCE_UPDATED
+  MAINTENANCE_STATUS_CHANGED
+  FINE_CREATED
+  FINE_UPDATED
+  FINE_DELETED
+  COMPANY_CREATED
+  COMPANY_UPDATED
+  COMPANY_DELETED
+  AGENCY_CREATED
+  AGENCY_UPDATED
+  AGENCY_DELETED
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+}
+
+model BusinessEventLog {
+  id String @id @default(cuid())
+
+  agencyId  String? // Optional for company-level events
+  companyId String? // Optional for super-admin level events
+
+  // Entity information
+  entityType String // "Booking", "Vehicle", "Client", "Maintenance", "Fine", "Company", "Agency", "User"
+  entityId   String
+
+  // Event details
+  eventType     BusinessEventType
+  previousState Json? // State before the event (for updates)
+  newState      Json? // State after the event
+
+  // Who triggered it
+  triggeredByUserId String?
+
+  createdAt DateTime @default(now())
+
+  agency  Agency?  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([companyId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([eventType])
+  @@index([triggeredByUserId])
+  @@index([createdAt])
+}
+
+// ============================================
+// NOTIFICATION MODELS
+// ============================================
+
+model Notification {
+  id String @id @default(cuid())
+
+  channel   NotificationChannel
+  type      NotificationType
+  recipient String // Email, phone, user ID selon channel
+  subject   String?
+  content   String
+  metadata  Json? // Données additionnelles
+
+  // Statut
+  sent   Boolean   @default(false)
+  sentAt DateTime?
+  error  String?
+
+  // Opt-in (pour marketing)
+  requiresOptIn Boolean @default(false)
+  optInConsent  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([recipient])
+  @@index([channel])
+  @@index([type])
+  @@index([sent])
+}
+
+// ============================================
+// BUSINESS RULES MODELS
+// ============================================
+
+model BusinessRule {
+  id        String  @id @default(cuid())
+  companyId String?
+  agencyId  String?
+
+  key         String // Ex: "preparation_time_standard", "preparation_time_late"
+  value       String // Ex: "1h", "2h"
+  description String?
+
+  // Versionnement
+  version  Int     @default(1)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agency  Agency?  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([agencyId])
+  @@index([key])
+  @@index([isActive])
+}
+
+// ============================================
+// AUTH MODELS
+// ============================================
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  revoked   Boolean   @default(false)
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([revoked])
+}
+
+// ============================================
+// AUDIT LOGS MODELS
+// ============================================
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Qui
+  userId    String?
+  companyId String?
+  agencyId  String?
+
+  // Quoi
+  action     AuditAction
+  entityType String? // "Booking", "Vehicle", etc.
+  entityId   String?
+
+  // Détails
+  description String
+  metadata    Json? // Données avant/après, IP, user agent, etc.
+
+  // Contexte
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([agencyId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+// ============================================
+// SAAS MODELS - Facturation et Modules
+// ============================================
+
+// Plan d'abonnement SaaS (Starter, Pro, Enterprise)
+// Définit les modules inclus et les quotas par défaut
+model Plan {
+  id          String  @id @default(cuid())
+  name        String  @unique // "Starter", "Pro", "Enterprise"
+  description String?
+  price       Float // Prix mensuel de base
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planModules   PlanModule[]
+  planQuotas    PlanQuota[]
+  subscriptions Subscription[]
+
+  @@index([isActive])
+}
+
+// Modules inclus dans un Plan
+// Définit quels modules sont disponibles dans chaque plan
+model PlanModule {
+  id         String     @id @default(cuid())
+  planId     String
+  moduleCode ModuleCode
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, moduleCode])
+  @@index([planId])
+  @@index([moduleCode])
+}
+
+// Quotas définis dans un Plan
+// Limites par défaut (agences, utilisateurs, véhicules, etc.)
+model PlanQuota {
+  id         String @id @default(cuid())
+  planId     String
+  quotaKey   String // "max_agencies", "max_users", "max_vehicles", etc.
+  quotaValue Int // Valeur du quota (-1 = illimité)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, quotaKey])
+  @@index([planId])
+}
+
+// Abonnement d'une Company
+// Un Company peut avoir un seul abonnement actif à la fois
+model Subscription {
+  id        String @id @default(cuid())
+  companyId String @unique
+  planId    String
+
+  status        SubscriptionStatus @default(ACTIVE)
+  billingPeriod BillingPeriod      @default(MONTHLY)
+
+  // Dates
+  startDate   DateTime
+  endDate     DateTime
+  renewedAt   DateTime? // Date du dernier renouvellement
+  cancelledAt DateTime? // Date d'annulation
+
+  // Montant
+  amount Float // Montant de l'abonnement (peut différer du plan si modifié)
+
+  // Audit
+  createdByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan                Plan                 @relation(fields: [planId], references: [id])
+  subscriptionModules SubscriptionModule[]
+  paymentsSaas        PaymentSaas[]
+
+  @@index([companyId])
+  @@index([planId])
+  @@index([status])
+  @@index([endDate])
+}
+
+// Modules activés dans un abonnement
+// Liste des modules inclus dans l'abonnement actuel
+model SubscriptionModule {
+  id             String     @id @default(cuid())
+  subscriptionId String
+  moduleCode     ModuleCode
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, moduleCode])
+  @@index([subscriptionId])
+  @@index([moduleCode])
+}
+
+// Paiements d'abonnement SaaS
+// Différent du modèle Payment (qui est pour les paiements de location)
+model PaymentSaas {
+  id             String @id @default(cuid())
+  subscriptionId String
+  companyId      String
+
+  amount Float
+  status PaymentStatus @default(PENDING)
+  method PaymentMethod @default(BANK_TRANSFER) // Manuel uniquement pour V1
+
+  // Paiement en ligne (hooks préparés pour V2)
+  onlinePaymentId       String? // ID transaction paiement en ligne (futur)
+  onlinePaymentResponse Json? // Réponse complète (futur)
+
+  // Dates
+  dueDate DateTime // Date d'échéance
+  paidAt  DateTime? // Date de paiement effectif
+
+  // Références
+  invoiceNumber String? // Numéro de facture
+  invoiceUrl    String? // URL de la facture
+
+  // Audit
+  createdByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([companyId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// Modules activés au niveau Company
+// CompanyModule = modules payés (hérités par toutes les agences)
+model CompanyModule {
+  id         String     @id @default(cuid())
+  companyId  String
+  moduleCode ModuleCode
+
+  isActive Boolean @default(true) // Module activé ou désactivé
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, moduleCode])
+  @@index([companyId])
+  @@index([moduleCode])
+  @@index([isActive])
+}
+
+// Modules activés au niveau Agency
+// AgencyModule = modules actifs (peut désactiver un module Company, mais pas activer un module non payé)
+model AgencyModule {
+  id         String     @id @default(cuid())
+  agencyId   String
+  moduleCode ModuleCode
+
+  isActive Boolean @default(true) // Module activé ou désactivé pour cette agence
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, moduleCode])
+  @@index([agencyId])
+  @@index([moduleCode])
+  @@index([isActive])
+}
+
+// Dépendances entre modules
+// Définit quels modules dépendent d'autres modules
+// Ex: BOOKINGS → VEHICLES, INVOICES → BOOKINGS, etc.
+model ModuleDependency {
+  id            String     @id @default(cuid())
+  moduleCode    ModuleCode // Module qui dépend
+  dependsOnCode ModuleCode // Module requis
+
+  @@unique([moduleCode, dependsOnCode])
+  @@index([moduleCode])
+  @@index([dependsOnCode])
+}
+
+// Préférences de notification par Company
+// Paramétrage des canaux de notification (email, in-app, les deux)
+model NotificationPreference {
+  id        String @id @default(cuid())
+  companyId String @unique
+
+  // Canaux activés
+  emailEnabled Boolean @default(true)
+  inAppEnabled Boolean @default(true)
+
+  // Types de notifications
+  billingNotificationsEmail Boolean @default(true) // Notifications facturation par email
+  billingNotificationsInApp Boolean @default(true) // Notifications facturation in-app
+  systemNotificationsEmail  Boolean @default(true) // Notifications système par email
+  systemNotificationsInApp  Boolean @default(true) // Notifications système in-app
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}

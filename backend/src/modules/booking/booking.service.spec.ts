@@ -1,0 +1,198 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BookingService } from './booking.service';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { PlanningService } from '../planning/planning.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditService as CommonAuditService } from '../../common/services/audit.service';
+import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
+import { InvoiceService } from '../invoice/invoice.service';
+
+describe('BookingService', () => {
+  let service: BookingService;
+  let prismaService: PrismaService;
+  let planningService: PlanningService;
+
+  const mockPrismaService = {
+    booking: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    vehicle: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    client: {
+      findFirst: jest.fn(),
+    },
+    agency: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+    },
+  };
+
+  const mockPlanningService = {
+    getVehicleAvailability: jest.fn(),
+    detectConflicts: jest.fn(),
+    createBookingEvent: jest.fn(),
+    deleteBookingEvents: jest.fn(),
+    createPreparationTime: jest.fn(),
+  };
+
+  const mockAuditService = {
+    log: jest.fn(),
+    logBookingStatusChange: jest.fn(),
+  };
+
+  const mockCommonAuditService = {
+    addCreateAuditFields: jest.fn((data, userId) => ({ ...data, createdByUserId: userId })),
+    addUpdateAuditFields: jest.fn((data, userId) => ({ ...data, updatedByUserId: userId })),
+    removeAuditFields: jest.fn((data) => data),
+  };
+
+  const mockBusinessEventLogService = {
+    logEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockInvoiceService = {
+    generateInvoice: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BookingService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: PlanningService, useValue: mockPlanningService },
+        { provide: AuditService, useValue: mockAuditService },
+        { provide: CommonAuditService, useValue: mockCommonAuditService },
+        { provide: BusinessEventLogService, useValue: mockBusinessEventLogService },
+        { provide: InvoiceService, useValue: mockInvoiceService },
+      ],
+    }).compile();
+
+    service = module.get<BookingService>(BookingService);
+    prismaService = module.get<PrismaService>(PrismaService);
+    planningService = module.get<PlanningService>(PlanningService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    const createBookingDto = {
+      agencyId: 'agency-1',
+      vehicleId: 'vehicle-1',
+      clientId: 'client-1',
+      startDate: '2024-01-15T00:00:00Z',
+      endDate: '2024-01-20T00:00:00Z',
+      totalPrice: 500,
+      status: 'CONFIRMED' as const,
+    };
+
+    it('should throw ConflictException if vehicle is not available', async () => {
+      const mockVehicle = {
+        id: 'vehicle-1',
+        agencyId: 'agency-1',
+        brand: 'Toyota',
+        model: 'Corolla',
+        status: 'AVAILABLE',
+      };
+      const mockClient = {
+        id: 'client-1',
+        agencyId: 'agency-1',
+        name: 'John Doe',
+        licenseNumber: 'ABC123',
+        licenseExpiryDate: new Date('2025-12-31'),
+      };
+
+      mockPrismaService.vehicle.findFirst.mockResolvedValue(mockVehicle);
+      mockPrismaService.client.findFirst.mockResolvedValue(mockClient);
+      mockPlanningService.getVehicleAvailability.mockResolvedValue(false);
+      mockPlanningService.detectConflicts.mockResolvedValue([
+        { id: 'conflict-1', startDate: new Date(), endDate: new Date() },
+      ]);
+
+      await expect(service.create(createBookingDto, 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('should throw BadRequestException if vehicle not found', async () => {
+      mockPlanningService.getVehicleAvailability.mockResolvedValue(true);
+      mockPrismaService.vehicle.findFirst.mockResolvedValue(null);
+
+      await expect(service.create(createBookingDto, 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should create booking when all validations pass', async () => {
+      const mockVehicle = {
+        id: 'vehicle-1',
+        agencyId: 'agency-1',
+        brand: 'Toyota',
+        model: 'Corolla',
+        status: 'AVAILABLE',
+      };
+
+      const mockClient = {
+        id: 'client-1',
+        agencyId: 'agency-1',
+        name: 'John Doe',
+        licenseNumber: 'ABC123',
+        licenseExpiryDate: new Date('2025-12-31'),
+      };
+
+      const mockBooking = {
+        id: 'booking-1',
+        ...createBookingDto,
+        vehicle: mockVehicle,
+        client: mockClient,
+        agency: { id: 'agency-1', company: { id: 'company-1' } },
+      };
+
+      const mockAgency = {
+        id: 'agency-1',
+        preparationTimeMinutes: 60,
+      };
+
+      mockPlanningService.getVehicleAvailability.mockResolvedValue(true);
+      mockPrismaService.agency.findUnique.mockResolvedValue(mockAgency);
+      mockPrismaService.vehicle.findFirst.mockResolvedValue(mockVehicle);
+      mockPrismaService.client.findFirst.mockResolvedValue(mockClient);
+      mockPrismaService.booking.findMany.mockResolvedValue([]); // Pas de bookings actifs
+      mockPrismaService.booking.create.mockResolvedValue(mockBooking);
+      mockPrismaService.vehicle.update.mockResolvedValue({ ...mockVehicle, status: 'RENTED' });
+      mockPlanningService.createBookingEvent.mockResolvedValue(undefined);
+
+      const result = await service.create(createBookingDto, 'user-1');
+
+      expect(result).toEqual(mockBooking);
+      expect(mockPrismaService.booking.create).toHaveBeenCalled();
+      expect(mockPlanningService.createBookingEvent).toHaveBeenCalled();
+    });
+  });
+
+  describe('isValidStatusTransition', () => {
+    it('should return true for valid transitions', () => {
+      expect(service['isValidStatusTransition']('DRAFT', 'PENDING')).toBe(true);
+      expect(service['isValidStatusTransition']('PENDING', 'CONFIRMED')).toBe(true);
+      expect(service['isValidStatusTransition']('CONFIRMED', 'IN_PROGRESS')).toBe(true);
+      expect(service['isValidStatusTransition']('IN_PROGRESS', 'RETURNED')).toBe(true);
+    });
+
+    it('should return false for invalid transitions', () => {
+      expect(service['isValidStatusTransition']('DRAFT', 'RETURNED')).toBe(false);
+      expect(service['isValidStatusTransition']('RETURNED', 'CONFIRMED')).toBe(false);
+      expect(service['isValidStatusTransition']('CANCELLED', 'IN_PROGRESS')).toBe(false);
+    });
+  });
+});
+
+
+

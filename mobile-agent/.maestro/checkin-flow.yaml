@@ -1,0 +1,35 @@
+appId: host.exp.Exponent
+---
+# Test: Check-in Flow
+- launchApp
+# Login
+- tapOn: "auth.email"
+- inputText: "agent1@autolocation.fr"
+- tapOn: "auth.password"
+- inputText: "agent123"
+- tapOn: "auth.login"
+# Navigate to booking
+- tapOn: "#booking-"
+- assertVisible: "checkIn.title"
+# Fill check-in form
+- tapOn: "checkIn.odometerStart"
+- inputText: "1000"
+- tapOn: "checkIn.fuelLevelStart"
+- scroll
+- tapOn: "FULL"
+# Add photos
+- tapOn: "common.camera"
+- tapOn: "OK"
+# Add signature
+- tapOn: "common.signHere"
+- swipe:
+    direction: DOWN
+    startPoint: "50%,50%"
+    endPoint: "50%,30%"
+- tapOn: "common.confirm"
+- tapOn: "checkIn.submit"
+- assertVisible: "booking.status.ACTIVE"
+
+
+
+

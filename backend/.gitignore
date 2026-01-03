@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Uploaded files (images, documents)
+uploads/
+
+
+
+
+

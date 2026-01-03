@@ -1,0 +1,15 @@
+appId: host.exp.Exponent
+---
+# Test: Login Flow
+- launchApp
+- assertVisible: "MalocAuto"
+- tapOn: "auth.email"
+- inputText: "agent1@autolocation.fr"
+- tapOn: "auth.password"
+- inputText: "agent123"
+- tapOn: "auth.login"
+- assertVisible: "booking.title"
+
+
+
+

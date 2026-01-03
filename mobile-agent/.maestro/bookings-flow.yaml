@@ -1,0 +1,20 @@
+appId: host.exp.Exponent
+---
+# Test: Bookings Flow
+- launchApp
+# Login
+- tapOn: "auth.email"
+- inputText: "agent1@autolocation.fr"
+- tapOn: "auth.password"
+- inputText: "agent123"
+- tapOn: "auth.login"
+- assertVisible: "booking.title"
+# View bookings
+- assertVisible: "booking.noBookings"
+# Create booking (if AGENCY_MANAGER)
+- tapOn: "booking.create"
+- assertVisible: "booking.create"
+
+
+
+

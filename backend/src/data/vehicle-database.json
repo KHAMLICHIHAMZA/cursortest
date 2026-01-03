@@ -1,0 +1,206 @@
+[
+  {
+    "brand": "Peugeot",
+    "models": [
+      { "name": "208", "years": [2012, 2023], "horsepower": [68, 130], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "301", "years": [2012, 2023], "horsepower": [72, 115], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "308", "years": [2013, 2023], "horsepower": [110, 180], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "3008", "years": [2016, 2023], "horsepower": [120, 200], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "5008", "years": [2017, 2023], "horsepower": [130, 180], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Renault",
+    "models": [
+      { "name": "Clio", "years": [2012, 2023], "horsepower": [75, 130], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Logan", "years": [2014, 2023], "horsepower": [75, 90], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle"] },
+      { "name": "Duster", "years": [2010, 2023], "horsepower": [105, 150], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Kadjar", "years": [2015, 2023], "horsepower": [130, 160], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Koleos", "years": [2016, 2023], "horsepower": [150, 175], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "Dacia",
+    "models": [
+      { "name": "Sandero", "years": [2012, 2023], "horsepower": [75, 90], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle"] },
+      { "name": "Logan", "years": [2012, 2023], "horsepower": [75, 90], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle"] },
+      { "name": "Duster", "years": [2010, 2023], "horsepower": [105, 150], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Lodgy", "years": [2012, 2022], "horsepower": [90, 110], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle"] }
+    ]
+  },
+  {
+    "brand": "Hyundai",
+    "models": [
+      { "name": "i10", "years": [2013, 2023], "horsepower": [67, 100], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "i20", "years": [2014, 2023], "horsepower": [84, 120], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "i30", "years": [2011, 2023], "horsepower": [120, 150], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Tucson", "years": [2015, 2023], "horsepower": [150, 185], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Santa Fe", "years": [2018, 2023], "horsepower": [200, 250], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "Kia",
+    "models": [
+      { "name": "Picanto", "years": [2011, 2023], "horsepower": [67, 100], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Rio", "years": [2011, 2023], "horsepower": [84, 120], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Ceed", "years": [2018, 2023], "horsepower": [120, 140], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Sportage", "years": [2016, 2023], "horsepower": [136, 185], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Sorento", "years": [2015, 2023], "horsepower": [200, 250], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "Volkswagen",
+    "models": [
+      { "name": "Polo", "years": [2009, 2023], "horsepower": [60, 200], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Golf", "years": [2008, 2023], "horsepower": [85, 300], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Passat", "years": [2010, 2023], "horsepower": [120, 280], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Tiguan", "years": [2016, 2023], "horsepower": [150, 220], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Ford",
+    "models": [
+      { "name": "Fiesta", "years": [2008, 2023], "horsepower": [60, 200], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Focus", "years": [2011, 2023], "horsepower": [85, 350], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Mondeo", "years": [2014, 2022], "horsepower": [120, 240], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Kuga", "years": [2012, 2023], "horsepower": [150, 250], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Opel",
+    "models": [
+      { "name": "Corsa", "years": [2014, 2023], "horsepower": [75, 155], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Astra", "years": [2015, 2023], "horsepower": [105, 200], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Insignia", "years": [2017, 2023], "horsepower": [140, 260], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Crossland", "years": [2017, 2023], "horsepower": [110, 130], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Citroën",
+    "models": [
+      { "name": "C3", "years": [2016, 2023], "horsepower": [68, 110], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "C4", "years": [2010, 2023], "horsepower": [95, 180], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "C5", "years": [2017, 2023], "horsepower": [130, 180], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Berlingo", "years": [2018, 2023], "horsepower": [75, 130], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle"] }
+    ]
+  },
+  {
+    "brand": "Toyota",
+    "models": [
+      { "name": "Yaris", "years": [2011, 2023], "horsepower": [69, 116], "fuel": ["Essence", "Hybride"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Corolla", "years": [2018, 2023], "horsepower": [122, 180], "fuel": ["Essence", "Hybride"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Camry", "years": [2017, 2023], "horsepower": [181, 301], "fuel": ["Essence", "Hybride"], "gearbox": ["Automatique"] },
+      { "name": "RAV4", "years": [2018, 2023], "horsepower": [203, 219], "fuel": ["Essence", "Hybride"], "gearbox": ["Automatique"] },
+      { "name": "Land Cruiser", "years": [2015, 2023], "horsepower": [249, 381], "fuel": ["Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "Nissan",
+    "models": [
+      { "name": "Micra", "years": [2016, 2023], "horsepower": [71, 117], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Sentra", "years": [2019, 2023], "horsepower": [149], "fuel": ["Essence"], "gearbox": ["Automatique"] },
+      { "name": "Altima", "years": [2018, 2023], "horsepower": [188, 248], "fuel": ["Essence"], "gearbox": ["Automatique"] },
+      { "name": "Qashqai", "years": [2013, 2023], "horsepower": [115, 190], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "X-Trail", "years": [2014, 2023], "horsepower": [130, 190], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Mercedes-Benz",
+    "models": [
+      { "name": "Classe A", "years": [2018, 2023], "horsepower": [136, 421], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Classe C", "years": [2014, 2023], "horsepower": [156, 510], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] },
+      { "name": "Classe E", "years": [2016, 2023], "horsepower": [184, 612], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] },
+      { "name": "GLC", "years": [2015, 2023], "horsepower": [184, 510], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "BMW",
+    "models": [
+      { "name": "Série 1", "years": [2019, 2023], "horsepower": [140, 306], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Série 3", "years": [2018, 2023], "horsepower": [150, 510], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Série 5", "years": [2016, 2023], "horsepower": [184, 625], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] },
+      { "name": "X3", "years": [2017, 2023], "horsepower": [184, 510], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] },
+      { "name": "X5", "years": [2018, 2023], "horsepower": [265, 625], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "Audi",
+    "models": [
+      { "name": "A3", "years": [2012, 2023], "horsepower": [110, 400], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "A4", "years": [2015, 2023], "horsepower": [150, 450], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "A6", "years": [2018, 2023], "horsepower": [204, 600], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] },
+      { "name": "Q5", "years": [2017, 2023], "horsepower": [190, 367], "fuel": ["Essence", "Diesel"], "gearbox": ["Automatique"] }
+    ]
+  },
+  {
+    "brand": "Fiat",
+    "models": [
+      { "name": "Panda", "years": [2011, 2023], "horsepower": [69, 85], "fuel": ["Essence"], "gearbox": ["Manuelle"] },
+      { "name": "500", "years": [2007, 2023], "horsepower": [69, 135], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Tipo", "years": [2015, 2023], "horsepower": [95, 120], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Seat",
+    "models": [
+      { "name": "Ibiza", "years": [2008, 2023], "horsepower": [75, 150], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Leon", "years": [2012, 2023], "horsepower": [110, 300], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Ateca", "years": [2016, 2023], "horsepower": [115, 190], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Skoda",
+    "models": [
+      { "name": "Fabia", "years": [2014, 2023], "horsepower": [75, 150], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Octavia", "years": [2013, 2023], "horsepower": [115, 245], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Kodiaq", "years": [2016, 2023], "horsepower": [150, 245], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Suzuki",
+    "models": [
+      { "name": "Swift", "years": [2010, 2023], "horsepower": [75, 140], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Vitara", "years": [2015, 2023], "horsepower": [120, 140], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "S-Cross", "years": [2013, 2023], "horsepower": [120, 140], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Mazda",
+    "models": [
+      { "name": "Mazda2", "years": [2014, 2023], "horsepower": [75, 115], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Mazda3", "years": [2013, 2023], "horsepower": [120, 186], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "CX-5", "years": [2012, 2023], "horsepower": [150, 194], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Mitsubishi",
+    "models": [
+      { "name": "Lancer", "years": [2007, 2017], "horsepower": [109, 177], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Outlander", "years": [2012, 2023], "horsepower": [150, 224], "fuel": ["Essence", "Hybride"], "gearbox": ["Automatique"] },
+      { "name": "ASX", "years": [2010, 2023], "horsepower": [117, 150], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Chevrolet",
+    "models": [
+      { "name": "Spark", "years": [2009, 2023], "horsepower": [68, 98], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Cruze", "years": [2009, 2019], "horsepower": [109, 184], "fuel": ["Essence", "Diesel"], "gearbox": ["Manuelle", "Automatique"] },
+      { "name": "Trax", "years": [2013, 2023], "horsepower": [138, 155], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Geely",
+    "models": [
+      { "name": "Coolray", "years": [2019, 2023], "horsepower": [177], "fuel": ["Essence"], "gearbox": ["Automatique"] },
+      { "name": "Atlas", "years": [2017, 2023], "horsepower": [141, 184], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  },
+  {
+    "brand": "Chery",
+    "models": [
+      { "name": "QQ", "years": [2003, 2023], "horsepower": [51, 82], "fuel": ["Essence"], "gearbox": ["Manuelle"] },
+      { "name": "Tiggo", "years": [2015, 2023], "horsepower": [108, 147], "fuel": ["Essence"], "gearbox": ["Manuelle", "Automatique"] }
+    ]
+  }
+]
+
