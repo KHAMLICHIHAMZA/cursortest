@@ -15,7 +15,7 @@ export class PlanningController {
   constructor(private readonly planningService: PlanningService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get planning data for FullCalendar' })
+  @ApiOperation({ summary: 'Get planning data' })
   async getPlanning(@Query() query: GetPlanningDto, @CurrentUser() user: any) {
     const start = query.start ? new Date(query.start) : new Date();
     const end = query.end ? new Date(query.end) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -55,7 +55,7 @@ export class PlanningController {
       return { resources: [], events: [] };
     }
 
-    // Récupérer les véhicules (ressources pour FullCalendar)
+    // Récupérer les véhicules (ressources pour le planning)
     const vehicles = await this.planningService['prisma'].vehicle.findMany({
       where: {
         agencyId: { in: accessibleAgencyIds },
@@ -74,6 +74,36 @@ export class PlanningController {
         { model: 'asc' },
       ],
     });
+
+    const normalizePlate = (plate?: string) =>
+      (plate || '').replace(/[\s-]/g, '').toUpperCase();
+
+    const vehicleKeyToCanonical = new Map<string, typeof vehicles[number]>();
+    const vehicleIdToCanonicalId = new Map<string, string>();
+
+    vehicles.forEach((vehicle) => {
+      const normalizedPlate = normalizePlate(vehicle.registrationNumber);
+      const key = `${vehicle.agencyId}:${normalizedPlate || vehicle.id}`;
+      const existing = vehicleKeyToCanonical.get(key);
+      if (!existing) {
+        vehicleKeyToCanonical.set(key, vehicle);
+        return;
+      }
+      if (vehicle.updatedAt > existing.updatedAt) {
+        vehicleKeyToCanonical.set(key, vehicle);
+      }
+    });
+
+    vehicles.forEach((vehicle) => {
+      const normalizedPlate = normalizePlate(vehicle.registrationNumber);
+      const key = `${vehicle.agencyId}:${normalizedPlate || vehicle.id}`;
+      const canonical = vehicleKeyToCanonical.get(key);
+      if (canonical) {
+        vehicleIdToCanonicalId.set(vehicle.id, canonical.id);
+      }
+    });
+
+    const dedupedVehicles = Array.from(vehicleKeyToCanonical.values());
 
     // Récupérer les bookings dans la période
     const bookings = await this.planningService['prisma'].booking.findMany({
@@ -147,7 +177,7 @@ export class PlanningController {
     });
 
     // Formater les ressources (véhicules)
-    const resources = vehicles.map((vehicle) => ({
+    const resources = dedupedVehicles.map((vehicle) => ({
       id: vehicle.id,
       title: `${vehicle.brand} ${vehicle.model} (${vehicle.registrationNumber})`,
       extendedProps: {
@@ -163,19 +193,39 @@ export class PlanningController {
     // Formater les événements
     const events: any[] = [];
 
+    const normalizeEventType = (value: unknown): string => {
+      const raw = typeof value === 'string' ? value : '';
+      const normalized = raw.trim().toUpperCase();
+      return normalized || 'OTHER';
+    };
+
+    const normalizeToKnownType = (value: unknown): 'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER' => {
+      const normalized = normalizeEventType(value);
+      if (normalized === 'BOOKING') return 'BOOKING';
+      if (normalized === 'MAINTENANCE') return 'MAINTENANCE';
+      if (normalized === 'PREPARATION_TIME') return 'PREPARATION_TIME';
+      return 'OTHER';
+    };
+
+    const typeToColor: Record<'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER', string> = {
+      BOOKING: '#2563EB',
+      MAINTENANCE: '#EF4444',
+      PREPARATION_TIME: '#10B981',
+      OTHER: '#6B7280',
+    };
+
     // Bookings
     bookings.forEach((booking) => {
-      const isActive = booking.status === 'IN_PROGRESS';
-      const isUpcoming = new Date(booking.startDate) > new Date();
+      const bookingColor = typeToColor.BOOKING;
 
       events.push({
         id: `booking-${booking.id}`,
-        resourceId: booking.vehicleId,
+        resourceId: vehicleIdToCanonicalId.get(booking.vehicleId) || booking.vehicleId,
         title: `${booking.client.name} - ${booking.vehicle.brand} ${booking.vehicle.model}`,
         start: booking.startDate.toISOString(),
         end: booking.endDate.toISOString(),
-        backgroundColor: isActive ? '#3B82F6' : isUpcoming ? '#F59E0B' : '#10B981',
-        borderColor: isActive ? '#2563EB' : isUpcoming ? '#D97706' : '#059669',
+        backgroundColor: bookingColor,
+        borderColor: bookingColor,
         extendedProps: {
           type: 'BOOKING',
           bookingId: booking.id,
@@ -214,12 +264,12 @@ export class PlanningController {
 
       events.push({
         id: `maintenance-${maintenance.id}`,
-        resourceId: maintenance.vehicleId,
+        resourceId: vehicleIdToCanonicalId.get(maintenance.vehicleId) || maintenance.vehicleId,
         title: `Maintenance: ${maintenance.description}`,
         start: maintenanceStart.toISOString(),
         end: maintenanceEnd.toISOString(),
-        backgroundColor: maintenance.status === 'IN_PROGRESS' ? '#EF4444' : '#6B7280',
-        borderColor: maintenance.status === 'IN_PROGRESS' ? '#DC2626' : '#4B5563',
+        backgroundColor: typeToColor.MAINTENANCE,
+        borderColor: typeToColor.MAINTENANCE,
         extendedProps: {
           type: 'MAINTENANCE',
           maintenanceId: maintenance.id,
@@ -233,24 +283,21 @@ export class PlanningController {
 
     // Événements de planning (temps de préparation, blocages)
     planningEvents.forEach((event) => {
+      const normalizedType = normalizeToKnownType(event.type);
+      if (normalizedType === 'BOOKING' || normalizedType === 'MAINTENANCE') {
+        return;
+      }
+      const color = typeToColor[normalizedType];
       events.push({
         id: `event-${event.id}`,
-        resourceId: event.vehicleId,
+        resourceId: vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId,
         title: event.title,
         start: event.startDate.toISOString(),
         end: event.endDate.toISOString(),
-        backgroundColor: event.isPreparationTime
-          ? event.isLate
-            ? '#F59E0B'
-            : '#10B981'
-          : '#6B7280',
-        borderColor: event.isPreparationTime
-          ? event.isLate
-            ? '#D97706'
-            : '#059669'
-          : '#4B5563',
+        backgroundColor: color,
+        borderColor: color,
         extendedProps: {
-          type: event.type,
+          type: normalizedType,
           eventId: event.id,
           description: event.description,
           isPreparationTime: event.isPreparationTime,

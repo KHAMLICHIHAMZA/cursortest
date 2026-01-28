@@ -53,7 +53,7 @@ Le BookingService utilise le PlanningService pour :
 
 ## 📡 Endpoints API
 
-- `GET /api/planning` - Données FullCalendar
+- `GET /api/planning` - Données du planning
 - `POST /api/planning/check-availability` - Vérifier disponibilité
 - `GET /api/planning/next-availability/:vehicleId` - Prochaine disponibilité
 - `POST /api/planning/preparation-time` - Créer temps de préparation

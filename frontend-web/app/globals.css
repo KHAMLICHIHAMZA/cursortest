@@ -42,7 +42,9 @@ a {
   direction: rtl;
 }
 
-/* FullCalendar Custom Styles */
+/* FullCalendar Custom Styles - DEPRECATED: Plus utilisé, remplacé par PlanningBoard */
+/* Ces styles sont conservés pour référence mais ne sont plus utilisés */
+/*
 .fc {
   color: var(--text);
   font-family: 'Inter', system-ui, sans-serif;
@@ -295,6 +297,7 @@ a {
 .fc-scroller::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+*/
 
 /* Accessibility - Clickable zones >= 44px */
 button,

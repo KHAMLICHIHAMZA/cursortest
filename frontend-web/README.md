@@ -36,13 +36,13 @@ app/
 │   ├── bookings/    # Gestion des réservations
 │   ├── maintenance/ # Gestion de la maintenance
 │   ├── fines/       # Gestion des amendes
-│   └── planning/    # Planning FullCalendar
+│   └── planning/    # Planning avec PlanningBoard
 ├── login/          # Page de connexion
 └── reset-password/ # Réinitialisation mot de passe
 
 components/
 ├── layout/         # Sidebar, Header, MainLayout
-├── planning/       # Composant FullCalendar
+├── planning/       # Composant PlanningBoard personnalisé
 └── ui/             # Composants UI réutilisables
 
 lib/
@@ -72,7 +72,7 @@ L'authentification utilise JWT stocké dans des cookies HTTP-only.
 - **Next.js 14** - Framework React
 - **React Query** - Gestion d'état serveur
 - **Axios** - Client HTTP
-- **FullCalendar** - Planning Timeline
+- **PlanningBoard** - Planning personnalisé (Jour/Semaine/Mois)
 - **Tailwind CSS** - Styling
 - **Zod** - Validation
 - **react-hook-form** - Gestion de formulaires

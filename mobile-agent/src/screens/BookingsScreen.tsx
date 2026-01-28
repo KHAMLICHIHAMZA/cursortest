@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   SectionList,
+  TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -38,6 +39,12 @@ export const BookingsScreen: React.FC = () => {
   const { agencies, user } = useAuth();
   const agencyId = agencies[0]?.id;
   const [pendingOfflineActions, setPendingOfflineActions] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [vehicleFilterId, setVehicleFilterId] = useState<string>('');
+  const [taskTypeFilter, setTaskTypeFilter] = useState<'ALL' | 'CHECK_IN' | 'CHECK_OUT'>('ALL');
+  const [search, setSearch] = useState<string>('');
+  const [showVehiclePicker, setShowVehiclePicker] = useState(false);
 
   // Debug: Log pour vérifier les agences
   useEffect(() => {
@@ -120,16 +127,74 @@ export const BookingsScreen: React.FC = () => {
     return tasks;
   }, [bookings]);
 
+  const vehicleChoices = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }>();
+    missions.forEach((mission) => {
+      const id = mission.vehicle?.id;
+      if (!id) return;
+      const reg = mission.vehicle?.registrationNumber || '';
+      const brandModel = `${mission.vehicle?.brand || ''} ${mission.vehicle?.model || ''}`.trim();
+      const label = `${reg}${brandModel ? ` - ${brandModel}` : ''}`.trim() || id;
+      if (!map.has(id)) {
+        map.set(id, { id, label });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [missions]);
+
   // Séparer les bookings complétés pour le groupement
   const completedBookings = useMemo(() => {
     if (!bookings) return [];
     return bookings.filter(b => b.status === 'COMPLETED');
   }, [bookings]);
 
+  const filteredCompletedBookings = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return completedBookings.filter((booking) => {
+      if (vehicleFilterId && booking.vehicleId !== vehicleFilterId) return false;
+      if (!q) return true;
+      const clientName = (booking as any).client?.name || '';
+      const vehicle = (booking as any).vehicle || {};
+      const vehicleStr = `${vehicle.registrationNumber || ''} ${vehicle.brand || ''} ${vehicle.model || ''}`.trim();
+      const haystack = `${booking.id} ${clientName} ${vehicleStr}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [completedBookings, vehicleFilterId, search]);
+
+  const viewFilteredMissions = useMemo(() => {
+    const start = new Date(currentDate);
+    start.setHours(0, 0, 0, 0);
+    let end = new Date(start);
+    if (view === 'day') {
+      end.setDate(start.getDate() + 1);
+    } else if (view === 'week') {
+      end.setDate(start.getDate() + 7);
+    } else {
+      end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    }
+    return missions.filter((mission) => {
+      const date = new Date(mission.date);
+      return date >= start && date < end;
+    });
+  }, [missions, currentDate, view]);
+
+  const filteredMissions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return viewFilteredMissions.filter((mission) => {
+      if (taskTypeFilter !== 'ALL' && mission.type !== taskTypeFilter) return false;
+      if (vehicleFilterId && mission.vehicle?.id !== vehicleFilterId) return false;
+      if (!q) return true;
+      const clientName = mission.client?.name || '';
+      const vehicleStr = `${mission.vehicle?.registrationNumber || ''} ${mission.vehicle?.brand || ''} ${mission.vehicle?.model || ''}`.trim();
+      const haystack = `${mission.bookingId} ${clientName} ${vehicleStr} ${mission.location || ''}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [viewFilteredMissions, taskTypeFilter, vehicleFilterId, search]);
+
   // Regrouper les missions par sections (inclure les complétées)
   const sections = useMemo(() => {
-    return groupTasksBySections(missions, true, completedBookings);
-  }, [missions, completedBookings]);
+    return groupTasksBySections(filteredMissions, true, filteredCompletedBookings);
+  }, [filteredMissions, filteredCompletedBookings]);
 
   // Préparer les données pour SectionList
   const sectionData = useMemo(() => {
@@ -298,8 +363,128 @@ export const BookingsScreen: React.FC = () => {
         </TouchableOpacity>
       )}
 
+      {/* Filtres (mobile) */}
+      <View style={styles.filtersContainer}>
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={[styles.filterChip, taskTypeFilter === 'ALL' && styles.filterChipActive]}
+            onPress={() => setTaskTypeFilter('ALL')}
+          >
+            <Text style={[styles.filterChipText, taskTypeFilter === 'ALL' && styles.filterChipTextActive]}>Tout</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterChip, taskTypeFilter === 'CHECK_IN' && styles.filterChipActive]}
+            onPress={() => setTaskTypeFilter('CHECK_IN')}
+          >
+            <Text style={[styles.filterChipText, taskTypeFilter === 'CHECK_IN' && styles.filterChipTextActive]}>Check-in</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterChip, taskTypeFilter === 'CHECK_OUT' && styles.filterChipActive]}
+            onPress={() => setTaskTypeFilter('CHECK_OUT')}
+          >
+            <Text style={[styles.filterChipText, taskTypeFilter === 'CHECK_OUT' && styles.filterChipTextActive]}>Check-out</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={styles.vehicleFilterButton}
+            onPress={() => setShowVehiclePicker(true)}
+          >
+            <Text style={styles.vehicleFilterButtonText} numberOfLines={1}>
+              {vehicleFilterId
+                ? (vehicleChoices.find((v) => v.id === vehicleFilterId)?.label || 'Véhicule')
+                : 'Tous les véhicules'}
+            </Text>
+          </TouchableOpacity>
+
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Rechercher (client, plaque...)"
+            placeholderTextColor="#9CA3AF"
+            style={styles.searchInput}
+          />
+
+          {(vehicleFilterId || taskTypeFilter !== 'ALL' || search.trim()) && (
+            <TouchableOpacity
+              style={styles.resetFiltersButton}
+              onPress={() => {
+                setVehicleFilterId('');
+                setTaskTypeFilter('ALL');
+                setSearch('');
+              }}
+            >
+              <Text style={styles.resetFiltersButtonText}>Reset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.planningToolbar}>
+        <View style={styles.planningNav}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => {
+              const next = new Date(currentDate);
+              if (view === 'day') next.setDate(next.getDate() - 1);
+              if (view === 'week') next.setDate(next.getDate() - 7);
+              if (view === 'month') next.setMonth(next.getMonth() - 1);
+              setCurrentDate(next);
+            }}
+          >
+            <Text style={styles.navButtonText}>◀</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => setCurrentDate(new Date())}
+          >
+            <Text style={styles.navButtonText}>Aujourd'hui</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => {
+              const next = new Date(currentDate);
+              if (view === 'day') next.setDate(next.getDate() + 1);
+              if (view === 'week') next.setDate(next.getDate() + 7);
+              if (view === 'month') next.setMonth(next.getMonth() + 1);
+              setCurrentDate(next);
+            }}
+          >
+            <Text style={styles.navButtonText}>▶</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.planningTitle}>
+          {currentDate.toLocaleDateString('fr-FR', {
+            month: 'long',
+            year: 'numeric',
+            day: view === 'day' ? 'numeric' : undefined,
+          })}
+        </Text>
+        <View style={styles.viewTabs}>
+          <TouchableOpacity
+            style={[styles.viewTab, view === 'day' && styles.viewTabActive]}
+            onPress={() => setView('day')}
+          >
+            <Text style={[styles.viewTabText, view === 'day' && styles.viewTabTextActive]}>Jour</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewTab, view === 'week' && styles.viewTabActive]}
+            onPress={() => setView('week')}
+          >
+            <Text style={[styles.viewTabText, view === 'week' && styles.viewTabTextActive]}>Semaine</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewTab, view === 'month' && styles.viewTabActive]}
+            onPress={() => setView('month')}
+          >
+            <Text style={[styles.viewTabText, view === 'month' && styles.viewTabTextActive]}>Mois</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Affichage des missions groupées par sections */}
-      {missions.length > 0 ? (
+      {filteredMissions.length > 0 ? (
         <SectionList
           sections={sectionData}
           renderItem={renderMissionCard}
@@ -327,6 +512,48 @@ export const BookingsScreen: React.FC = () => {
           )}
         </View>
       )}
+
+      {/* Sélecteur véhicule (modal simple) */}
+      {showVehiclePicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Filtrer par véhicule</Text>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setVehicleFilterId('');
+                setShowVehiclePicker(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>Tous les véhicules</Text>
+            </TouchableOpacity>
+            <View style={styles.modalDivider} />
+            <FlatList
+              data={vehicleChoices}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setVehicleFilterId(item.id);
+                    setShowVehiclePicker(false);
+                  }}
+                >
+                  <Text style={styles.modalOptionText} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowVehiclePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -335,6 +562,192 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  filtersContainer: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+  },
+  filterChipActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  filterChipText: {
+    color: '#111827',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  vehicleFilterButton: {
+    flexGrow: 1,
+    minWidth: 180,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+  },
+  vehicleFilterButtonText: {
+    color: '#111827',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  searchInput: {
+    flexGrow: 1,
+    minWidth: 180,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    color: '#111827',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  resetFiltersButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F3F4F6',
+  },
+  resetFiltersButtonText: {
+    color: '#111827',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  planningToolbar: {
+    backgroundColor: '#1B1F2A',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '80%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  modalOptionText: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 8,
+  },
+  modalClose: {
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  planningNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  navButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#2563EB',
+  },
+  navButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  planningTitle: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  viewTabs: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  viewTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A3241',
+    backgroundColor: '#151A24',
+  },
+  viewTabActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  viewTabText: {
+    color: '#E5E7EB',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  viewTabTextActive: {
+    color: '#FFFFFF',
   },
   createButton: {
     backgroundColor: '#007AFF',
