@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
 
@@ -27,6 +27,8 @@ export interface AuditLogData {
  */
 @Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -50,7 +52,7 @@ export class AuditService {
       });
     } catch (error) {
       // Ne pas faire échouer l'opération principale si l'audit échoue
-      console.error('Audit log error:', error);
+      this.logger.error('Audit log error:', error);
     }
   }
 
@@ -256,8 +258,4 @@ export class AuditService {
     });
   }
 }
-
-
-
-
 

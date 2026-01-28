@@ -66,6 +66,10 @@ describe('Mobile Agent E2E Tests', () => {
       const company = await prisma.company.create({
         data: {
           name: 'Test Company Mobile',
+          raisonSociale: 'Test Company Mobile',
+          identifiantLegal: 'ICE-TEST-0003',
+          formeJuridique: 'SARL',
+          maxAgencies: 5,
           slug: 'test-company-mobile',
           status: 'ACTIVE',
           isActive: true,

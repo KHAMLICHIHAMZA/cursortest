@@ -9,7 +9,6 @@ import { getImageUrl } from '../lib/utils/image-url';
 export default function Fines() {
   const [showModal, setShowModal] = useState(false);
   const [editingFine, setEditingFine] = useState<any>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -41,7 +40,7 @@ export default function Fines() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      api.put(`/fines/${id}`, data),
+      api.patch(`/fines/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fines'] });
       setShowModal(false);
@@ -70,7 +69,6 @@ export default function Fines() {
   });
 
   const handleImageChange = async (file: File | null, previewUrl?: string) => {
-    setImageFile(file);
     setImagePreview(previewUrl || null);
 
     if (file) {
@@ -79,7 +77,6 @@ export default function Fines() {
         setUploadedImageUrl(result.attachmentUrl);
       } catch (error: any) {
         alert(`Erreur upload: ${error.response?.data?.message || error.message || 'Erreur lors de l\'upload de la pièce jointe'}`);
-        setImageFile(null);
         setImagePreview(null);
         setUploadedImageUrl(null);
       }
@@ -124,7 +121,6 @@ export default function Fines() {
         <button
           onClick={() => {
             setEditingFine(null);
-            setImageFile(null);
             setImagePreview(null);
             setUploadedImageUrl(null);
             setShowModal(true);
@@ -310,7 +306,6 @@ export default function Fines() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingFine(null);
-                    setImageFile(null);
                     setImagePreview(null);
                     setUploadedImageUrl(null);
                   }}

@@ -9,7 +9,6 @@ import { getImageUrl } from '../lib/utils/image-url';
 export default function Maintenance() {
   const [showModal, setShowModal] = useState(false);
   const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -36,7 +35,6 @@ export default function Maintenance() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maintenance', 'vehicles', 'planning'] });
       setShowModal(false);
-      setImageFile(null);
       setImagePreview(null);
       setUploadedImageUrl(null);
     },
@@ -48,12 +46,11 @@ export default function Maintenance() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      api.put(`/maintenance/${id}`, data),
+      api.patch(`/maintenance/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maintenance', 'vehicles', 'planning'] });
       setShowModal(false);
       setEditingMaintenance(null);
-      setImageFile(null);
       setImagePreview(null);
       setUploadedImageUrl(null);
     },
@@ -84,7 +81,6 @@ export default function Maintenance() {
   });
 
   const handleImageChange = async (file: File | null, previewUrl?: string) => {
-    setImageFile(file);
     setImagePreview(previewUrl || null);
 
     if (file) {
@@ -93,7 +89,6 @@ export default function Maintenance() {
         setUploadedImageUrl(result.documentUrl);
       } catch (error: any) {
         alert(`Erreur upload: ${error.response?.data?.message || error.message || 'Erreur lors de l\'upload du document'}`);
-        setImageFile(null);
         setImagePreview(null);
         setUploadedImageUrl(null);
       }
@@ -104,8 +99,6 @@ export default function Maintenance() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     
     const formData = new FormData(e.currentTarget);
     const vehicleId = formData.get('vehicleId') as string;
@@ -132,10 +125,10 @@ export default function Maintenance() {
           const conflicts = availabilityRes.data.conflicts || [];
           const bookingConflict = conflicts.find((c: any) => c.type === 'booking');
           if (bookingConflict) {
-            setError('Le véhicule a une location en cours ou prévue à cette période. Impossible de planifier une maintenance.');
+            alert('Le véhicule a une location en cours ou prévue à cette période. Impossible de planifier une maintenance.');
             return;
           }
-          setError('Le véhicule n\'est pas disponible à cette période.');
+          alert('Le véhicule n\'est pas disponible à cette période.');
           return;
         }
       } catch (error: any) {
@@ -180,7 +173,6 @@ export default function Maintenance() {
           <button
             onClick={() => {
               setEditingMaintenance(null);
-              setImageFile(null);
               setImagePreview(null);
               setUploadedImageUrl(null);
               setShowModal(true);
@@ -396,7 +388,6 @@ export default function Maintenance() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingMaintenance(null);
-                    setImageFile(null);
                     setImagePreview(null);
                     setUploadedImageUrl(null);
                   }}

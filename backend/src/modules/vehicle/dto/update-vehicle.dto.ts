@@ -31,7 +31,17 @@ export class UpdateVehicleDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  mileage?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
   dailyRate?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  depositAmount?: number;
 
   @ApiPropertyOptional({ enum: VehicleStatus })
   @IsOptional()

@@ -12,6 +12,8 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
   const menuItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/companies', label: 'Entreprises', icon: Building2 },
@@ -32,7 +34,7 @@ export default function Layout() {
           <p className="text-sm text-gray-400 mt-1">Administration</p>
         </div>
         <nav className="mt-8">
-          {menuItems.map((item) => {
+          {isSuperAdmin && menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (

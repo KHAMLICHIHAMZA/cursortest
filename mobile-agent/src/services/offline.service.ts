@@ -36,6 +36,107 @@ type SQLiteDatabase = {
 class OfflineService {
   private db: SQLiteDatabase | null = null;
 
+  private stableStringify(value: any): string {
+    const seen = new WeakSet();
+    const normalize = (v: any): any => {
+      if (v === null || typeof v !== 'object') return v;
+      if (seen.has(v)) return '[Circular]';
+      seen.add(v);
+
+      if (Array.isArray(v)) return v.map(normalize);
+
+      const keys = Object.keys(v).sort();
+      const out: any = {};
+      for (const k of keys) out[k] = normalize(v[k]);
+      return out;
+    };
+
+    return JSON.stringify(normalize(value));
+  }
+
+  private normalizeFiles(files?: string[]): string[] {
+    return (files || []).slice().sort();
+  }
+
+  private getActionPayloadString(action: OfflineAction): string {
+    try {
+      return this.stableStringify(JSON.parse(action.payload || '{}'));
+    } catch {
+      return this.stableStringify({});
+    }
+  }
+
+  private async findExistingActionId(actionType: string, bookingId: string): Promise<string | null> {
+    try {
+      const actions = await this.getPendingActions();
+      for (const action of actions) {
+        if (action.actionType !== actionType) continue;
+        try {
+          const payload = JSON.parse(action.payload || '{}');
+          if (payload?.bookingId === bookingId) {
+            return action.id;
+          }
+        } catch {
+          // ignore invalid JSON payloads
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  private async upsertActionById(
+    id: string,
+    actionType: string,
+    payload: any,
+    files?: string[],
+  ): Promise<void> {
+    const now = new Date().toISOString();
+
+    if (Platform.OS === 'web') {
+      const existing = localStorage.getItem('offline_actions') || '[]';
+      const actions = JSON.parse(existing);
+      const idx = actions.findIndex((a: any) => a.id === id);
+      const row = {
+        id,
+        actionType,
+        payload: JSON.stringify(payload),
+        files: files ? JSON.stringify(files) : null,
+        retryCount: 0,
+        lastError: null,
+        createdAt: actions[idx]?.createdAt || now,
+        updatedAt: now,
+      };
+      if (idx >= 0) {
+        actions[idx] = { ...actions[idx], ...row };
+      } else {
+        actions.push(row);
+      }
+      localStorage.setItem('offline_actions', JSON.stringify(actions));
+      return;
+    }
+
+    if (!this.db) await this.init();
+    if (!this.db?.runAsync) throw new Error('Database not initialized');
+
+    // Try update first (upsert)
+    const update = await this.db.runAsync(
+      `UPDATE offline_actions
+       SET actionType = ?, payload = ?, files = ?, retryCount = 0, lastError = NULL, updatedAt = ?
+       WHERE id = ?`,
+      [actionType, JSON.stringify(payload), files ? JSON.stringify(files) : null, now, id],
+    );
+
+    if (update.changes && update.changes > 0) return;
+
+    await this.db.runAsync(
+      `INSERT INTO offline_actions (id, actionType, payload, files, retryCount, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      [id, actionType, JSON.stringify(payload), files ? JSON.stringify(files) : null, now, now],
+    );
+  }
+
   async init(): Promise<void> {
     // On web, use localStorage as fallback (expo-sqlite not available)
     if (Platform.OS === 'web') {
@@ -81,23 +182,51 @@ class OfflineService {
     payload: any,
     files?: string[]
   ): Promise<string> {
+    // Dedup rule: for booking actions, keep only one pending action per (actionType, bookingId)
+    const bookingId = payload?.bookingId;
+    const shouldDedup =
+      typeof bookingId === 'string' &&
+      bookingId.length > 0 &&
+      (actionType === 'BOOKING_CHECKIN' || actionType === 'BOOKING_CHECKOUT');
+
+    if (shouldDedup) {
+      // If same bookingId+actionType exists, only update when data actually changed
+      const actions = await this.getPendingActions();
+      const existing = actions.find((a) => {
+        if (a.actionType !== actionType) return false;
+        try {
+          const p = JSON.parse(a.payload || '{}');
+          return p?.bookingId === bookingId;
+        } catch {
+          return false;
+        }
+      });
+
+      if (existing) {
+        const existingPayloadStr = this.getActionPayloadString(existing);
+        const newPayloadStr = this.stableStringify(payload);
+        const existingFiles = this.normalizeFiles(existing.files);
+        const newFiles = this.normalizeFiles(files);
+
+        const isSamePayload = existingPayloadStr === newPayloadStr;
+        const isSameFiles =
+          existingFiles.length === newFiles.length &&
+          existingFiles.every((v, i) => v === newFiles[i]);
+
+        if (isSamePayload && isSameFiles) {
+          // Nothing changed: do not update timestamps or retry count
+          return existing.id;
+        }
+
+        await this.upsertActionById(existing.id, actionType, payload, files);
+        return existing.id;
+      }
+    }
+
     if (Platform.OS === 'web') {
       // Web fallback: use localStorage
       const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const now = new Date().toISOString();
-      const action = {
-        id,
-        actionType,
-        payload: JSON.stringify(payload),
-        files: files ? JSON.stringify(files) : null,
-        retryCount: 0,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const existing = localStorage.getItem('offline_actions') || '[]';
-      const actions = JSON.parse(existing);
-      actions.push(action);
-      localStorage.setItem('offline_actions', JSON.stringify(actions));
+      await this.upsertActionById(id, actionType, payload, files);
       return id;
     }
 
@@ -105,20 +234,7 @@ class OfflineService {
     if (!this.db?.runAsync) throw new Error('Database not initialized');
 
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
-
-    await this.db.runAsync(
-      `INSERT INTO offline_actions (id, actionType, payload, files, retryCount, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 0, ?, ?)`,
-      [
-        id,
-        actionType,
-        JSON.stringify(payload),
-        files ? JSON.stringify(files) : null,
-        now,
-        now,
-      ]
-    );
+    await this.upsertActionById(id, actionType, payload, files);
 
     return id;
   }

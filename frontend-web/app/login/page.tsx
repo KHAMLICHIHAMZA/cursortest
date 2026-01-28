@@ -120,6 +120,16 @@ export default function LoginPage() {
               >
                 Se connecter
               </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => router.push('/forgot-password')}
+                  className="text-sm text-text-muted hover:text-text"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>

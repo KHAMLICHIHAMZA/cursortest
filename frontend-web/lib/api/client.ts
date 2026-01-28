@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -30,6 +30,9 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error?.response?.data?.message && Array.isArray(error.response.data.message)) {
+      error.response.data.message = error.response.data.message.join(' • ');
+    }
     const originalRequest = error.config;
 
     // Si erreur 401 et pas déjà retenté

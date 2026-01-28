@@ -34,6 +34,13 @@ export class ModuleController {
     return this.moduleService.getAgencyModules(agencyId, user);
   }
 
+  @Get('dependencies')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get module dependencies (SUPER_ADMIN only)' })
+  async getModuleDependencies(@CurrentUser() user: any) {
+    return this.moduleService.getModuleDependencies(user);
+  }
+
   @Post('company/:companyId/:moduleCode/activate')
   @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Activate a module for a company (SUPER_ADMIN only)' })

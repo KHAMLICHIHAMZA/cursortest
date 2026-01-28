@@ -2,12 +2,15 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '@prisma/client';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { sendPasswordResetEmail } from '../../services/email.service';
 
 @Injectable()
 export class AuthService {
@@ -33,24 +36,28 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException('Email introuvable');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Compte inactif');
     }
 
     // Vérifier que la company est active (vérifier isActive ET status SaaS)
     if (user.companyId && user.company) {
       if (!user.company.isActive) {
-        throw new UnauthorizedException('Company is inactive');
+        throw new UnauthorizedException('Société inactive');
       }
       // Vérifier aussi le statut SaaS (si défini)
       if (user.company.status && user.company.status !== 'ACTIVE') {
-        throw new UnauthorizedException('Company is suspended or deleted');
+        throw new UnauthorizedException('Société suspendue ou supprimée');
       }
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Mot de passe incorrect');
     }
 
     const agencyIds = user.userAgencies.map(ua => ua.agencyId);
@@ -215,6 +222,74 @@ export class AuthService {
       permissions: uniquePermissions,
       modules,
     };
+  }
+
+  private generateResetToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  private getResetBaseUrl(client?: string): string {
+    if (client === 'admin') {
+      return (
+        this.configService.get<string>('FRONTEND_ADMIN_URL') ||
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:5173'
+      );
+    }
+    if (client === 'agency') {
+      return (
+        this.configService.get<string>('FRONTEND_AGENCY_URL') ||
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:8080'
+      );
+    }
+    if (client === 'web') {
+      return (
+        this.configService.get<string>('FRONTEND_WEB_URL') ||
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3001'
+      );
+    }
+    return (
+      this.configService.get<string>('FRONTEND_URL') ||
+      'http://localhost:3001'
+    );
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { email, client } = forgotPasswordDto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { company: true },
+    });
+
+    if (!user || !user.isActive) {
+      return { message: 'Si un compte existe, un email a été envoyé' };
+    }
+
+    if (user.companyId && user.company) {
+      if (!user.company.isActive || (user.company.status && user.company.status !== 'ACTIVE')) {
+        return { message: 'Si un compte existe, un email a été envoyé' };
+      }
+    }
+
+    const resetToken = this.generateResetToken();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        token: resetToken,
+        expiresAt,
+      },
+    });
+
+    const resetBaseUrl = this.getResetBaseUrl(client);
+    await sendPasswordResetEmail(user.email, user.name, resetToken, resetBaseUrl);
+
+    return { message: 'Email de réinitialisation envoyé' };
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {

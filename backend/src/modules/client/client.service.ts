@@ -52,11 +52,13 @@ export class ClientService {
         name: true,
         email: true,
         phone: true,
+        dateOfBirth: true,
         note: true,
         licenseImageUrl: true,
         isMoroccan: true,
         countryOfOrigin: true,
         licenseNumber: true,
+        licenseType: true,
         licenseExpiryDate: true,
         isForeignLicense: true,
         idCardNumber: true,
@@ -161,10 +163,12 @@ export class ClientService {
         email: createClientDto.email,
         phone: createClientDto.phone,
         agencyId: createClientDto.agencyId,
+        dateOfBirth: createClientDto.dateOfBirth ? new Date(createClientDto.dateOfBirth) : null,
         licenseImageUrl: createClientDto.licenseImageUrl,
         isMoroccan: createClientDto.isMoroccan ?? true,
         countryOfOrigin: createClientDto.countryOfOrigin,
         licenseNumber: createClientDto.licenseNumber,
+        licenseType: createClientDto.licenseType,
         licenseExpiryDate: new Date(createClientDto.licenseExpiryDate),
         isForeignLicense: createClientDto.isForeignLicense ?? false,
         idCardNumber: createClientDto.idCardNumber,
@@ -208,9 +212,13 @@ export class ClientService {
     if (updateClientDto.isMoroccan !== undefined) updateData.isMoroccan = updateClientDto.isMoroccan;
     if (updateClientDto.countryOfOrigin !== undefined) updateData.countryOfOrigin = updateClientDto.countryOfOrigin;
     if (updateClientDto.licenseNumber !== undefined) updateData.licenseNumber = updateClientDto.licenseNumber;
+    if (updateClientDto.licenseType !== undefined) updateData.licenseType = updateClientDto.licenseType;
     if (updateClientDto.licenseExpiryDate !== undefined) {
       // licenseExpiryDate est maintenant obligatoire (NOT NULL), donc on ne peut pas le mettre à null
       updateData.licenseExpiryDate = new Date(updateClientDto.licenseExpiryDate);
+    }
+    if (updateClientDto.dateOfBirth !== undefined) {
+      updateData.dateOfBirth = updateClientDto.dateOfBirth ? new Date(updateClientDto.dateOfBirth) : null;
     }
     if (updateClientDto.isForeignLicense !== undefined) updateData.isForeignLicense = updateClientDto.isForeignLicense;
     if (updateClientDto.idCardNumber !== undefined) updateData.idCardNumber = updateClientDto.idCardNumber;
@@ -221,10 +229,11 @@ export class ClientService {
     if (updateClientDto.passportExpiryDate !== undefined) {
       updateData.passportExpiryDate = updateClientDto.passportExpiryDate ? new Date(updateClientDto.passportExpiryDate) : null;
     }
-    if (updateClientDto.address || updateClientDto.licenseNumber) {
+    if (updateClientDto.address || updateClientDto.licenseNumber || updateClientDto.licenseType) {
       const noteParts = [];
       if (updateClientDto.address) noteParts.push(`Adresse: ${updateClientDto.address}`);
       if (updateClientDto.licenseNumber) noteParts.push(`Permis: ${updateClientDto.licenseNumber}`);
+      if (updateClientDto.licenseType) noteParts.push(`Type permis: ${updateClientDto.licenseType}`);
       updateData.note = noteParts.length > 0 ? noteParts.join(', ') : null;
     }
 

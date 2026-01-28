@@ -26,6 +26,8 @@ export class PlanningService {
     startDate: Date,
     endDate: Date,
   ): Promise<boolean> {
+    const maintenanceDurationHours = 4;
+
     // Vérifier les bookings actifs dans la période
     const activeBookings = await this.prisma.booking.findMany({
       where: {
@@ -50,7 +52,7 @@ export class PlanningService {
     }
 
     // Vérifier les maintenances dans la période
-    const activeMaintenance = await this.prisma.maintenance.findMany({
+    const maintenanceCandidates = await this.prisma.maintenance.findMany({
       where: {
         vehicleId,
         deletedAt: null,
@@ -60,7 +62,6 @@ export class PlanningService {
         OR: [
           {
             plannedAt: {
-              gte: startDate,
               lte: endDate,
             },
           },
@@ -71,7 +72,19 @@ export class PlanningService {
       },
     });
 
-    if (activeMaintenance.length > 0) {
+    const hasMaintenanceConflict = maintenanceCandidates.some((maintenance) => {
+      if (maintenance.status === 'IN_PROGRESS') {
+        return true;
+      }
+      if (!maintenance.plannedAt) {
+        return false;
+      }
+      const maintenanceEnd = new Date(maintenance.plannedAt);
+      maintenanceEnd.setHours(maintenanceEnd.getHours() + maintenanceDurationHours);
+      return maintenance.plannedAt <= endDate && maintenanceEnd >= startDate;
+    });
+
+    if (hasMaintenanceConflict) {
       return false;
     }
 
@@ -116,6 +129,7 @@ export class PlanningService {
     excludeBookingId?: string,
   ): Promise<Array<{ type: string; id: string; startDate: Date; endDate: Date }>> {
     const conflicts: Array<{ type: string; id: string; startDate: Date; endDate: Date }> = [];
+    const maintenanceDurationHours = 4;
 
     // Conflits avec bookings
     const bookingConflicts = await this.prisma.booking.findMany({
@@ -157,7 +171,6 @@ export class PlanningService {
         OR: [
           {
             plannedAt: {
-              gte: startDate,
               lte: endDate,
             },
           },
@@ -169,9 +182,23 @@ export class PlanningService {
     });
 
     maintenanceConflicts.forEach((maintenance) => {
+      if (maintenance.status === 'IN_PROGRESS' && !maintenance.plannedAt) {
+        conflicts.push({
+          type: 'MAINTENANCE',
+          id: maintenance.id,
+          startDate,
+          endDate,
+        });
+        return;
+      }
+
       if (maintenance.plannedAt) {
         const maintenanceEnd = new Date(maintenance.plannedAt);
-        maintenanceEnd.setHours(maintenanceEnd.getHours() + 4); // Durée par défaut 4h
+        maintenanceEnd.setHours(maintenanceEnd.getHours() + maintenanceDurationHours); // Durée par défaut 4h
+        const isOverlap = maintenance.plannedAt <= endDate && maintenanceEnd >= startDate;
+        if (!isOverlap) {
+          return;
+        }
 
         conflicts.push({
           type: 'MAINTENANCE',

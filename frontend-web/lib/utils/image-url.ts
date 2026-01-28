@@ -12,10 +12,10 @@ export function getImageUrl(imageUrl?: string | null): string | undefined {
   }
   
   // Construire l'URL complète avec l'URL du backend
-  // NEXT_PUBLIC_API_URL est généralement "http://localhost:3000/api"
-  // On doit enlever "/api" pour obtenir la base URL du serveur
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-  const baseUrl = apiUrl.replace('/api', '');
+  // NEXT_PUBLIC_API_URL est généralement "http://localhost:3000/api/v1"
+  // On doit enlever "/api/v1" (ou "/api") pour obtenir la base URL du serveur
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+  const baseUrl = apiUrl.replace('/api/v1', '').replace('/api', '');
   
   // S'assurer que l'URL relative commence par "/"
   const relativeUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;

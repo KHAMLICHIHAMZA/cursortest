@@ -18,6 +18,44 @@ body {
   color: #E5E7EB;
 }
 
+/* Date picker (react-datepicker) */
+.maloc-date-picker {
+  background: #1D1F23;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  color: #E5E7EB;
+  padding: 8px;
+}
+
+.maloc-date-picker .react-datepicker__header {
+  background: #2C2F36;
+  border-bottom: 1px solid #374151;
+}
+
+.maloc-date-picker .react-datepicker__current-month,
+.maloc-date-picker .react-datepicker__day-name {
+  color: #E5E7EB;
+}
+
+.maloc-date-picker .react-datepicker__day {
+  color: #E5E7EB;
+  border-radius: 8px;
+}
+
+.maloc-date-picker .react-datepicker__day--selected,
+.maloc-date-picker .react-datepicker__day--keyboard-selected {
+  background: #3E7BFA;
+  color: #FFFFFF;
+}
+
+.maloc-date-picker .react-datepicker__day:hover {
+  background: rgba(62, 123, 250, 0.2);
+}
+
+.maloc-date-picker-popper {
+  z-index: 60;
+}
+
 
 
 

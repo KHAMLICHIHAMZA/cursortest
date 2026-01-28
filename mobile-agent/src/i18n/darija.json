@@ -30,6 +30,11 @@
     "passwordRequired": "Lmot de passe darori",
     "passwordMinLength": "Lmot de passe khassu ykun 8 7orof min",
     "loginError": "Ghalta f dokhol",
+    "invalidCredentials": "Email wla lmot de passe ghalat",
+    "forgotPassword": "Nsiti lmot de passe?",
+    "forgotPasswordTitle": "Rja3 lmot de passe",
+    "sendResetLink": "Sift lien",
+    "resetEmailSent": "Ila kayn l compte, ghadi yji email dyal reset.",
     "companyInactive": "Shirktek mashi Active",
     "companySuspended": "Shirktek mwqfa"
   },

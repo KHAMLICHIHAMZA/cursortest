@@ -10,6 +10,7 @@ import { vehicleApi } from '@/lib/api/vehicle';
 import { bookingApi } from '@/lib/api/booking';
 import { subscriptionApi } from '@/lib/api/subscription';
 import { billingApi } from '@/lib/api/billing';
+import { companyApi } from '@/lib/api/company';
 import Cookies from 'js-cookie';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -55,6 +56,12 @@ export default function CompanyDashboard() {
   const { data: subscription } = useQuery({
     queryKey: ['subscription', user?.companyId],
     queryFn: () => subscriptionApi.getByCompany(user!.companyId!),
+    enabled: !!user?.companyId,
+  });
+
+  const { data: companyInfo } = useQuery({
+    queryKey: ['company', user?.companyId],
+    queryFn: () => companyApi.getMyCompany(),
     enabled: !!user?.companyId,
   });
 
@@ -126,6 +133,26 @@ export default function CompanyDashboard() {
             <h1 className="text-3xl font-bold text-text mb-2">Tableau de bord Entreprise</h1>
             <p className="text-text-muted">Vue d'ensemble de votre entreprise</p>
           </div>
+
+          {/* Informations société */}
+          {companyInfo && (
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ma société</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm text-text-muted">
+                    <div><span className="text-text">Raison sociale:</span> {companyInfo.raisonSociale}</div>
+                    <div><span className="text-text">Identifiant légal:</span> {companyInfo.identifiantLegal || '-'}</div>
+                    <div><span className="text-text">Forme juridique:</span> {companyInfo.formeJuridique}</div>
+                    <div><span className="text-text">Statut:</span> {companyInfo.status || 'ACTIVE'}</div>
+                    <div><span className="text-text">Max agences:</span> {companyInfo.maxAgencies ?? 'Illimité'}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Alertes SaaS */}
           {(daysUntilExpiration !== null && daysUntilExpiration < 30) || overdueInvoices.length > 0 ? (
@@ -350,7 +377,9 @@ export default function CompanyDashboard() {
                             {booking.vehicle?.brand} {booking.vehicle?.model}
                           </p>
                           <p className="text-sm text-text-muted">
-                            {booking.client?.name || 'Client'} • {booking.agency?.name || 'Agence'}
+                            {(booking.client
+                              ? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Client'
+                              : 'Client')} • {booking.agency?.name || 'Agence'}
                           </p>
                         </div>
                         <Badge status="active">En cours</Badge>

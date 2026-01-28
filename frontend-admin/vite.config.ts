@@ -7,6 +7,10 @@ export default defineConfig({
     host: '0.0.0.0', // Permet l'accès depuis le réseau
     port: 5173,
     proxy: {
+      '/api/v1': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,

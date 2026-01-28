@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SubscriptionService } from './subscription.service';
 import { BillingService } from '../billing/billing.service';
@@ -16,6 +16,8 @@ import { CompanyStatus, SubscriptionStatus, PaymentStatus } from '@prisma/client
  */
 @Injectable()
 export class SubscriptionScheduler {
+  private readonly logger = new Logger(SubscriptionScheduler.name);
+
   constructor(
     private subscriptionService: SubscriptionService,
     private billingService: BillingService,
@@ -28,9 +30,9 @@ export class SubscriptionScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async checkExpiredSubscriptions() {
-    console.log('[Scheduler] Checking expired subscriptions...');
+    this.logger.log('Checking expired subscriptions...');
     const count = await this.subscriptionService.checkExpiredSubscriptions();
-    console.log(`[Scheduler] ${count} subscriptions expired and suspended`);
+    this.logger.log(`${count} subscriptions expired and suspended`);
   }
 
   /**
@@ -39,7 +41,7 @@ export class SubscriptionScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async generateRecurringInvoices() {
-    console.log('[Scheduler] Generating recurring invoices...');
+    this.logger.log('Generating recurring invoices...');
     
     try {
       // Récupérer tous les abonnements actifs
@@ -85,14 +87,14 @@ export class SubscriptionScheduler {
             await this.billingService.generateInvoice(subscription.id);
             invoicesGenerated++;
           } catch (error) {
-            console.error(`[Scheduler] Error generating invoice for subscription ${subscription.id}:`, error);
+            this.logger.error(`Error generating invoice for subscription ${subscription.id}:`, error);
           }
         }
       }
       
-      console.log(`[Scheduler] ${invoicesGenerated} invoices generated`);
+      this.logger.log(`${invoicesGenerated} invoices generated`);
     } catch (error) {
-      console.error('[Scheduler] Error in generateRecurringInvoices:', error);
+      this.logger.error('Error in generateRecurringInvoices:', error);
     }
   }
 
@@ -102,7 +104,7 @@ export class SubscriptionScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async deleteExpiredCompanies() {
-    console.log('[Scheduler] Checking companies for permanent deletion (J+100)...');
+    this.logger.log('Checking companies for permanent deletion (J+100)...');
     
     try {
       const now = new Date();
@@ -152,15 +154,15 @@ export class SubscriptionScheduler {
           });
           
           deletedCount++;
-          console.log(`[Scheduler] Company ${company.id} (${company.name}) permanently deleted`);
+          this.logger.log(`Company ${company.id} (${company.name}) permanently deleted`);
         } catch (error) {
-          console.error(`[Scheduler] Error deleting company ${company.id}:`, error);
+          this.logger.error(`Error deleting company ${company.id}:`, error);
         }
       }
       
-      console.log(`[Scheduler] ${deletedCount} companies permanently deleted`);
+      this.logger.log(`${deletedCount} companies permanently deleted`);
     } catch (error) {
-      console.error('[Scheduler] Error in deleteExpiredCompanies:', error);
+      this.logger.error('Error in deleteExpiredCompanies:', error);
     }
   }
 }

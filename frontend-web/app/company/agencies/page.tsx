@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery as useAuthQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
+import { companyApi } from '@/lib/api/company';
 import { agencyApi, Agency } from '@/lib/api/agency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,12 @@ export default function CompanyAgenciesPage() {
     enabled: !!user?.companyId,
   });
 
+  const { data: companyInfo } = useQuery({
+    queryKey: ['company', user?.companyId],
+    queryFn: () => companyApi.getMyCompany(),
+    enabled: !!user?.companyId,
+  });
+
   // Filtrer les agences par companyId
   const companyAgencies = useMemo(() => {
     if (!agencies || !user?.companyId) return [];
@@ -63,6 +70,10 @@ export default function CompanyAgenciesPage() {
     (agency) => agency.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const maxAgencies = companyInfo?.maxAgencies ?? null;
+  const currentAgenciesCount = companyAgencies?.length || 0;
+  const limitReached = maxAgencies !== null && currentAgenciesCount >= maxAgencies;
+
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
@@ -71,14 +82,31 @@ export default function CompanyAgenciesPage() {
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Agences</h1>
               <p className="text-text-muted">Gérer les agences de votre entreprise</p>
+              {maxAgencies !== null && (
+                <p className="text-sm text-text-muted mt-2">
+                  Limite d'agences: {currentAgenciesCount}/{maxAgencies}
+                </p>
+              )}
             </div>
-            <Link href="/company/agencies/new">
-              <Button variant="primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle agence
+            {limitReached ? (
+              <Button variant="primary" disabled>
+                Limite atteinte
               </Button>
-            </Link>
+            ) : (
+              <Link href="/company/agencies/new">
+                <Button variant="primary">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle agence
+                </Button>
+              </Link>
+            )}
           </div>
+
+          {limitReached && (
+            <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
+              Limite d'agences atteinte ({currentAgenciesCount}/{maxAgencies}). Contactez votre administrateur.
+            </div>
+          )}
 
           <div className="mb-6">
             <div className="relative">
@@ -153,7 +181,7 @@ export default function CompanyAgenciesPage() {
                   : 'Commencez par créer votre première agence'
               }
               action={
-                !searchTerm && (
+                !searchTerm && !limitReached && (
                   <Link href="/company/agencies/new">
                     <Button variant="primary">
                       <Plus className="w-4 h-4 mr-2" />

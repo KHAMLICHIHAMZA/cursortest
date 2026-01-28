@@ -17,10 +17,11 @@ export default function Login() {
 
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { accessToken, user } = response.data;
+      const { accessToken, access_token, user } = response.data;
+      const token = accessToken || access_token;
 
-      if (!accessToken || !user) {
-        setError('Réponse invalide du serveur');
+      if (!token || !user) {
+        setError('Connexion impossible : réponse serveur incomplète');
         setLoading(false);
         return;
       }
@@ -31,7 +32,7 @@ export default function Login() {
         return;
       }
 
-      setStoredToken(accessToken);
+      setStoredToken(token);
       setStoredUser(user);
       navigate('/');
     } catch (err: any) {
@@ -95,6 +96,16 @@ export default function Login() {
               {loading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
+
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-sm text-gray-400 hover:text-gray-200"
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
 
           <p className="mt-6 text-center text-sm text-gray-400">
             Compte de test: admin@malocauto.com / admin123

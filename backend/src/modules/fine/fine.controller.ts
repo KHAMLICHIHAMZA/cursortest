@@ -94,7 +94,7 @@ export class FineController {
   }
 
   @Post('upload-attachment')
-  @Permissions('fines:update')
+  @Permissions('fines:create', 'fines:update')
   @UseInterceptors(
     FileInterceptor('attachment', {
       storage: fineAttachmentStorage,

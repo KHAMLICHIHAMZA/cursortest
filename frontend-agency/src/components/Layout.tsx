@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Car, Users, Calendar, FileText, AlertCircle, Wrench, LogOut } from 'lucide-react';
+import { LayoutDashboard, Car, Users, Calendar, AlertCircle, Wrench, LogOut } from 'lucide-react';
 import { getStoredUser, clearAuth } from '../lib/auth';
 
 export default function Layout() {

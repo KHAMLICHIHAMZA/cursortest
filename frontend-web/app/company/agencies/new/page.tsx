@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useQuery as useAuthQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
 import { agencyApi, CreateAgencyDto } from '@/lib/api/agency';
+import { companyApi } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -34,6 +35,22 @@ export default function NewCompanyAgencyPage() {
     queryFn: () => authApi.getMe(),
     enabled: !!Cookies.get('accessToken'),
   });
+
+  const { data: companyInfo } = useQuery({
+    queryKey: ['company', user?.companyId],
+    queryFn: () => companyApi.getMyCompany(),
+    enabled: !!user?.companyId,
+  });
+
+  const { data: agencies } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: () => agencyApi.getAll(),
+    enabled: !!user?.companyId,
+  });
+
+  const currentAgenciesCount = agencies?.filter((a) => a.companyId === user?.companyId).length || 0;
+  const maxAgencies = companyInfo?.maxAgencies ?? null;
+  const limitReached = maxAgencies !== null && currentAgenciesCount >= maxAgencies;
 
   useEffect(() => {
     if (user?.companyId) {
@@ -69,6 +86,13 @@ export default function NewCompanyAgencyPage() {
       return;
     }
 
+    if (limitReached) {
+      const message = `Limite d'agences atteinte (${currentAgenciesCount}/${maxAgencies}). Contactez votre administrateur.`;
+      setErrors({ submit: message });
+      toast.error(message);
+      return;
+    }
+
     createMutation.mutate(formData);
   };
 
@@ -81,8 +105,14 @@ export default function NewCompanyAgencyPage() {
           backHref="/company/agencies"
           onSubmit={handleSubmit}
           isLoading={createMutation.isPending}
+          isSubmitDisabled={limitReached}
           submitLabel="Créer l'agence"
         >
+          {limitReached && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
+              Limite d'agences atteinte ({currentAgenciesCount}/{maxAgencies}). Contactez votre administrateur.
+            </div>
+          )}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
               Nom de l'agence *

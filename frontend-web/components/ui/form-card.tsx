@@ -13,6 +13,7 @@ interface FormCardProps {
   onSubmit?: (e: React.FormEvent) => void;
   submitLabel?: string;
   isLoading?: boolean;
+  isSubmitDisabled?: boolean;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
@@ -25,6 +26,7 @@ export function FormCard({
   onSubmit,
   submitLabel = 'Enregistrer',
   isLoading = false,
+  isSubmitDisabled = false,
   maxWidth = '2xl',
 }: FormCardProps) {
   const maxWidthClasses = {
@@ -59,10 +61,10 @@ export function FormCard({
                     Annuler
                   </Button>
                 </Link>
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  disabled={isLoading}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isLoading || isSubmitDisabled}
                   isLoading={isLoading}
                 >
                   {submitLabel}

@@ -75,25 +75,39 @@ Après le seed, vous pouvez vous connecter avec :
 
 ## 📚 Documentation
 
+### Documentation Principale
+- [Détails des Applications](./APPLICATIONS_DETAILS.md) - Vue d'ensemble complète de toutes les applications
 - [Spécifications complètes](./docs/specs.md)
 - [API Documentation](http://localhost:3000/api/docs) (Swagger)
-- [Guide de migration NestJS](./backend/MIGRATION_NESTJS.md)
+- [Ports des Applications](./PORTS_APPLICATIONS.md) - Configuration des ports en développement
 
-## 🎯 Fonctionnalités
+### Guides de Pilotes
+- [PILOTE 1 - Backend API](./GUIDE_PILOTE_1_BACKEND.md)
+- [PILOTE 2 - Frontend Agency](./GUIDE_PILOTE_2_FRONTEND_AGENCY.md)
+- [PILOTE 3 - Frontend Admin](./GUIDE_PILOTE_3_FRONTEND_ADMIN.md)
+- [PILOTE 4 - Mobile Agent](./GUIDE_PILOTE_4_MOBILE_AGENT.md)
 
-### SaaS Backoffice (Super Admin)
-- Gestion des entreprises
-- Gestion des agences
-- Gestion des utilisateurs
-- Planning global
+### Pré-production
+- [Checklist Préprod](./PREPROD_CHECKLIST.md)
+- [Checklist Secrets](./CHECKLIST_SECRETS.md)
+- [Sécurité JWT](./backend/SECURITE_JWT.md)
+- [Nettoyage Préprod](./NETTOYAGE_PREPROD_COMPLET.md)
 
-### Espace Agence
-- Gestion des véhicules
-- Gestion des clients
-- Gestion des réservations
-- Gestion de la maintenance
-- Gestion des amendes
-- Planning des véhicules (FullCalendar Timeline)
+### Statut du Projet
+- [Ce Qui Reste À Faire](./CE_QUI_RESTE_A_FAIRE.md) - État actuel et tâches restantes
+- [Tout Dans L'Ordre](./TOUT_DANS_L_ORDRE.md) - Historique complet des travaux
+
+## 🎯 Applications
+
+MalocAuto comprend **5 applications** :
+
+1. **Backend API** (Port 3000) - API REST NestJS
+2. **Frontend Admin** (Port 5173) - Super Admin
+3. **Frontend Agency** (Port 8080) - Gestion agence
+4. **Frontend Web** (Port 3001) - Company Admin
+5. **Mobile Agent** (Port 8081) - Application mobile terrain
+
+**Voir [APPLICATIONS_DETAILS.md](./APPLICATIONS_DETAILS.md) pour les détails complets de chaque application.**
 
 ## 🔒 Sécurité
 

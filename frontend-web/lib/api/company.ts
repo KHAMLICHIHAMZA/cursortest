@@ -4,6 +4,11 @@ export interface Company {
   id: string;
   name: string;
   slug: string;
+  raisonSociale: string;
+  identifiantLegal?: string;
+  formeJuridique: string;
+  maxAgencies?: number | null;
+  status?: string;
   phone?: string;
   address?: string;
   isActive: boolean;
@@ -17,6 +22,10 @@ export interface Company {
 
 export interface CreateCompanyDto {
   name: string;
+  raisonSociale: string;
+  identifiantLegal: string;
+  formeJuridique: string;
+  maxAgencies?: number | null;
   phone?: string;
   address?: string;
   adminEmail?: string;
@@ -25,6 +34,10 @@ export interface CreateCompanyDto {
 
 export interface UpdateCompanyDto {
   name?: string;
+  raisonSociale?: string;
+  identifiantLegal?: string;
+  formeJuridique?: string;
+  maxAgencies?: number | null;
   phone?: string;
   address?: string;
   isActive?: boolean;
@@ -38,6 +51,11 @@ export const companyApi = {
 
   getById: async (id: string): Promise<Company> => {
     const { data } = await apiClient.get<Company>(`/companies/${id}`);
+    return data;
+  },
+
+  getMyCompany: async (): Promise<Company> => {
+    const { data } = await apiClient.get<Company>('/companies/me');
     return data;
   },
 

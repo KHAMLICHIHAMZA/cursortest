@@ -6,6 +6,7 @@ import { getStoredUser } from '../lib/auth';
 import { getImageUrl } from '../lib/utils/image-url';
 import ImageUpload from '../components/ImageUpload';
 import CountryAutocomplete from '../components/CountryAutocomplete';
+import DatePicker from '../components/DatePicker';
 
 export default function Clients() {
   const [showModal, setShowModal] = useState(false);
@@ -261,6 +262,7 @@ export default function Clients() {
       isMoroccan: isMoroccan,
       countryOfOrigin: cleanValue(countryOfOrigin),
       licenseNumber: (licenseNumber || (formData.get('licenseNumber') as string) || '').trim(),
+      licenseType: cleanValue(licenseType || (formData.get('licenseType') as string)),
       licenseExpiryDate: cleanValue(licenseExpiryDate || formData.get('licenseExpiryDate')),
       isForeignLicense: isForeignLicense,
       dateOfBirth: cleanValue(dateOfBirth || formData.get('dateOfBirth')),
@@ -369,7 +371,7 @@ export default function Clients() {
                 : undefined);
               // Extraire le type de permis depuis le champ note
               const licenseTypeMatch = client.note?.match(/Type permis:\s*([A-Z]+(?:\s+[A-Z]+)?)/i);
-              const licenseType = licenseTypeMatch ? licenseTypeMatch[1].trim() : undefined;
+              const derivedLicenseType = client.licenseType || (licenseTypeMatch ? licenseTypeMatch[1].trim() : undefined);
               
               return (
                 <tr key={client.id} className="hover:bg-[#1D1F23]">
@@ -418,7 +420,7 @@ export default function Clients() {
                     {client.licenseNumber || '-'}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">
-                    {licenseType || '-'}
+                    {derivedLicenseType || '-'}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-400">
                     {client.licenseExpiryDate ? new Date(client.licenseExpiryDate).toLocaleDateString('fr-FR') : '-'}
@@ -440,7 +442,7 @@ export default function Clients() {
                             setLastName(lastName);
                             setDateOfBirth(client.dateOfBirth ? new Date(client.dateOfBirth).toISOString().split('T')[0] : '');
                             setAddress(address || '');
-                            setLicenseType(licenseType || '');
+                            setLicenseType(derivedLicenseType || '');
                             setError('');
                             setSuccess('');
                             setShowModal(true);
@@ -578,12 +580,15 @@ export default function Clients() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Date de naissance
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   name="dateOfBirth"
                   value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white"
+                  onChange={setDateOfBirth}
+                  placeholder="JJ/MM/AAAA"
+                  showYearDropdown
+                  showMonthDropdown
+                  yearDropdownItemNumber={100}
+                  maxDate={new Date()}
                 />
               </div>
 
@@ -688,12 +693,11 @@ export default function Clients() {
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Date d'expiration
                     </label>
-                    <input
-                      type="date"
+                    <DatePicker
                       name="licenseExpiryDate"
                       value={licenseExpiryDate}
-                      onChange={(e) => setLicenseExpiryDate(e.target.value)}
-                      className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white"
+                      onChange={setLicenseExpiryDate}
+                      placeholder="JJ/MM/AAAA"
                     />
                     {licenseExpiryDate && (() => {
                       const expiryDate = new Date(licenseExpiryDate);

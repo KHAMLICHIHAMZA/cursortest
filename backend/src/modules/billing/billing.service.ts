@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PaymentStatus, PaymentMethod, SubscriptionStatus, CompanyStatus } from '@prisma/client';
@@ -18,6 +19,7 @@ import { NotificationService } from '../notification/notification.service';
  */
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
@@ -250,7 +252,7 @@ export class BillingService {
         type: 'SYSTEM',
       });
     } catch (error) {
-      console.error('Error sending payment notification:', error);
+      this.logger.error('Error sending payment notification:', error);
       // Ne pas bloquer si la notification échoue
     }
   }

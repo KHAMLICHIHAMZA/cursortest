@@ -35,6 +35,13 @@ export class CompanyController {
     return this.companyService.findAll();
   }
 
+  @Get('me')
+  @Roles('COMPANY_ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get my company (Company Admin)' })
+  async findMyCompany(@CurrentUser() user: any) {
+    return this.companyService.findMyCompany(user);
+  }
+
   @Get(':id')
   @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Get company by ID' })

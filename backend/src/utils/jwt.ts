@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { JwtPayload } from '../types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// ⚠️ SECURITE: En production, JWT_SECRET DOIT être défini dans les variables d'environnement
+// Ne JAMAIS utiliser la valeur par défaut en production
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-not-for-production-use-only';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 // Export JwtPayload for use in middleware

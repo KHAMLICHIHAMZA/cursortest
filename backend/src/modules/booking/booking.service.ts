@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PlanningService } from '../planning/planning.service';
 import { AuditService } from '../audit/audit.service';
@@ -14,6 +14,8 @@ import { BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name);
+
   constructor(
     private prisma: PrismaService,
     private planningService: PlanningService,
@@ -679,7 +681,7 @@ export class BookingService {
     } catch (error) {
       // Si erreur (litige en cours), ne pas bloquer le check-out
       // La facture sera générée après la clôture financière
-      console.warn(`Facture non générée au check-out: ${error.message}`);
+      this.logger.warn(`Facture non générée au check-out: ${error.message}`);
     }
 
     // Créer un événement de log métier
@@ -1092,7 +1094,7 @@ export class BookingService {
       await this.invoiceService.generateInvoice(id, userId);
     } catch (error) {
       // Si erreur, logger mais ne pas bloquer la clôture
-      console.warn(`Facture non générée lors de la clôture financière: ${error.message}`);
+      this.logger.warn(`Facture non générée lors de la clôture financière: ${error.message}`);
     }
 
     // Mettre à jour le statut final de la caution si nécessaire

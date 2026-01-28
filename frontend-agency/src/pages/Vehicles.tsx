@@ -6,14 +6,15 @@ import { getStoredUser } from '../lib/auth';
 import { getImageUrl } from '../lib/utils/image-url';
 import ImageUpload from '../components/ImageUpload';
 import ColorAutocomplete from '../components/ColorAutocomplete';
+import DatePicker from '../components/DatePicker';
 
 export default function Vehicles() {
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [color, setColor] = useState<string>(editingVehicle?.color || '');
+  const [serviceDate, setServiceDate] = useState<string>('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const queryClient = useQueryClient();
@@ -53,7 +54,7 @@ export default function Vehicles() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      api.put(`/vehicles/${id}`, data),
+      api.patch(`/vehicles/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setShowModal(false);
@@ -90,7 +91,6 @@ export default function Vehicles() {
   });
 
   const handleImageChange = async (file: File | null, previewUrl?: string) => {
-    setImageFile(file);
     setImagePreview(previewUrl || null);
 
     if (file) {
@@ -99,7 +99,6 @@ export default function Vehicles() {
         setUploadedImageUrl(result.imageUrl);
       } catch (error: any) {
         alert(`Erreur upload: ${error.response?.data?.message || error.message || 'Erreur lors de l\'upload de l\'image'}`);
-        setImageFile(null);
         setImagePreview(null);
         setUploadedImageUrl(null);
       }
@@ -115,18 +114,22 @@ export default function Vehicles() {
     
     const formData = new FormData(e.currentTarget);
     const registrationNumber = formData.get('registrationNumber') as string;
-    const serviceDate = formData.get('serviceDate') as string;
+    const serviceDateValue = serviceDate || (formData.get('serviceDate') as string);
     
     // Validation côté client
     if (!registrationNumber || !registrationNumber.trim()) {
       setError('L\'immatriculation est obligatoire');
       return;
     }
+    if (!serviceDateValue) {
+      setError('La date de mise en service est obligatoire');
+      return;
+    }
 
     // Extraire l'année de la date de mise en service
     let year: number | undefined;
-    if (serviceDate) {
-      year = new Date(serviceDate).getFullYear();
+    if (serviceDateValue) {
+      year = new Date(serviceDateValue).getFullYear();
     } else if (formData.get('year')) {
       year = parseInt(formData.get('year') as string);
     }
@@ -175,10 +178,10 @@ export default function Vehicles() {
         <button
           onClick={() => {
             setEditingVehicle(null);
-            setImageFile(null);
             setImagePreview(null);
             setUploadedImageUrl(null);
             setColor('');
+            setServiceDate('');
             setShowModal(true);
           }}
           className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
@@ -310,6 +313,7 @@ export default function Vehicles() {
                           setImagePreview(vehicle.imageUrl ? getImageUrl(vehicle.imageUrl) || null : null);
                           setUploadedImageUrl(vehicle.imageUrl || null);
                           setColor(vehicle.color || '');
+                          setServiceDate(vehicle.year ? `${vehicle.year}-01-01` : '');
                           setError('');
                           setSuccess('');
                           setShowModal(true);
@@ -425,12 +429,11 @@ export default function Vehicles() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Date de mise en service *
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     name="serviceDate"
-                    defaultValue={editingVehicle?.year ? `${editingVehicle.year}-01-01` : ''}
-                    required
-                    className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white"
+                    value={serviceDate}
+                    onChange={setServiceDate}
+                    placeholder="JJ/MM/AAAA"
                   />
                 </div>
                 <div>
@@ -539,7 +542,6 @@ export default function Vehicles() {
                   onClick={() => {
                     setShowModal(false);
                     setEditingVehicle(null);
-                    setImageFile(null);
                     setImagePreview(null);
                     setUploadedImageUrl(null);
                     setColor('');

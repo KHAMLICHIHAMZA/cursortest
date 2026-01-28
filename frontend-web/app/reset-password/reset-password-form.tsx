@@ -44,7 +44,7 @@ export default function ResetPasswordForm() {
     setIsLoading(true);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
       await axios.post(`${API_URL}/auth/reset-password`, {
         token,
         password: formData.password,

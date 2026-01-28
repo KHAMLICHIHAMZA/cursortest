@@ -45,6 +45,10 @@ async function main() {
   const company1 = await prisma.company.create({
     data: {
       name: 'AutoLocation Premium',
+      raisonSociale: 'AutoLocation Premium',
+      identifiantLegal: 'ICE-000000001',
+      formeJuridique: 'SARL',
+      maxAgencies: 5,
       slug: 'autolocation-premium',
       phone: '+33123456789',
       address: '123 Rue de la Location, 75001 Paris',
@@ -1027,6 +1031,10 @@ async function main() {
   const company2 = await prisma.company.create({
     data: {
       name: 'CarRent Express',
+      raisonSociale: 'CarRent Express',
+      identifiantLegal: 'ICE-000000002',
+      formeJuridique: 'SARL',
+      maxAgencies: 5,
       slug: 'carrent-express',
       phone: '+33987654321',
       address: '789 Boulevard de la Location, 69001 Lyon',

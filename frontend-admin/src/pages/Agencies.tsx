@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const MODULE_LABELS: Record<string, string> = {
   VEHICLES: 'Véhicules',
@@ -16,6 +17,7 @@ export default function Agencies() {
   const [showModal, setShowModal] = useState(false);
   const [editingAgency, setEditingAgency] = useState<any>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: agencies, isLoading } = useQuery({
     queryKey: ['agencies'],
@@ -195,18 +197,30 @@ export default function Agencies() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Agences</h1>
-        <button
-          onClick={() => {
-            setEditingAgency(null);
-            setShowModal(true);
-          }}
-          className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
-        >
-          <Plus size={20} />
-          Nouvelle agence
-        </button>
+      <div className="grid grid-cols-3 items-center mb-8">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Retour
+          </button>
+        </div>
+        <h1 className="text-3xl font-bold text-center">Agences</h1>
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              setEditingAgency(null);
+              setShowModal(true);
+            }}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <Plus size={20} />
+            Nouvelle agence
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#2C2F36] rounded-lg border border-gray-700 overflow-hidden">

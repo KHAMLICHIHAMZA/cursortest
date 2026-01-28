@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { Plus, Edit, Trash2, Power, Heart, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Power, Heart, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const MODULE_LABELS: Record<string, string> = {
@@ -17,6 +17,7 @@ export default function Companies() {
   const [showModal, setShowModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [moduleError, setModuleError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -55,6 +56,37 @@ export default function Companies() {
     enabled: !!editingCompany?.id,
   });
 
+  const { data: moduleDependencies } = useQuery({
+    queryKey: ['moduleDependencies'],
+    queryFn: async () => {
+      const res = await api.get('/modules/dependencies');
+      return res.data;
+    },
+    enabled: !!editingCompany?.id,
+  });
+
+  const dependenciesByModule = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    (moduleDependencies || []).forEach((dep: any) => {
+      if (!map[dep.moduleCode]) {
+        map[dep.moduleCode] = [];
+      }
+      map[dep.moduleCode].push(dep.dependsOnCode);
+    });
+    return map;
+  }, [moduleDependencies]);
+
+  const reverseDependenciesByModule = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    (moduleDependencies || []).forEach((dep: any) => {
+      if (!map[dep.dependsOnCode]) {
+        map[dep.dependsOnCode] = [];
+      }
+      map[dep.dependsOnCode].push(dep.moduleCode);
+    });
+    return map;
+  }, [moduleDependencies]);
+
   // Initialiser les modules sélectionnés quand on ouvre le modal en édition
   useEffect(() => {
     if (editingCompany && companyModules) {
@@ -65,6 +97,7 @@ export default function Companies() {
     } else {
       setSelectedModules([]);
     }
+    setModuleError(null);
   }, [editingCompany, companyModules]);
 
   const createMutation = useMutation({
@@ -98,7 +131,7 @@ export default function Companies() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      api.put(`/companies/${id}`, { isActive: !isActive }),
+      api.patch(`/companies/${id}`, { isActive: !isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
     },
@@ -116,6 +149,11 @@ export default function Companies() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companyModules', editingCompany?.id] });
     },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erreur lors de la mise à jour du module';
+      setModuleError(message);
+      queryClient.invalidateQueries({ queryKey: ['companyModules', editingCompany?.id] });
+    },
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -123,11 +161,21 @@ export default function Companies() {
     const formData = new FormData(e.currentTarget);
     const data: any = {
       name: formData.get('name'),
+      raisonSociale: formData.get('raisonSociale'),
+      identifiantLegal: formData.get('identifiantLegal'),
+      formeJuridique: formData.get('formeJuridique'),
       phone: formData.get('phone'),
       address: formData.get('address'),
       adminEmail: formData.get('adminEmail'),
       adminName: formData.get('adminName'),
     };
+
+    const maxAgenciesValue = formData.get('maxAgencies');
+    if (maxAgenciesValue === null || maxAgenciesValue === '') {
+      data.maxAgencies = null;
+    } else {
+      data.maxAgencies = parseInt(maxAgenciesValue as string, 10);
+    }
     
     // Ajouter les champs SaaS
     const currency = formData.get('currency');
@@ -158,54 +206,70 @@ export default function Companies() {
   // Gérer les changements de modules
   const handleModuleToggle = (moduleCode: string) => {
     if (!editingCompany?.id) return;
+    setModuleError(null);
     
     const isCurrentlyActive = selectedModules.includes(moduleCode);
-    const moduleLabel = MODULE_LABELS[moduleCode] || moduleCode;
-    
-    if (!isCurrentlyActive) {
-      // Activation : confirmation
-      if (!confirm(`Activer le module "${moduleLabel}" pour cette entreprise ?\n\nToutes les agences hériteront automatiquement de ce module.`)) {
+
+    if (isCurrentlyActive) {
+      const dependentModules = reverseDependenciesByModule[moduleCode] || [];
+      const blocking = dependentModules.filter((dep) => selectedModules.includes(dep));
+
+      if (blocking.length > 0) {
+        setModuleError(
+          `Impossible de désactiver ${MODULE_LABELS[moduleCode] || moduleCode}. Modules dépendants: ${blocking
+            .map((dep) => MODULE_LABELS[dep] || dep)
+            .join(', ')}`,
+        );
         return;
       }
-    } else {
-      // Désactivation : confirmation avec impact
-      if (!confirm(`Désactiver le module "${moduleLabel}" pour cette entreprise ?\n\n⚠️ Cette action désactivera ce module pour toutes les agences de l'entreprise.`)) {
-        return;
-      }
+
+      const newModules = selectedModules.filter((m) => m !== moduleCode);
+      setSelectedModules(newModules);
+
+      toggleModuleMutation.mutate({
+        companyId: editingCompany.id,
+        moduleCode,
+        activate: false,
+      });
+      return;
     }
-    
-    const newModules = isCurrentlyActive
-      ? selectedModules.filter(m => m !== moduleCode)
-      : [...selectedModules, moduleCode];
-    
+
+    const dependencies = dependenciesByModule[moduleCode] || [];
+    const missingDependencies = dependencies.filter((dep) => !selectedModules.includes(dep));
+    const modulesToActivate = [moduleCode, ...missingDependencies];
+    const newModules = Array.from(new Set([...selectedModules, ...modulesToActivate]));
+
     setSelectedModules(newModules);
-    
-    toggleModuleMutation.mutate({
-      companyId: editingCompany.id,
-      moduleCode,
-      activate: !isCurrentlyActive,
+
+    modulesToActivate.forEach((code) => {
+      if (!selectedModules.includes(code)) {
+        toggleModuleMutation.mutate({
+          companyId: editingCompany.id,
+          moduleCode: code,
+          activate: true,
+        });
+      }
     });
   };
 
-  // Calculer la date de fin d'abonnement
-  const calculateEndDate = (startDate: string, billingPeriod: string) => {
-    if (!startDate) return '';
-    const start = new Date(startDate);
-    const end = new Date(start);
-    
-    switch (billingPeriod) {
-      case 'MONTHLY':
-        end.setMonth(end.getMonth() + 1);
-        break;
-      case 'QUARTERLY':
-        end.setMonth(end.getMonth() + 3);
-        break;
-      case 'YEARLY':
-        end.setFullYear(end.getFullYear() + 1);
-        break;
-    }
-    
-    return end.toISOString().split('T')[0];
+  const handleActivateAllModules = () => {
+    if (!editingCompany?.id || isCompanySuspended) return;
+
+    const allModuleCodes = Object.keys(MODULE_LABELS);
+    const modulesToActivate = allModuleCodes.filter((code) => !selectedModules.includes(code));
+
+    if (modulesToActivate.length === 0) return;
+
+    setSelectedModules(allModuleCodes);
+    setModuleError(null);
+
+    modulesToActivate.forEach((moduleCode) => {
+      toggleModuleMutation.mutate({
+        companyId: editingCompany.id,
+        moduleCode,
+        activate: true,
+      });
+    });
   };
 
   // Récupérer l'abonnement actif de l'entreprise
@@ -220,18 +284,30 @@ export default function Companies() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Entreprises</h1>
-        <button
-          onClick={() => {
-            setEditingCompany(null);
-            setShowModal(true);
-          }}
-          className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
-        >
-          <Plus size={20} />
-          Nouvelle entreprise
-        </button>
+      <div className="grid grid-cols-3 items-center mb-8">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Retour
+          </button>
+        </div>
+        <h1 className="text-3xl font-bold text-center">Entreprises</h1>
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              setEditingCompany(null);
+              setShowModal(true);
+            }}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <Plus size={20} />
+            Nouvelle entreprise
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#2C2F36] rounded-lg border border-gray-700 overflow-hidden">
@@ -270,30 +346,25 @@ export default function Companies() {
                   {company._count?.agencies || 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex flex-col gap-1">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        company.status === 'ACTIVE'
-                          ? 'bg-green-500/20 text-green-400'
-                          : company.status === 'SUSPENDED'
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : company.status === 'EXPIRED'
-                          ? 'bg-orange-500/20 text-orange-400'
-                          : 'bg-red-500/20 text-red-400'
-                      }`}
-                    >
-                      {company.status === 'ACTIVE' && 'Actif'}
-                      {company.status === 'SUSPENDED' && 'Suspendu'}
-                      {company.status === 'EXPIRED' && 'Expiré'}
-                      {company.status === 'DELETED' && 'Supprimé'}
-                      {!company.status && 'Actif'}
-                    </span>
-                    {company.isActive !== undefined && (
-                      <span className="text-xs text-gray-500">
-                        (Legacy: {company.isActive ? 'Active' : 'Inactive'})
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      company.isActive === false
+                        ? 'bg-red-500/20 text-red-400'
+                        : company.status === 'SUSPENDED'
+                        ? 'bg-yellow-500/20 text-yellow-400'
+                        : company.status === 'EXPIRED'
+                        ? 'bg-orange-500/20 text-orange-400'
+                        : company.status === 'DELETED'
+                        ? 'bg-red-500/20 text-red-400'
+                        : 'bg-green-500/20 text-green-400'
+                    }`}
+                  >
+                    {company.isActive === false && 'Inactif'}
+                    {company.isActive !== false && company.status === 'SUSPENDED' && 'Suspendu'}
+                    {company.isActive !== false && company.status === 'EXPIRED' && 'Expiré'}
+                    {company.isActive !== false && company.status === 'DELETED' && 'Supprimé'}
+                    {company.isActive !== false && 'Actif'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end gap-2">
@@ -370,6 +441,65 @@ export default function Companies() {
                         name="name"
                         defaultValue={editingCompany?.name}
                         required
+                        disabled={isCompanySuspended}
+                        className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Raison sociale *
+                      </label>
+                      <input
+                        type="text"
+                        name="raisonSociale"
+                        defaultValue={editingCompany?.raisonSociale}
+                        required
+                        disabled={isCompanySuspended}
+                        className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Identifiant légal (SIREN / ICE / RC) *
+                      </label>
+                      <input
+                        type="text"
+                        name="identifiantLegal"
+                        defaultValue={editingCompany?.identifiantLegal}
+                        required={!editingCompany}
+                        disabled={isCompanySuspended}
+                        className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Forme juridique *
+                      </label>
+                      <select
+                        name="formeJuridique"
+                        defaultValue={editingCompany?.formeJuridique || 'AUTRE'}
+                        required
+                        disabled={isCompanySuspended}
+                        className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="SARL">SARL</option>
+                        <option value="SAS">SAS</option>
+                        <option value="SA">SA</option>
+                        <option value="EI">EI</option>
+                        <option value="AUTO_ENTREPRENEUR">AUTO_ENTREPRENEUR</option>
+                        <option value="ASSOCIATION">ASSOCIATION</option>
+                        <option value="AUTRE">AUTRE</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Limite d'agences (vide = illimité)
+                      </label>
+                      <input
+                        type="number"
+                        name="maxAgencies"
+                        min="0"
+                        defaultValue={editingCompany?.maxAgencies ?? ''}
                         disabled={isCompanySuspended}
                         className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       />
@@ -591,14 +721,27 @@ export default function Companies() {
                 {/* SECTION 3 — Modules activés */}
                 {editingCompany && (
                   <div className="border-b border-gray-700 pb-4">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-300">Modules activés (niveau entreprise)</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-300">Modules activés (niveau entreprise)</h3>
+                      <button
+                        type="button"
+                        onClick={handleActivateAllModules}
+                        disabled={isCompanySuspended}
+                        className="bg-[#3E7BFA] text-white px-3 py-2 rounded-lg text-sm hover:bg-[#2E6BEA] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Tout activer
+                      </button>
+                    </div>
                     <p className="text-sm text-gray-400 mb-4">
                       Les agences héritent automatiquement des modules activés au niveau entreprise. Une désactivation au niveau entreprise impacte toutes les agences.
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       {Object.entries(MODULE_LABELS).map(([code, label]) => {
                         const isActive = selectedModules.includes(code);
-                        const isDisabled = isCompanySuspended;
+                        const requiredBy = reverseDependenciesByModule[code] || [];
+                        const requiredByActive = requiredBy.filter((dep) => selectedModules.includes(dep));
+                        const isDisabled = isCompanySuspended || requiredByActive.length > 0;
+                        const dependsOn = dependenciesByModule[code] || [];
                         
                         return (
                           <label
@@ -616,7 +759,19 @@ export default function Companies() {
                               disabled={isDisabled}
                               className="w-4 h-4 rounded disabled:cursor-not-allowed"
                             />
-                            <span className={`text-sm ${isActive ? 'text-white' : 'text-gray-400'}`}>{label}</span>
+                            <div className="flex flex-col">
+                              <span className={`text-sm ${isActive ? 'text-white' : 'text-gray-400'}`}>{label}</span>
+                              {dependsOn.length > 0 && (
+                                <span className="text-xs text-gray-500">
+                                  Dépend de: {dependsOn.map((dep) => MODULE_LABELS[dep] || dep).join(', ')}
+                                </span>
+                              )}
+                              {requiredByActive.length > 0 && (
+                                <span className="text-xs text-yellow-400">
+                                  Requis par: {requiredByActive.map((dep) => MODULE_LABELS[dep] || dep).join(', ')}
+                                </span>
+                              )}
+                            </div>
                           </label>
                         );
                       })}
@@ -624,6 +779,11 @@ export default function Companies() {
                     {selectedModules.length === 0 && !isCompanySuspended && (
                       <p className="text-xs text-yellow-400 mt-2">
                         ⚠️ Aucun module activé. Les agences n'auront accès à aucune fonctionnalité.
+                      </p>
+                    )}
+                    {moduleError && (
+                      <p className="text-xs text-red-400 mt-2">
+                        {moduleError}
                       </p>
                     )}
                   </div>

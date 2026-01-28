@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationChannel, NotificationType } from '@prisma/client';
@@ -9,6 +9,7 @@ import { NotificationChannel, NotificationType } from '@prisma/client';
  */
 @Injectable()
 export class WhatsAppService {
+  private readonly logger = new Logger(WhatsAppService.name);
   private apiUrl: string;
   private apiToken: string;
   private phoneNumberId: string;
@@ -28,7 +29,7 @@ export class WhatsAppService {
     type: NotificationType = NotificationType.TRANSACTIONAL,
   ): Promise<void> {
     if (!this.apiUrl || !this.apiToken || !this.phoneNumberId) {
-      console.warn('WhatsApp API not configured, skipping message');
+      this.logger.warn('WhatsApp API not configured, skipping message');
       return;
     }
 
@@ -65,7 +66,7 @@ export class WhatsAppService {
         },
       });
     } catch (error) {
-      console.error('WhatsApp send error:', error);
+      this.logger.error('WhatsApp send error:', error);
 
       await this.prisma.notification.create({
         data: {
@@ -93,8 +94,4 @@ export class WhatsAppService {
     await this.sendMessage(phone, message, NotificationType.TRANSACTIONAL);
   }
 }
-
-
-
-
 

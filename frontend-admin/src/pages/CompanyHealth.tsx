@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../lib/axios';
-import { AlertCircle, CheckCircle, Clock, XCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertCircle, Clock, ArrowLeft } from 'lucide-react';
 
 export default function CompanyHealth() {
   const { companyId } = useParams();
-  const navigate = useNavigate();
   const [selectedCompanyId, setSelectedCompanyId] = useState(companyId || '');
+  const navigate = useNavigate();
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
@@ -17,14 +17,23 @@ export default function CompanyHealth() {
     },
   });
 
+  const isValidCompanyId = !!companies?.some((company: any) => company.id === selectedCompanyId);
+
   const { data: company, isLoading: companyLoading } = useQuery({
     queryKey: ['company', selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return null;
-      const res = await api.get(`/companies/${selectedCompanyId}`);
-      return res.data;
+      try {
+        const res = await api.get(`/companies/${selectedCompanyId}`);
+        return res.data;
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
     },
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && isValidCompanyId,
   });
 
   const { data: subscription } = useQuery({
@@ -33,9 +42,9 @@ export default function CompanyHealth() {
       if (!selectedCompanyId) return null;
       const res = await api.get('/subscriptions');
       const subscriptions = res.data;
-      return subscriptions.find((s: any) => s.companyId === selectedCompanyId);
+      return subscriptions.find((s: any) => s.companyId === selectedCompanyId) || null;
     },
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && isValidCompanyId,
   });
 
   const { data: invoices } = useQuery({
@@ -45,7 +54,7 @@ export default function CompanyHealth() {
       const res = await api.get(`/billing/company/${selectedCompanyId}/invoices`);
       return res.data;
     },
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && isValidCompanyId,
   });
 
   const getStatusColor = (status: string) => {
@@ -58,19 +67,6 @@ export default function CompanyHealth() {
         return 'bg-red-500/20 text-red-400';
       default:
         return 'bg-gray-500/20 text-gray-400';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return CheckCircle;
-      case 'SUSPENDED':
-        return AlertCircle;
-      case 'DELETED':
-        return XCircle;
-      default:
-        return Clock;
     }
   };
 
@@ -92,7 +88,20 @@ export default function CompanyHealth() {
   if (!selectedCompanyId) {
     return (
       <div>
-        <h1 className="text-3xl font-bold mb-8">Santé du compte</h1>
+        <div className="grid grid-cols-3 items-center mb-8">
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Retour
+            </button>
+          </div>
+          <h1 className="text-3xl font-bold text-center">Santé du compte</h1>
+          <div />
+        </div>
         <div className="bg-[#2C2F36] rounded-lg p-6 border border-gray-700">
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Sélectionner une entreprise
@@ -127,24 +136,36 @@ export default function CompanyHealth() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <div>
+      <div className="grid grid-cols-3 items-center mb-8">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Retour
+          </button>
+        </div>
+        <div className="text-center">
           <h1 className="text-3xl font-bold">Santé du compte</h1>
           <p className="text-gray-400 mt-2">
             {company?.name || 'Sélectionner une entreprise'}
           </p>
         </div>
-        <select
-          value={selectedCompanyId}
-          onChange={(e) => setSelectedCompanyId(e.target.value)}
-          className="px-4 py-2 bg-[#2C2F36] border border-gray-600 rounded-lg text-white"
-        >
-          {companies?.map((c: any) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex justify-end">
+          <select
+            value={selectedCompanyId}
+            onChange={(e) => setSelectedCompanyId(e.target.value)}
+            className="px-4 py-2 bg-[#2C2F36] border border-gray-600 rounded-lg text-white"
+          >
+            {companies?.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Alertes */}

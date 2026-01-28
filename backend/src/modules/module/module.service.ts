@@ -267,6 +267,19 @@ export class ModuleService {
   }
 
   /**
+   * Récupérer les dépendances entre modules
+   */
+  async getModuleDependencies(user: any) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only SUPER_ADMIN can view module dependencies');
+    }
+
+    return this.prisma.moduleDependency.findMany({
+      orderBy: { moduleCode: 'asc' },
+    });
+  }
+
+  /**
    * Vérifier les dépendances d'un module
    */
   private async checkModuleDependencies(

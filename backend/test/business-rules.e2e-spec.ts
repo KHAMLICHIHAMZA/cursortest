@@ -58,6 +58,10 @@ describe('Business Rules E2E Tests - Automatiques', () => {
     const company = await prisma.company.create({
       data: {
         name: 'Test Company Auto',
+        raisonSociale: 'Test Company Auto',
+        identifiantLegal: 'ICE-TEST-0002',
+        formeJuridique: 'SARL',
+        maxAgencies: 5,
         slug: 'test-company-auto',
         phone: '+33123456789',
         address: '123 Test Street',

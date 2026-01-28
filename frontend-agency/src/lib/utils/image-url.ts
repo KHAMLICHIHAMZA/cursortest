@@ -11,15 +11,22 @@ export function getImageUrl(imageUrl?: string | null): string | undefined {
     return imageUrl;
   }
   
-  // Construire l'URL complète avec l'URL du backend
-  // Le proxy Vite redirige /api vers http://localhost:3000
-  // On doit construire l'URL complète pour les images
-  const baseUrl = 'http://localhost:3000';
+  // Construire l'URL complète avec l'URL du backend.
+  // Priorité: VITE_BACKEND_URL, sinon dériver depuis VITE_API_URL.
+  const backendBaseUrl =
+    import.meta.env.VITE_BACKEND_URL ||
+    (import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace('/api/v1', '').replace('/api', '')
+      : '') ||
+    'http://localhost:3000';
+  const normalizedBaseUrl = backendBaseUrl.endsWith('/')
+    ? backendBaseUrl.slice(0, -1)
+    : backendBaseUrl;
   
   // S'assurer que l'URL relative commence par "/"
   const relativeUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
   
-  return `${baseUrl}${relativeUrl}`;
+  return `${normalizedBaseUrl}${relativeUrl}`;
 }
 
 

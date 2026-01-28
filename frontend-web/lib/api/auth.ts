@@ -21,7 +21,12 @@ export interface AuthResponse {
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await apiClient.post('/auth/login', credentials);
-    return response.data;
+    const data = response.data;
+    return {
+      accessToken: data.accessToken || data.access_token,
+      refreshToken: data.refreshToken || data.refresh_token,
+      user: data.user,
+    };
   },
 
   logout: async (): Promise<void> => {
@@ -30,6 +35,12 @@ export const authApi = {
 
   refresh: async (refreshToken: string): Promise<{ accessToken: string }> => {
     const response = await apiClient.post('/auth/refresh', { refreshToken });
+    const data = response.data;
+    return { accessToken: data.accessToken || data.access_token };
+  },
+
+  forgotPassword: async (email: string, client: 'web' | 'admin' | 'agency' = 'web'): Promise<{ message: string }> => {
+    const response = await apiClient.post('/auth/forgot-password', { email, client });
     return response.data;
   },
 

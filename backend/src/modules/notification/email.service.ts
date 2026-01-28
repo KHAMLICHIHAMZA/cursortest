@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -6,6 +6,7 @@ import { NotificationChannel, NotificationType } from '@prisma/client';
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
   constructor(
@@ -50,7 +51,7 @@ export class EmailService {
         },
       });
     } catch (error) {
-      console.error('Email send error:', error);
+      this.logger.error('Email send error:', error);
 
       // Enregistrer l'erreur
       await this.prisma.notification.create({
@@ -123,8 +124,4 @@ export class EmailService {
     );
   }
 }
-
-
-
-
 

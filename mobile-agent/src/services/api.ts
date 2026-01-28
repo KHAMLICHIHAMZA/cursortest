@@ -110,6 +110,7 @@ class ApiService {
         return response;
       },
       async (error: AxiosError) => {
+        const requestUrl = (error.config?.url || '').toString();
         console.error('[API] ❌ Response error:', {
           message: error.message,
           code: error.code,
@@ -122,7 +123,15 @@ class ApiService {
             baseURL: error.config?.baseURL,
           },
         });
-        if (error.response?.status === 401) {
+        // Important: don't auto-logout on auth endpoints (login/forgot/reset)
+        // Otherwise the UI may not show the real error (e.g. "mot de passe incorrect").
+        const isAuthEndpoint =
+          requestUrl.includes('/auth/login') ||
+          requestUrl.includes('/auth/forgot-password') ||
+          requestUrl.includes('/auth/reset-password') ||
+          requestUrl.includes('/auth/refresh');
+
+        if (error.response?.status === 401 && !isAuthEndpoint) {
           // Tenter de rafraîchir le token si disponible
           const refreshToken = await this.getStoredValue(REFRESH_TOKEN_KEY);
           

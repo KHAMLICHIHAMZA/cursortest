@@ -1,4 +1,7 @@
 import * as nodemailer from 'nodemailer';
+import { Logger } from '@nestjs/common';
+
+const logger = new Logger('EmailService');
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -38,7 +41,7 @@ export const sendWelcomeEmail = async (
   try {
     await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Error sending email:', error);
+    logger.error('Error sending email:', error);
     // En développement, on peut continuer même si l'email échoue
     if (process.env.NODE_ENV === 'production') {
       throw error;
@@ -49,9 +52,11 @@ export const sendWelcomeEmail = async (
 export const sendPasswordResetEmail = async (
   email: string,
   name: string,
-  resetToken: string
+  resetToken: string,
+  resetBaseUrl?: string,
 ): Promise<void> => {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+  const baseUrl = resetBaseUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+  const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
   const mailOptions = {
     from: process.env.SMTP_FROM || 'noreply@malocauto.com',
@@ -75,13 +80,10 @@ export const sendPasswordResetEmail = async (
   try {
     await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Error sending email:', error);
+    logger.error('Error sending email:', error);
     if (process.env.NODE_ENV === 'production') {
       throw error;
     }
   }
 };
-
-
-
 

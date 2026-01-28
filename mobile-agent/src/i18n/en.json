@@ -30,8 +30,16 @@
     "passwordRequired": "Password is required",
     "passwordMinLength": "Password must be at least 8 characters",
     "loginError": "Login error",
+    "invalidCredentials": "Incorrect email or password",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "sendResetLink": "Send reset link",
+    "resetEmailSent": "If the account exists, a reset email has been sent.",
     "companyInactive": "Your company is inactive",
     "companySuspended": "Your company is suspended"
+  },
+  "errors": {
+    "network": "Network error. Please check your connection."
   },
   "booking": {
     "title": "Bookings",

@@ -177,6 +177,17 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+// Forme juridique d'une Company
+enum CompanyLegalForm {
+  SARL
+  SAS
+  SA
+  EI
+  AUTO_ENTREPRENEUR
+  ASSOCIATION
+  AUTRE
+}
+
 // Codes des modules SaaS disponibles
 // Chaque module peut être activé/désactivé indépendamment
 // Dépendances gérées via ModuleDependency
@@ -217,6 +228,9 @@ model Company {
   id       String  @id @default(cuid())
   name     String
   slug     String  @unique
+  raisonSociale  String @default("")
+  identifiantLegal String? @unique
+  formeJuridique CompanyLegalForm @default(AUTRE)
   phone    String?
   address  String?
   isActive Boolean @default(true) // ⚠️ CONSERVÉ pour rétrocompatibilité
@@ -228,6 +242,7 @@ model Company {
 
   // SaaS: Configuration métier
   currency String @default("MAD") // Devise par Company (ex: MAD, EUR, USD)
+  maxAgencies Int? @default(5) // Null = illimité
 
   // Branding
   logoUrl        String?
@@ -374,7 +389,7 @@ model UserAgency {
 model Vehicle {
   id                 String        @id @default(cuid())
   agencyId           String
-  registrationNumber String        @unique
+  registrationNumber String
   brand              String
   model              String
   year               Int
@@ -423,6 +438,7 @@ model Client {
   name            String
   email           String?
   phone           String?
+  dateOfBirth     DateTime?
   note            String?
   licenseImageUrl String? // URL de l'image du permis de conduite
 
@@ -432,6 +448,7 @@ model Client {
 
   // Informations du permis de conduite
   licenseNumber     String? // Numéro du permis
+  licenseType       String? // Type de permis
   licenseExpiryDate DateTime // Date de validité du permis (NOT NULL - obligatoire)
   isForeignLicense  Boolean   @default(false) // Si le permis est étranger
 
@@ -814,6 +831,7 @@ enum BusinessEventType {
   AGENCY_CREATED
   AGENCY_UPDATED
   AGENCY_DELETED
+  AGENCY_CREATE_BLOCKED_MAX_LIMIT
   USER_CREATED
   USER_UPDATED
   USER_DELETED

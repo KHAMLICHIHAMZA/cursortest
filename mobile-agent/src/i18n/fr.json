@@ -39,8 +39,16 @@
     "passwordRequired": "Le mot de passe est obligatoire",
     "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères",
     "loginError": "Erreur de connexion",
+    "invalidCredentials": "Email ou mot de passe incorrect",
+    "forgotPassword": "Mot de passe oublié ?",
+    "forgotPasswordTitle": "Réinitialiser le mot de passe",
+    "sendResetLink": "Envoyer le lien",
+    "resetEmailSent": "Si le compte existe, un email de réinitialisation a été envoyé.",
     "companyInactive": "Votre entreprise est désactivée",
     "companySuspended": "Votre entreprise est suspendue"
+  },
+  "errors": {
+    "network": "Erreur réseau. Vérifiez votre connexion."
   },
   "booking": {
     "title": "Réservations",

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { Plus, Edit, Key, AlertTriangle, X } from 'lucide-react';
+import { Plus, Edit, Key, AlertTriangle, X, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { getStoredUser } from '../lib/auth';
 
 interface AgencyPermission {
   agencyId: string;
@@ -13,6 +15,8 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [selectedAgencies, setSelectedAgencies] = useState<AgencyPermission[]>([]);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const currentUser = getStoredUser();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
@@ -134,19 +138,22 @@ export default function Users() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const role = formData.get('role') as string;
+    const canAssignCompanyAdmin = currentUser?.role === 'SUPER_ADMIN';
     
     const data: any = {
       email: formData.get('email'),
       name: formData.get('name'),
-      role: formData.get('role'),
       companyId: formData.get('companyId') || null,
       isActive: formData.get('isActive') === 'true',
       agencyIds: selectedAgencies.map(a => a.agencyId),
-      agencyPermissions: selectedAgencies.map(a => ({
-        agencyId: a.agencyId,
-        permission: a.permission,
-      })),
     };
+
+    if (role) {
+      if (role !== 'COMPANY_ADMIN' || canAssignCompanyAdmin) {
+        data.role = role;
+      }
+    }
 
     if (editingUser) {
       updateMutation.mutate({ id: editingUser.id, data });
@@ -175,18 +182,30 @@ export default function Users() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Utilisateurs</h1>
-        <button
-          onClick={() => {
-            setEditingUser(null);
-            setShowModal(true);
-          }}
-          className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
-        >
-          <Plus size={20} />
-          Nouvel utilisateur
-        </button>
+      <div className="grid grid-cols-3 items-center mb-8">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Retour
+          </button>
+        </div>
+        <h1 className="text-3xl font-bold text-center">Utilisateurs</h1>
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              setEditingUser(null);
+              setShowModal(true);
+            }}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <Plus size={20} />
+            Nouvel utilisateur
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#2C2F36] rounded-lg border border-gray-700 overflow-hidden">
@@ -332,7 +351,10 @@ export default function Users() {
                         name="role"
                         defaultValue={editingUser?.role}
                         required
-                        disabled={isUserCompanySuspended}
+                        disabled={
+                          isUserCompanySuspended ||
+                          (currentUser?.role === 'COMPANY_ADMIN' && editingUser?.role === 'COMPANY_ADMIN')
+                        }
                         onChange={(e) => {
                           // Mettre à jour les permissions par défaut quand le rôle change
                           const newPermission = getDefaultPermission(e.target.value);
@@ -441,9 +463,6 @@ export default function Users() {
                             {selectedAgencies.map(({ agencyId, permission }) => {
                               const agency = agencies?.find((a: any) => a.id === agencyId);
                               const suspended = isAgencySuspended(agencyId);
-                              const form = document.querySelector('form') as HTMLFormElement;
-                              const role = form?.querySelector<HTMLSelectElement>('select[name="role"]')?.value || 'AGENT';
-                              
                               return (
                                 <tr key={agencyId} className={suspended ? 'opacity-50' : ''}>
                                   <td className="px-4 py-3">

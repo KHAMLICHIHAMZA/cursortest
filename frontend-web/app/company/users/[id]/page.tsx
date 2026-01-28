@@ -24,7 +24,7 @@ export default function EditCompanyUserPage() {
   const id = params.id as string;
   const queryClient = useQueryClient();
 
-  const { data: user: currentUser } = useAuthQuery({
+  const { data: currentUser } = useAuthQuery({
     queryKey: ['me'],
     queryFn: () => authApi.getMe(),
     enabled: !!Cookies.get('accessToken'),
@@ -95,7 +95,7 @@ export default function EditCompanyUserPage() {
   const toggleAgency = (agencyId: string) => {
     const isIncluded = formData.agencyIds?.includes(agencyId);
     const newAgencyIds = isIncluded
-      ? formData.agencyIds.filter((id) => id !== agencyId)
+      ? (formData.agencyIds || []).filter((id) => id !== agencyId)
       : [...(formData.agencyIds || []), agencyId];
     
     const newAgencyPermissions = isIncluded

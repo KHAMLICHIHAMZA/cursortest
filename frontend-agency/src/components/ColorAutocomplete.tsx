@@ -128,23 +128,21 @@ export default function ColorAutocomplete({
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const debouncedQuery = useDebounce(query, 200);
 
   // Filtrer les couleurs selon la recherche
   useEffect(() => {
-    if (debouncedQuery.length >= 1) {
-      const filtered = COMMON_COLORS.filter((color) =>
-        color.toLowerCase().includes(debouncedQuery.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 10)); // Limiter à 10 résultats
-      setShowDropdown(true);
-    } else {
-      setSuggestions([]);
-      setShowDropdown(false);
-    }
-  }, [debouncedQuery]);
+    const filtered = debouncedQuery.length >= 1
+      ? COMMON_COLORS.filter((color) =>
+          color.toLowerCase().includes(debouncedQuery.toLowerCase()),
+        )
+      : COMMON_COLORS;
+    setSuggestions(filtered.slice(0, 10)); // Limiter à 10 résultats
+    setShowDropdown(isFocused && filtered.length > 0);
+  }, [debouncedQuery, isFocused]);
 
   // Synchroniser avec la valeur externe
   useEffect(() => {
@@ -178,13 +176,19 @@ export default function ColorAutocomplete({
   };
 
   const handleFocus = () => {
-    if (query.length >= 1) {
-      const filtered = COMMON_COLORS.filter((color) =>
-        color.toLowerCase().includes(query.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 10));
-      setShowDropdown(true);
-    }
+    setIsFocused(true);
+    const filtered = query.length >= 1
+      ? COMMON_COLORS.filter((color) =>
+          color.toLowerCase().includes(query.toLowerCase()),
+        )
+      : COMMON_COLORS;
+    setSuggestions(filtered.slice(0, 10));
+    setShowDropdown(filtered.length > 0);
+  };
+  const handleBlur = () => {
+    setIsFocused(false);
+    onBlur?.();
+    setTimeout(() => setShowDropdown(false), 100);
   };
 
   return (
@@ -196,7 +200,7 @@ export default function ColorAutocomplete({
         value={query}
         onChange={handleChange}
         onFocus={handleFocus}
-        onBlur={onBlur}
+        onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
         autoComplete="off"
@@ -215,7 +219,10 @@ export default function ColorAutocomplete({
                 <button
                   key={color}
                   type="button"
-                  onClick={() => handleSelect(color)}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    handleSelect(color);
+                  }}
                   className="w-full text-left px-3 py-2.5 rounded-lg transition-all hover:opacity-90 hover:shadow-md font-medium"
                   style={{
                     backgroundColor: bgColor,

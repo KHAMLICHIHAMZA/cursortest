@@ -73,7 +73,7 @@ export default function Bookings() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      api.put(`/bookings/${id}`, data),
+      api.patch(`/bookings/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });

@@ -75,6 +75,12 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
 export interface User {
   id: string;
   email: string;
@@ -188,6 +194,12 @@ export const authService = {
       });
       throw error;
     }
+  },
+
+  async forgotPassword(data: ForgotPasswordInput): Promise<{ message?: string }> {
+    console.log('[authService] Forgot password:', { email: data.email });
+    const response = await api.post('/auth/forgot-password', data);
+    return response.data || {};
   },
 
   async getUser(): Promise<User | null> {

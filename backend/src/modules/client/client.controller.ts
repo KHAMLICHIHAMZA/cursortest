@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -28,6 +29,8 @@ import { licenseImageStorage, licenseImageFilter } from './interceptors/license-
 @UseGuards(JwtAuthGuard, ReadOnlyGuard, PermissionGuard)
 @ApiBearerAuth()
 export class ClientController {
+  private readonly logger = new Logger(ClientController.name);
+
   constructor(private readonly clientService: ClientService) {}
 
   @Get()
@@ -44,7 +47,7 @@ export class ClientController {
         ...client,
         firstName,
         lastName,
-        dateOfBirth: undefined,
+        dateOfBirth: client.dateOfBirth?.toISOString().split('T')[0],
         address: client.note?.includes('Adresse:') 
           ? client.note.split('Adresse:')[1]?.split(',')[0]?.trim() 
           : undefined,
@@ -77,7 +80,7 @@ export class ClientController {
       ...client,
       firstName: nameParts[0] || '',
       lastName: nameParts.slice(1).join(' ') || '',
-      dateOfBirth: undefined,
+      dateOfBirth: client.dateOfBirth?.toISOString().split('T')[0],
       address: client.note?.includes('Adresse:') 
         ? client.note.split('Adresse:')[1]?.split(',')[0]?.trim() 
         : undefined,
@@ -103,10 +106,10 @@ export class ClientController {
   @Permissions('clients:create')
   @ApiOperation({ summary: 'Create a new client' })
   async create(@Body() createClientDto: CreateClientDto, @CurrentUser() user: any) {
-    console.log('Données reçues pour création client:', JSON.stringify(createClientDto, null, 2));
+    this.logger.debug('Données reçues pour création client:', JSON.stringify(createClientDto, null, 2));
     try {
       const client = await this.clientService.create(createClientDto, user);
-      console.log('Client créé avec succès:', client.id);
+      this.logger.log(`Client créé avec succès: ${client.id}`);
       const nameParts = client.name.split(' ');
       return {
         ...client,
@@ -115,7 +118,7 @@ export class ClientController {
         licenseImageUrl: client.licenseImageUrl,
       };
     } catch (error: any) {
-      console.error('Erreur lors de la création du client:', error.message || error);
+      this.logger.error(`Erreur lors de la création du client: ${error.message || error}`);
       throw error;
     }
   }

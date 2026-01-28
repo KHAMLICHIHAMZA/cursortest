@@ -42,6 +42,11 @@ export class UpdateClientDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  licenseType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   licenseImageUrl?: string;
 
   @ApiPropertyOptional()

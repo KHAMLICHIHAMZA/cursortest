@@ -69,15 +69,18 @@ export default function NewVehiclePage() {
     queryKey: ['agencies'],
     queryFn: () => agencyApi.getAll(),
     retry: 1,
-    onError: (error: any) => {
-      console.error('Error fetching agencies:', error);
-      if (error.response?.status === 401) {
-        toast.error('Session expirée. Veuillez vous reconnecter.');
-      } else {
-        toast.error('Erreur lors du chargement des agences');
-      }
-    },
   });
+
+  useEffect(() => {
+    if (!agenciesError) return;
+    const error: any = agenciesError;
+    console.error('Error fetching agencies:', error);
+    if (error?.response?.status === 401) {
+      toast.error('Session expirée. Veuillez vous reconnecter.');
+    } else {
+      toast.error('Erreur lors du chargement des agences');
+    }
+  }, [agenciesError]);
 
   const uploadImageMutation = useMutation({
     mutationFn: (file: File) => vehicleApi.uploadImage(file),
@@ -546,7 +549,7 @@ export default function NewVehiclePage() {
         {/* Boutons de test et débogage */}
         <div className="fixed bottom-4 right-4 z-40 flex flex-col gap-2">
           <Button
-            variant="outlined"
+            variant="outline"
             size="sm"
             onClick={() => {
               const currentData = watch();
@@ -582,7 +585,7 @@ export default function NewVehiclePage() {
           </Button>
           
           <Button
-            variant="outlined"
+            variant="outline"
             size="sm"
             onClick={async () => {
               console.log('=== TEST MANUAL SUBMIT ===');

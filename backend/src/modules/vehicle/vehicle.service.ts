@@ -108,14 +108,24 @@ export class VehicleService {
       user.id,
     );
 
-    const vehicle = await this.prisma.vehicle.create({
-      data: dataWithAudit,
-      include: {
-        agency: {
-          include: { company: true },
+    let vehicle;
+    try {
+      vehicle = await this.prisma.vehicle.create({
+        data: dataWithAudit,
+        include: {
+          agency: {
+            include: { company: true },
+          },
         },
-      },
-    });
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002' && error?.meta?.target?.includes('registrationNumber')) {
+        throw new BadRequestException(
+          `Un véhicule avec l'immatriculation ${createVehicleDto.registrationNumber} existe déjà`,
+        );
+      }
+      throw error;
+    }
 
     // Log business event (async, non-blocking)
     this.businessEventLogService

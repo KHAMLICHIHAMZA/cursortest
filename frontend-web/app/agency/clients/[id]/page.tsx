@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -97,14 +97,14 @@ export default function EditClientPage() {
   }, [isMoroccan, countryOfOrigin]);
 
   // Valider dynamiquement les champs conditionnels
-  const validateConditionalFields = async () => {
+  const validateConditionalFields = useCallback(async () => {
     if (showIdentitySection) {
       await trigger(['idCardNumber', 'passportNumber', 'idCardExpiryDate', 'passportExpiryDate']);
     }
     if (!isMoroccan) {
       await trigger('countryOfOrigin');
     }
-  };
+  }, [showIdentitySection, trigger, isMoroccan]);
 
   // Charger les données du client une fois disponibles
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function EditClientPage() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [watch, showIdentitySection, isMoroccan]);
+  }, [watch, validateConditionalFields]);
 
   const uploadImageMutation = useMutation({
     mutationFn: (file: File) => clientApi.uploadLicenseImage(file),

@@ -1,10 +1,29 @@
-import { IsString, IsOptional, IsEmail, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsEnum, IsInt, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CompanyLegalForm } from '@prisma/client';
 
 export class CreateCompanyDto {
   @ApiProperty()
   @IsString()
   name: string;
+
+  @ApiProperty({ description: 'Raison sociale' })
+  @IsString()
+  raisonSociale: string;
+
+  @ApiProperty({ description: 'Identifiant légal (SIREN / ICE / RC)' })
+  @IsString()
+  identifiantLegal: string;
+
+  @ApiProperty({ enum: CompanyLegalForm })
+  @IsEnum(CompanyLegalForm)
+  formeJuridique: CompanyLegalForm;
+
+  @ApiPropertyOptional({ description: 'Nombre max d’agences (null = illimité)', minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxAgencies?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

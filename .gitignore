@@ -12,16 +12,19 @@ dist/
 
 # Environment
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+*.log
 
 # IDE
 .vscode/
@@ -40,6 +43,9 @@ backend/prisma/migrations/
 # Uploaded files (images, documents)
 backend/uploads/
 frontend-web/public/uploads/
+
+# Local reports / artifacts
+RAPPORTS_TESTS_INTEGRATION_*/
 
 
 

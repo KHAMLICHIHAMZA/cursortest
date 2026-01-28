@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CmiService } from './cmi.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -6,6 +6,8 @@ import { PaymentStatus, PaymentMethod } from '@prisma/client';
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
   constructor(
     private prisma: PrismaService,
     private cmiService: CmiService,
@@ -174,7 +176,7 @@ export class PaymentService {
         status: newStatus,
       };
     } catch (error) {
-      console.error('CMI Callback error:', error);
+      this.logger.error('CMI Callback error:', error);
       throw error;
     }
   }
@@ -250,6 +252,4 @@ export class PaymentService {
     return payment;
   }
 }
-
-
 

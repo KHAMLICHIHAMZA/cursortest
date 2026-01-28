@@ -153,7 +153,6 @@ export class PermissionGuard implements CanActivate {
       // Agents can create/update: clients, bookings, fines
       const allowedCreateUpdate = [
         'clients:create',
-        'clients:update',
         'bookings:create',
         'bookings:update',
         'fines:create',

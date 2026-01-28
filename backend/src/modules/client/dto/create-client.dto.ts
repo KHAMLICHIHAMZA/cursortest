@@ -48,6 +48,11 @@ export class CreateClientDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  licenseType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   licenseImageUrl?: string;
 
   @ApiPropertyOptional()

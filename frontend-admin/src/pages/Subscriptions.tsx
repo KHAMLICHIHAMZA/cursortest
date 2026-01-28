@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { Plus, Edit, Trash2, Power, RefreshCw, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, AlertCircle, CheckCircle, Info, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Subscriptions() {
   const [showModal, setShowModal] = useState(false);
-  const [editingSubscription, setEditingSubscription] = useState<any>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ['subscriptions'],
@@ -37,7 +38,6 @@ export default function Subscriptions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       setShowModal(false);
-      setEditingSubscription(null);
     },
   });
 
@@ -106,18 +106,29 @@ export default function Subscriptions() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Abonnements</h1>
-        <button
-          onClick={() => {
-            setEditingSubscription(null);
-            setShowModal(true);
-          }}
-          className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
-        >
-          <Plus size={20} />
-          Nouvel abonnement
-        </button>
+      <div className="grid grid-cols-3 items-center mb-8">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Retour
+          </button>
+        </div>
+        <h1 className="text-3xl font-bold text-center">Abonnements</h1>
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              setShowModal(true);
+            }}
+            className="bg-[#3E7BFA] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#2E6BEA] transition-colors"
+          >
+            <Plus size={20} />
+            Nouvel abonnement
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#2C2F36] rounded-lg border border-gray-700 overflow-hidden">
@@ -409,7 +420,7 @@ export default function Subscriptions() {
                 </div>
                 {createMutation.isError && (
                   <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg text-sm">
-                    {createMutation.error?.response?.data?.message || 'Une erreur est survenue'}
+                    {(createMutation.error as any)?.response?.data?.message || 'Une erreur est survenue'}
                   </div>
                 )}
                 {createMutation.isSuccess && (
@@ -422,7 +433,6 @@ export default function Subscriptions() {
                     type="button"
                     onClick={() => {
                       setShowModal(false);
-                      setEditingSubscription(null);
                     }}
                     className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                   >

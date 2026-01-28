@@ -45,6 +45,10 @@ describe('SaaS E2E Tests', () => {
     const company = await prisma.company.create({
       data: {
         name: 'E2E Test Company',
+        raisonSociale: 'E2E Test Company',
+        identifiantLegal: 'ICE-TEST-0001',
+        formeJuridique: 'SARL',
+        maxAgencies: 5,
         slug: 'e2e-test-company',
         phone: '+33123456789',
         address: 'Test Address',
@@ -109,12 +113,12 @@ describe('SaaS E2E Tests', () => {
     const superAdminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'e2e-superadmin@test.com', password: 'test123' });
-    superAdminToken = superAdminLogin.body.accessToken;
+    superAdminToken = superAdminLogin.body.access_token;
 
     const companyAdminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'e2e-companyadmin@test.com', password: 'test123' });
-    companyAdminToken = companyAdminLogin.body.accessToken;
+    companyAdminToken = companyAdminLogin.body.access_token;
   });
 
   afterAll(async () => {
@@ -265,6 +269,69 @@ describe('SaaS E2E Tests', () => {
         .set('Authorization', `Bearer ${companyAdminToken}`);
 
       expect(response.status).toBe(200);
+    });
+  });
+
+  describe('Company governance', () => {
+    it('should block agency creation when maxAgencies limit is reached', async () => {
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { maxAgencies: 1 },
+      });
+
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/agencies')
+        .set('Authorization', `Bearer ${companyAdminToken}`)
+        .send({ name: 'Blocked Agency' });
+
+      expect(response.status).toBe(409);
+      expect(response.body.message).toContain('Limite d’agences atteinte');
+
+      const event = await prisma.businessEventLog.findFirst({
+        where: {
+          companyId,
+          eventType: 'AGENCY_CREATE_BLOCKED_MAX_LIMIT',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      expect(event).toBeTruthy();
+    });
+
+    it('should prevent Company Admin from creating COMPANY_ADMIN users', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/users')
+        .set('Authorization', `Bearer ${companyAdminToken}`)
+        .send({
+          email: 'e2e-companyadmin2@test.com',
+          name: 'Blocked Admin',
+          role: 'COMPANY_ADMIN',
+          companyId,
+        });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should prevent Company Admin from upgrading a user to COMPANY_ADMIN', async () => {
+      const agent = await prisma.user.create({
+        data: {
+          email: 'e2e-agent-upgrade@test.com',
+          password: await hashPassword('test123'),
+          name: 'E2E Agent Upgrade',
+          role: 'AGENT',
+          companyId,
+          isActive: true,
+        },
+      });
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/v1/users/${agent.id}`)
+        .set('Authorization', `Bearer ${companyAdminToken}`)
+        .send({ role: 'COMPANY_ADMIN' });
+
+      expect(response.status).toBe(403);
+
+      await prisma.user.delete({ where: { id: agent.id } });
     });
   });
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PrismaSoftDeleteService } from '../../common/prisma/prisma-soft-delete.service';
 import { AuditService } from '../../common/services/audit.service';
@@ -9,6 +9,8 @@ import { BusinessEventType } from '@prisma/client';
 
 @Injectable()
 export class AgencyService {
+  private readonly logger = new Logger(AgencyService.name);
+
   constructor(
     private prisma: PrismaService,
     private softDeleteService: PrismaSoftDeleteService,
@@ -133,6 +135,41 @@ export class AgencyService {
       throw new BadRequestException('Company not found or inactive');
     }
 
+    if (company.maxAgencies !== null && company.maxAgencies !== undefined) {
+      const activeAgenciesCount = await this.prisma.agency.count({
+        where: this.softDeleteService.addSoftDeleteFilter({
+          companyId: targetCompanyId,
+          NOT: { status: 'DELETED' },
+        }),
+      });
+
+      if (activeAgenciesCount >= company.maxAgencies) {
+        const eventPayload = {
+          companyId: targetCompanyId,
+          requestedAgencyName: name,
+          currentCount: activeAgenciesCount,
+          maxAgencies: company.maxAgencies,
+        };
+
+        this.businessEventLogService
+          .logEvent(
+            null,
+            'Agency',
+            targetCompanyId,
+            BusinessEventType.AGENCY_CREATE_BLOCKED_MAX_LIMIT,
+            null,
+            eventPayload,
+            user?.id || user?.userId || user?.sub,
+            targetCompanyId,
+          )
+          .catch((err) => this.logger.error('Error logging agency creation block event:', err));
+
+        throw new ConflictException(
+          `Limite d’agences atteinte (${activeAgenciesCount}/${company.maxAgencies})`,
+        );
+      }
+    }
+
     // Add audit fields
     const dataWithAudit = this.auditService.addCreateAuditFields(
       {
@@ -164,7 +201,7 @@ export class AgencyService {
         user?.id || user?.userId || user?.sub,
         agency.companyId, // companyId
       )
-      .catch((err) => console.error('Error logging agency creation event:', err));
+      .catch((err) => this.logger.error('Error logging agency creation event:', err));
 
     // Remove audit fields from public responses
     return this.auditService.removeAuditFields(agency);
@@ -225,7 +262,7 @@ export class AgencyService {
         user?.id || user?.userId || user?.sub,
         updatedAgency.companyId, // companyId
       )
-      .catch((err) => console.error('Error logging agency update event:', err));
+      .catch((err) => this.logger.error('Error logging agency update event:', err));
 
     // Remove audit fields from public responses
     return this.auditService.removeAuditFields(updatedAgency);
@@ -272,7 +309,7 @@ export class AgencyService {
         user?.id || user?.userId || user?.sub,
         agency.companyId, // companyId
       )
-      .catch((err) => console.error('Error logging agency deletion event:', err));
+      .catch((err) => this.logger.error('Error logging agency deletion event:', err));
 
     return { message: 'Agency deleted successfully' };
   }

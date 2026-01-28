@@ -7,9 +7,11 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Pressable,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { authService, loginSchema } from '../services/auth.service';
@@ -18,9 +20,11 @@ import { useAuth } from '../contexts/AuthContext';
 export const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
   const { login } = useAuth();
+  const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const loginMutation = useMutation({
     mutationFn: async () => {
@@ -40,6 +44,7 @@ export const LoginScreen: React.FC = () => {
       }
     },
     onSuccess: (data) => {
+      setServerError(null);
       login(data);
     },
     onError: (error: any) => {
@@ -63,14 +68,24 @@ export const LoginScreen: React.FC = () => {
           }
         });
         setErrors(zodErrors);
+        setServerError(null);
       } else {
-        const message =
-          error.response?.data?.message ||
-          error.message ||
-          error.code ||
+        const backendMessage = error.response?.data?.message;
+        const status = error.response?.status;
+        const fallback =
+          status === 401 ? t('auth.invalidCredentials') :
+          error.code === 'ERR_NETWORK' ? t('errors.network') :
           t('auth.loginError');
-        console.error('[LoginScreen] Showing error alert:', message);
-        Alert.alert(t('common.error'), message);
+
+        const raw = backendMessage || error.message || error.code || fallback;
+        const normalized = Array.isArray(raw) ? raw.join('\n') : String(raw);
+        setServerError(normalized);
+
+        // On web, Alert is often ignored/hidden; keep it for native only.
+        if (Platform.OS !== 'web') {
+          console.error('[LoginScreen] Showing error alert:', normalized);
+          Alert.alert(t('common.error'), normalized);
+        }
       }
     },
   });
@@ -80,6 +95,7 @@ export const LoginScreen: React.FC = () => {
     console.log('📧 Email:', email);
     console.log('🔑 Password length:', password.length);
     setErrors({});
+    setServerError(null);
     try {
       console.log('🚀 [LoginScreen] Démarrage de la mutation...');
       loginMutation.mutate();
@@ -125,6 +141,19 @@ export const LoginScreen: React.FC = () => {
             required
           />
 
+          {!!serverError && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{serverError}</Text>
+            </View>
+          )}
+
+          <Pressable
+            onPress={() => navigation.navigate('ForgotPassword')}
+            style={styles.forgotLink}
+          >
+            <Text style={styles.forgotLinkText}>{t('auth.forgotPassword')}</Text>
+          </Pressable>
+
           <Button
             title={t('auth.login')}
             onPress={handleLogin}
@@ -163,6 +192,26 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  errorBox: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#EF4444',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  errorText: {
+    color: '#111827',
+  },
+  forgotLink: {
+    marginTop: 10,
+    marginBottom: 6,
+    alignItems: 'flex-end',
+  },
+  forgotLinkText: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
   loginButton: {
     marginTop: 8,

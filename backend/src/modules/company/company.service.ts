@@ -75,11 +75,42 @@ export class CompanyService {
     return this.auditService.removeAuditFields(company);
   }
 
+  async findMyCompany(user: any) {
+    const companyId = user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const company = await this.prisma.company.findFirst({
+      where: this.softDeleteService.addSoftDeleteFilter({ id: companyId }),
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    return this.auditService.removeAuditFields(company);
+  }
+
   async create(createCompanyDto: CreateCompanyDto, user: any) {
-    const { name, phone, address, adminEmail, adminName } = createCompanyDto;
+    const {
+      name,
+      raisonSociale,
+      identifiantLegal,
+      formeJuridique,
+      maxAgencies,
+      phone,
+      address,
+      adminEmail,
+      adminName,
+    } = createCompanyDto;
 
     if (!name) {
       throw new BadRequestException('Name is required');
+    }
+
+    if (!raisonSociale || !identifiantLegal || !formeJuridique) {
+      throw new BadRequestException('Legal fields are required');
     }
 
     const slug = this.generateSlug(name);
@@ -93,11 +124,33 @@ export class CompanyService {
       throw new BadRequestException('Company with this name already exists');
     }
 
+    const existingLegalId = await this.prisma.company.findFirst({
+      where: { identifiantLegal },
+    });
+
+    if (existingLegalId) {
+      throw new BadRequestException('Legal identifier already exists');
+    }
+
+    if (adminEmail) {
+      const existingAdmin = await this.prisma.user.findUnique({
+        where: { email: adminEmail },
+      });
+
+      if (existingAdmin) {
+        throw new BadRequestException('Admin email already exists');
+      }
+    }
+
     // Add audit fields
     const dataWithAudit = this.auditService.addCreateAuditFields(
       {
         name,
         slug,
+        raisonSociale,
+        identifiantLegal,
+        formeJuridique,
+        maxAgencies,
         phone,
         address,
         isActive: true,
@@ -105,13 +158,13 @@ export class CompanyService {
       user?.id || user?.userId || user?.sub,
     );
 
-    const company = await this.prisma.company.create({
-      data: dataWithAudit,
-    });
+    const company = await this.prisma.$transaction(async (tx) => {
+      const createdCompany = await tx.company.create({
+        data: dataWithAudit,
+      });
 
-    // Create admin user if provided
-    if (adminEmail && adminName) {
-      try {
+      // Create admin user if provided
+      if (adminEmail && adminName) {
         const resetToken = this.generateResetToken();
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
@@ -119,18 +172,18 @@ export class CompanyService {
         const tempPassword = 'temp-password-' + Date.now();
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-        const adminUser = await this.prisma.user.create({
+        const adminUser = await tx.user.create({
           data: {
             email: adminEmail,
             password: hashedPassword,
             name: adminName,
             role: 'COMPANY_ADMIN',
-            companyId: company.id,
+            companyId: createdCompany.id,
             isActive: true,
           },
         });
 
-        await this.prisma.passwordResetToken.create({
+        await tx.passwordResetToken.create({
           data: {
             userId: adminUser.id,
             token: resetToken,
@@ -138,12 +191,13 @@ export class CompanyService {
           },
         });
 
-        await sendWelcomeEmail(adminEmail, adminName, resetToken);
-      } catch (emailError) {
-        console.error('Error creating admin user or sending email:', emailError);
-        // Continue even if email fails
+        sendWelcomeEmail(adminEmail, adminName, resetToken).catch((emailError) =>
+          console.error('Error sending welcome email:', emailError),
+        );
       }
-    }
+
+      return createdCompany;
+    });
 
     // Log business event (Company doesn't have agencyId, so we use null)
     this.businessEventLogService
@@ -180,6 +234,10 @@ export class CompanyService {
     if (updateCompanyDto.phone !== undefined) updateData.phone = updateCompanyDto.phone;
     if (updateCompanyDto.address !== undefined) updateData.address = updateCompanyDto.address;
     if (updateCompanyDto.isActive !== undefined) updateData.isActive = updateCompanyDto.isActive;
+    if (updateCompanyDto.raisonSociale !== undefined) updateData.raisonSociale = updateCompanyDto.raisonSociale;
+    if (updateCompanyDto.identifiantLegal !== undefined) updateData.identifiantLegal = updateCompanyDto.identifiantLegal;
+    if (updateCompanyDto.formeJuridique !== undefined) updateData.formeJuridique = updateCompanyDto.formeJuridique;
+    if (updateCompanyDto.maxAgencies !== undefined) updateData.maxAgencies = updateCompanyDto.maxAgencies;
 
     // Regenerate slug if name changed
     if (updateCompanyDto.name && updateCompanyDto.name !== company.name) {

@@ -134,6 +134,10 @@ export class UserService {
       throw new BadRequestException('Invalid role');
     }
 
+    if (user.role === 'COMPANY_ADMIN' && !['AGENCY_MANAGER', 'AGENT'].includes(role)) {
+      throw new ForbiddenException('Company Admin cannot create this role');
+    }
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -276,8 +280,15 @@ export class UserService {
 
     const updateData: any = {};
     if (updateUserDto.name !== undefined) updateData.name = updateUserDto.name;
-    if (updateUserDto.role !== undefined && user.role === 'SUPER_ADMIN') {
-      updateData.role = updateUserDto.role;
+    if (updateUserDto.role !== undefined) {
+      if (user.role === 'COMPANY_ADMIN') {
+        if (!['AGENCY_MANAGER', 'AGENT'].includes(updateUserDto.role)) {
+          throw new ForbiddenException('Company Admin cannot assign this role');
+        }
+        updateData.role = updateUserDto.role;
+      } else if (user.role === 'SUPER_ADMIN') {
+        updateData.role = updateUserDto.role;
+      }
     }
     if (updateUserDto.isActive !== undefined) updateData.isActive = updateUserDto.isActive;
 
