@@ -4,6 +4,21 @@ import api from '../lib/axios';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { getStoredUser } from '../lib/auth';
 
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Brouillon',
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmée',
+  IN_PROGRESS: 'ACTIVE',
+  LATE: 'En retard',
+  RETURNED: 'TERMINÉE',
+  CANCELLED: 'Annulée',
+  NO_SHOW: 'Absence',
+};
+
+function bookingStatusToLabel(status: string): string {
+  return BOOKING_STATUS_LABELS[status] ?? status;
+}
+
 export default function Bookings() {
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState<any>(null);
@@ -292,16 +307,16 @@ export default function Bookings() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      booking.status === 'ACTIVE'
+                      booking.status === 'IN_PROGRESS' || booking.status === 'LATE'
                         ? 'bg-green-500/20 text-green-400'
                         : booking.status === 'CONFIRMED'
                         ? 'bg-blue-500/20 text-blue-400'
-                        : booking.status === 'COMPLETED'
+                        : booking.status === 'RETURNED'
                         ? 'bg-gray-500/20 text-gray-400'
                         : 'bg-yellow-500/20 text-yellow-400'
                     }`}
                   >
-                    {booking.status}
+                    {bookingStatusToLabel(booking.status)}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -458,8 +473,8 @@ export default function Bookings() {
                 >
                   <option value="PENDING">En attente</option>
                   <option value="CONFIRMED">Confirmée</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="COMPLETED">Terminée</option>
+                  <option value="IN_PROGRESS">ACTIVE</option>
+                  <option value="RETURNED">TERMINÉE</option>
                   <option value="CANCELLED">Annulée</option>
                 </select>
               </div>

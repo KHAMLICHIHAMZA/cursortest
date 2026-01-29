@@ -23,6 +23,14 @@ api.interceptors.request.use(
   }
 );
 
+const MODULE_403_MSG = "Ce module n'est pas activé pour votre compte.";
+
+function isModule403(err: any): boolean {
+  const msg = err?.response?.data?.message || err?.response?.data?.error || '';
+  const s = String(msg);
+  return /module|not included|non inclus/i.test(s);
+}
+
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
@@ -34,6 +42,10 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
+      return Promise.reject(error);
+    }
+    if (error.response?.status === 403 && isModule403(error)) {
+      window.alert(MODULE_403_MSG);
     }
     return Promise.reject(error);
   }

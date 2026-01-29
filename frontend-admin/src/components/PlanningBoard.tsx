@@ -99,6 +99,9 @@ export function PlanningBoard({
   } | null>(null);
   const [draftEvents, setDraftEvents] = useState<Record<string, { start: Date; end: Date; resourceId: string }>>({});
   const boardRef = useRef<HTMLDivElement>(null);
+  const lastTargetResourceIdRef = useRef<string | null>(null);
+  const DRAG_OTHER_VEHICLE_MSG =
+    'Vous pouvez uniquement modifier la date. Le changement de véhicule n\'est pas disponible dans cette version.';
 
   const day = useMemo(() => toStartOfDay(currentDate), [currentDate]);
   const weekStart = useMemo(() => {
@@ -189,6 +192,10 @@ export function PlanningBoard({
       });
 
       const targetResourceId = column?.dataset.vehicleColumn || dragState.resourceId;
+      lastTargetResourceIdRef.current = targetResourceId;
+      const sameVehicle = targetResourceId === dragState.resourceId;
+      const effectiveResourceId = sameVehicle ? targetResourceId : dragState.resourceId;
+
       const deltaMinutes = Math.round((event.clientY - dragState.originY) / SLOT_HEIGHT) * SLOT_MINUTES;
       let nextStart = new Date(dragState.originalStart);
       let nextEnd = new Date(dragState.originalEnd);
@@ -219,17 +226,31 @@ export function PlanningBoard({
         [dragState.eventId]: {
           start: nextStart,
           end: nextEnd,
-          resourceId: targetResourceId,
+          resourceId: effectiveResourceId,
         },
       }));
     };
 
     const handleUp = () => {
       if (!dragState) return;
-      commitBookingUpdate(dragState.eventId).catch(() => {});
-      setDragState(null);
+      const droppedOnOtherVehicle =
+        lastTargetResourceIdRef.current != null && lastTargetResourceIdRef.current !== dragState.resourceId;
+      lastTargetResourceIdRef.current = null;
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
+
+      if (droppedOnOtherVehicle) {
+        setDraftEvents((prev) => {
+          const next = { ...prev };
+          delete next[dragState.eventId];
+          return next;
+        });
+        setDragState(null);
+        window.alert(DRAG_OTHER_VEHICLE_MSG);
+        return;
+      }
+      commitBookingUpdate(dragState.eventId).catch(() => {});
+      setDragState(null);
     };
 
     window.addEventListener('pointermove', handleMove);

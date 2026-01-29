@@ -40,9 +40,9 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   DRAFT: 'Brouillon',
   PENDING: 'En attente',
   CONFIRMED: 'Confirmée',
-  IN_PROGRESS: 'En cours',
+  IN_PROGRESS: 'ACTIVE',
   LATE: 'En retard',
-  RETURNED: 'Retournée',
+  RETURNED: 'TERMINÉE',
   CANCELLED: 'Annulée',
   NO_SHOW: 'Client absent',
 };

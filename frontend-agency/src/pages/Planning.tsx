@@ -612,17 +612,24 @@ export default function Planning() {
                     <label className="text-sm font-medium text-gray-400">Statut</label>
                     <span
                       className={`px-3 py-1 text-xs font-medium rounded-full inline-block ${
-                        bookingDetails.status === 'IN_PROGRESS'
+                        bookingDetails.status === 'IN_PROGRESS' || bookingDetails.status === 'LATE'
                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                           : bookingDetails.status === 'CONFIRMED'
                           ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : bookingDetails.status === 'RETURNED'
+                          ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
                           : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
                       }`}
                     >
-                      {bookingDetails.status === 'IN_PROGRESS' ? 'En cours' :
-                       bookingDetails.status === 'CONFIRMED' ? 'Confirmée' :
-                       bookingDetails.status === 'PENDING' ? 'En attente' :
-                       bookingDetails.status}
+                      {bookingDetails.status === 'IN_PROGRESS' || bookingDetails.status === 'LATE'
+                        ? 'ACTIVE'
+                        : bookingDetails.status === 'RETURNED'
+                        ? 'TERMINÉE'
+                        : bookingDetails.status === 'CONFIRMED'
+                        ? 'Confirmée'
+                        : bookingDetails.status === 'PENDING'
+                        ? 'En attente'
+                        : bookingDetails.status}
                     </span>
                   </div>
                 </div>

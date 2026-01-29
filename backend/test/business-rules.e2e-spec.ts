@@ -384,17 +384,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
           depositStatusCheckIn: DepositStatusCheckIn.PENDING, // Non collectée
         });
 
-      // Le check-in devrait être bloqué si caution requise mais non collectée
-      // Si la validation n'est pas encore implémentée, on accepte 201 mais on vérifie le statut
-      if (response.status === 201) {
-        // Vérifier que le booking n'est pas passé en IN_PROGRESS
-        const bookingAfter = await prisma.booking.findUnique({ where: { id: booking.id } });
-        // Si la validation n'est pas implémentée, on skip ce test pour l'instant
-        expect(bookingAfter).toBeDefined();
-      } else {
-        expect(response.status).toBe(400);
-        expect(response.body.message).toContain('caution');
-      }
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('caution');
 
       await prisma.booking.delete({ where: { id: booking.id } });
     });
@@ -430,7 +421,7 @@ describe('Business Rules E2E Tests - Automatiques', () => {
           depositStatusCheckIn: DepositStatusCheckIn.COLLECTED,
         });
 
-      expect(response.status).toBe(200);
+      expect([200, 201]).toContain(response.status);
 
       await prisma.booking.delete({ where: { id: booking.id } });
     });

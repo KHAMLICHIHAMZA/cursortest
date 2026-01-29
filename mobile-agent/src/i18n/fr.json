@@ -67,8 +67,8 @@
     "status": {
       "PENDING": "En attente",
       "CONFIRMED": "Confirmée",
-      "ACTIVE": "Active",
-      "COMPLETED": "Terminée",
+      "ACTIVE": "ACTIVE",
+      "COMPLETED": "TERMINÉE",
       "CANCELLED": "Annulée"
     },
     "form": {

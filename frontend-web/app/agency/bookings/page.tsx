@@ -48,8 +48,8 @@ export default function BookingsPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
       CONFIRMED: { status: 'confirmed', label: 'Confirmée' },
-      IN_PROGRESS: { status: 'active', label: 'En cours' },
-      RETURNED: { status: 'completed', label: 'Retournée' },
+      IN_PROGRESS: { status: 'active', label: 'ACTIVE' },
+      RETURNED: { status: 'completed', label: 'TERMINÉE' },
       CANCELLED: { status: 'cancelled', label: 'Annulée' },
       LATE: { status: 'late', label: 'En retard' },
       PENDING: { status: 'pending', label: 'En attente' },
