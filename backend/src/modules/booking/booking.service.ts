@@ -686,6 +686,19 @@ export class BookingService {
     });
 
     // ============================================
+    // TEMPS DE PRÉPARATION AUTOMATIQUE (R2.2)
+    // ============================================
+    // Au retour, supprimer l'événement booking et créer un créneau de préparation
+    await this.planningService.deleteBookingEvents(id);
+    await this.planningService.createPreparationTime(
+      id,
+      booking.vehicleId,
+      booking.agencyId,
+      actualReturnDate,
+      actualReturnDate > new Date(booking.endDate),
+    );
+
+    // ============================================
     // GÉNÉRATION FACTURE (R6)
     // ============================================
     // Générer la facture automatiquement si pas de litige
