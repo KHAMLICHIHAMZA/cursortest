@@ -9,6 +9,7 @@ import { sendWelcomeEmail } from '../../services/email.service';
 import { BusinessEventType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 
 @Injectable()
 export class CompanyService {
@@ -92,6 +93,51 @@ export class CompanyService {
     return this.auditService.removeAuditFields(company);
   }
 
+  async updateMyCompanySettings(user: any, dto: UpdateCompanySettingsDto) {
+    const companyId = user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const company = await this.prisma.company.findFirst({
+      where: this.softDeleteService.addSoftDeleteFilter({ id: companyId }),
+    });
+
+    if (!company) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const previousState = { ...company };
+
+    const updateData: any = {};
+    if (dto.bookingNumberMode !== undefined) updateData.bookingNumberMode = dto.bookingNumberMode;
+
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      updateData,
+      user?.id || user?.userId || user?.sub,
+    );
+
+    const updatedCompany = await this.prisma.company.update({
+      where: { id: companyId },
+      data: dataWithAudit,
+    });
+
+    this.businessEventLogService
+      .logEvent(
+        null,
+        'Company',
+        updatedCompany.id,
+        BusinessEventType.COMPANY_UPDATED,
+        previousState,
+        updatedCompany,
+        user?.id || user?.userId || user?.sub,
+        updatedCompany.id,
+      )
+      .catch((err) => console.error('Error logging company settings update event:', err));
+
+    return this.auditService.removeAuditFields(updatedCompany);
+  }
+
   async create(createCompanyDto: CreateCompanyDto, user: any) {
     const {
       name,
@@ -99,6 +145,7 @@ export class CompanyService {
       identifiantLegal,
       formeJuridique,
       maxAgencies,
+      bookingNumberMode,
       phone,
       address,
       adminEmail,
@@ -151,6 +198,7 @@ export class CompanyService {
         identifiantLegal,
         formeJuridique,
         maxAgencies,
+        bookingNumberMode,
         phone,
         address,
         isActive: true,
@@ -238,6 +286,7 @@ export class CompanyService {
     if (updateCompanyDto.identifiantLegal !== undefined) updateData.identifiantLegal = updateCompanyDto.identifiantLegal;
     if (updateCompanyDto.formeJuridique !== undefined) updateData.formeJuridique = updateCompanyDto.formeJuridique;
     if (updateCompanyDto.maxAgencies !== undefined) updateData.maxAgencies = updateCompanyDto.maxAgencies;
+    if (updateCompanyDto.bookingNumberMode !== undefined) updateData.bookingNumberMode = updateCompanyDto.bookingNumberMode;
 
     // Regenerate slug if name changed
     if (updateCompanyDto.name && updateCompanyDto.name !== company.name) {

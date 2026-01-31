@@ -12,6 +12,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CompanyService } from './company.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -40,6 +41,16 @@ export class CompanyController {
   @ApiOperation({ summary: 'Get my company (Company Admin)' })
   async findMyCompany(@CurrentUser() user: any) {
     return this.companyService.findMyCompany(user);
+  }
+
+  @Patch('me/settings')
+  @Roles('COMPANY_ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Update my company settings (V2)' })
+  async updateMyCompanySettings(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateCompanySettingsDto,
+  ) {
+    return this.companyService.updateMyCompanySettings(user, dto);
   }
 
   @Get(':id')

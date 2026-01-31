@@ -100,6 +100,19 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+// V2: BookingNumber mode (AUTO/MANUAL) configuré au niveau Company
+enum BookingNumberMode {
+  AUTO
+  MANUAL
+}
+
+// V2: Outbox interne pour Domain Events (backbone)
+enum OutboxEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -243,6 +256,9 @@ model Company {
   // SaaS: Configuration métier
   currency String @default("MAD") // Devise par Company (ex: MAD, EUR, USD)
   maxAgencies Int? @default(5) // Null = illimité
+
+  // V2: BookingNumber
+  bookingNumberMode BookingNumberMode @default(AUTO)
 
   // Branding
   logoUrl        String?
@@ -801,6 +817,38 @@ model Invoice {
   @@index([invoiceNumber])
   @@index([status])
   @@index([issuedAt])
+}
+
+// ============================================
+// V2 OUTBOX EVENTS (DOMAIN EVENTS BACKBONE)
+// ============================================
+model OutboxEvent {
+  id String @id @default(cuid())
+
+  // Aggregate
+  aggregateType String
+  aggregateId   String
+
+  // Event
+  eventType String
+  payload   Json
+
+  // Optional deduplication / idempotency key
+  deduplicationKey String? @unique
+
+  // Processing
+  status      OutboxEventStatus @default(PENDING)
+  attempts    Int              @default(0)
+  availableAt DateTime         @default(now())
+  processedAt DateTime?
+  lastError   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([aggregateType, aggregateId])
+  @@index([status, availableAt])
+  @@index([eventType])
 }
 
 // ============================================
