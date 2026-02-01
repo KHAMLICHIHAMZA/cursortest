@@ -6,9 +6,11 @@ import { bookingService } from '../../services/booking.service';
 
 jest.mock('../../contexts/AuthContext');
 jest.mock('../../services/booking.service');
+
+let mockQueryData: any[] = [];
 jest.mock('@tanstack/react-query', () => ({
-  useQuery: jest.fn(({ queryFn }) => ({
-    data: queryFn ? queryFn() : [],
+  useQuery: jest.fn(() => ({
+    data: mockQueryData,
     isLoading: false,
     refetch: jest.fn(),
     isRefetching: false,
@@ -23,6 +25,7 @@ describe('BookingsScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockQueryData = [];
     mockUseAuth.mockReturnValue({
       agencies: [{ id: 'agency-1', name: 'Agency 1' }],
       user: { id: 'user-1', role: 'AGENT' },
@@ -32,27 +35,33 @@ describe('BookingsScreen', () => {
   });
 
   it('should render correctly', () => {
-    (bookingService.getBookings as jest.Mock).mockResolvedValue([]);
-    
+    mockQueryData = [];
     const { getByText } = render(<BookingsScreen />);
-    expect(getByText(/No bookings/i)).toBeTruthy();
+    expect(getByText('mission.noMissions')).toBeTruthy();
   });
 
-  it('should display bookings list', () => {
-    const mockBookings = [
+  it('should display missions list when bookings are confirmed', () => {
+    const now = new Date();
+    const start = now.toISOString();
+    const end = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    mockQueryData = [
       {
         id: 'booking-1',
-        status: 'PENDING',
-        startDate: '2024-01-01',
-        endDate: '2024-01-02',
-        price: 100,
+        bookingNumber: 'BN001',
+        status: 'CONFIRMED',
+        startDate: start,
+        endDate: end,
+        vehicleId: 'vehicle-1',
+        clientId: 'client-1',
+        client: { name: 'Client 1' },
+        vehicle: { registrationNumber: 'ABC-123', brand: 'Renault', model: 'Clio' },
       },
     ];
-
-    (bookingService.getBookings as jest.Mock).mockResolvedValue(mockBookings);
     
     const { getByText } = render(<BookingsScreen />);
-    expect(getByText('#booking-1')).toBeTruthy();
+    expect(getByText('mission.deliveryCheckIn')).toBeTruthy();
+    expect(getByText('Client 1')).toBeTruthy();
+    expect(getByText('BN001')).toBeTruthy();
   });
 
   it('should show create button for AGENCY_MANAGER', () => {
@@ -66,20 +75,25 @@ describe('BookingsScreen', () => {
   });
 
   it('should navigate to booking details on press', () => {
-    const mockBookings = [
+    const now = new Date();
+    const start = now.toISOString();
+    const end = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    mockQueryData = [
       {
         id: 'booking-1',
-        status: 'PENDING',
-        startDate: '2024-01-01',
-        endDate: '2024-01-02',
-        price: 100,
+        bookingNumber: 'BN001',
+        status: 'CONFIRMED',
+        startDate: start,
+        endDate: end,
+        vehicleId: 'vehicle-1',
+        clientId: 'client-1',
+        client: { name: 'Client 1' },
+        vehicle: { registrationNumber: 'ABC-123', brand: 'Renault', model: 'Clio' },
       },
     ];
-
-    (bookingService.getBookings as jest.Mock).mockResolvedValue(mockBookings);
     
     const { getByText } = render(<BookingsScreen />);
-    fireEvent.press(getByText('#booking-1'));
+    fireEvent.press(getByText('booking.details'));
     
     expect(mockNavigation.navigate).toHaveBeenCalledWith('BookingDetails', {
       bookingId: 'booking-1',

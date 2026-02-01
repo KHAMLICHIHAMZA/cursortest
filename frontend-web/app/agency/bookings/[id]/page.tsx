@@ -496,6 +496,12 @@ export default function EditBookingPage() {
                   <h2 className="text-lg font-semibold text-text mb-4">Informations</h2>
                   <div className="space-y-3 text-sm">
                     <div>
+                      <p className="text-text-muted">N° Réservation</p>
+                      <p className="text-text font-medium">
+                        #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-text-muted">Véhicule</p>
                       <p className="text-text font-medium">
                         {booking.vehicle.brand} {booking.vehicle.model}

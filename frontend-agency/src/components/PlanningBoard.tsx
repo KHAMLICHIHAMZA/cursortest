@@ -43,11 +43,6 @@ const addDays = (date: Date, days: number) => {
   return next;
 };
 
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -90,7 +85,7 @@ export function PlanningBoard({
   events,
   view,
   currentDate,
-  onChangeDate,
+  onChangeDate: _onChangeDate,
   onEventUpdated,
   onEventClick,
   onContextMenu,

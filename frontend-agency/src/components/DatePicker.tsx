@@ -120,7 +120,7 @@ export default function DatePicker({
   return (
     <ReactDatePicker
       selected={selected}
-      onChange={(date) => {
+      onChange={(date: Date | null) => {
         if (!date) {
           onChange('');
           return;

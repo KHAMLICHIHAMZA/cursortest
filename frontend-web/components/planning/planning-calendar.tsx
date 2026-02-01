@@ -60,7 +60,8 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
           const vehicleTitle = resource?.title || '';
           const reg = resource?.extendedProps?.registrationNumber || '';
           const vehicleInfo = `${resource?.extendedProps?.brand || ''} ${resource?.extendedProps?.model || ''}`.trim();
-          const haystack = `${event.title || ''} ${vehicleTitle} ${vehicleInfo} ${reg}`.toLowerCase();
+          const bookingNumber = String(event.extendedProps?.bookingNumber || '');
+          const haystack = `${event.title || ''} ${bookingNumber} ${vehicleTitle} ${vehicleInfo} ${reg}`.toLowerCase();
           if (!haystack.includes(q)) return false;
         }
         return true;
@@ -218,7 +219,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                   onClick={() => toggleType('BOOKING')}
                   className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                     selectedTypes.includes('BOOKING')
-                      ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                      ? 'bg-primary text-white shadow-lg'
                       : 'bg-card text-text hover:bg-background border border-border'
                   }`}
                 >
@@ -229,7 +230,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                   onClick={() => toggleType('MAINTENANCE')}
                   className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                     selectedTypes.includes('MAINTENANCE')
-                      ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                      ? 'bg-primary text-white shadow-lg'
                       : 'bg-card text-text hover:bg-background border border-border'
                   }`}
                 >
@@ -240,7 +241,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                   onClick={() => toggleType('PREPARATION_TIME')}
                   className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                     selectedTypes.includes('PREPARATION_TIME')
-                      ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                      ? 'bg-primary text-white shadow-lg'
                       : 'bg-card text-text hover:bg-background border border-border'
                   }`}
                 >
@@ -251,7 +252,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                   onClick={() => toggleType('OTHER')}
                   className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                     selectedTypes.includes('OTHER')
-                      ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                      ? 'bg-primary text-white shadow-lg'
                       : 'bg-card text-text hover:bg-background border border-border'
                   }`}
                 >
@@ -268,7 +269,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                 id="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Client, plaque, modèle..."
+                placeholder="BookingNumber, client, plaque, modèle..."
                 className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
               />
             </div>
@@ -334,7 +335,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
               onClick={() => setView('day')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 view === 'day'
-                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  ? 'bg-primary text-white shadow-lg'
                   : 'bg-card text-text hover:bg-background border border-border'
               }`}
             >
@@ -344,7 +345,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
               onClick={() => setView('week')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 view === 'week'
-                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  ? 'bg-primary text-white shadow-lg'
                   : 'bg-card text-text hover:bg-background border border-border'
               }`}
             >
@@ -354,7 +355,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
               onClick={() => setView('month')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 view === 'month'
-                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  ? 'bg-primary text-white shadow-lg'
                   : 'bg-card text-text hover:bg-background border border-border'
               }`}
             >

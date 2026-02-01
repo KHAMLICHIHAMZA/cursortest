@@ -84,7 +84,7 @@ export function PlanningBoard({
   events,
   view,
   currentDate,
-  onChangeDate,
+  onChangeDate: _onChangeDate,
   onEventUpdated,
   onEventClick,
 }: PlanningBoardProps) {

@@ -15,6 +15,9 @@ export default function NewCompanyPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<CreateCompanyDto>({
     name: '',
+    raisonSociale: '',
+    identifiantLegal: '',
+    formeJuridique: 'AUTRE',
     phone: '',
     address: '',
     adminEmail: '',
@@ -44,6 +47,21 @@ export default function NewCompanyPage() {
       return;
     }
 
+    if (!formData.raisonSociale) {
+      setErrors({ raisonSociale: 'La raison sociale est requise' });
+      return;
+    }
+
+    if (!formData.identifiantLegal) {
+      setErrors({ identifiantLegal: "L'identifiant légal est requis" });
+      return;
+    }
+
+    if (!formData.formeJuridique) {
+      setErrors({ formeJuridique: 'La forme juridique est requise' });
+      return;
+    }
+
     createMutation.mutate(formData);
   };
 
@@ -70,6 +88,56 @@ export default function NewCompanyPage() {
                 required
               />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="raisonSociale" className="block text-sm font-medium text-text mb-2">
+                Raison sociale *
+              </label>
+              <Input
+                id="raisonSociale"
+                value={formData.raisonSociale}
+                onChange={(e) => setFormData({ ...formData, raisonSociale: e.target.value })}
+                placeholder="Ex: Location Auto Maroc SARL"
+                required
+              />
+              {errors.raisonSociale && <p className="text-red-500 text-sm mt-1">{errors.raisonSociale}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="identifiantLegal" className="block text-sm font-medium text-text mb-2">
+                Identifiant légal (ICE) *
+              </label>
+              <Input
+                id="identifiantLegal"
+                value={formData.identifiantLegal}
+                onChange={(e) => setFormData({ ...formData, identifiantLegal: e.target.value })}
+                placeholder="Ex: 001234567000089"
+                required
+              />
+              {errors.identifiantLegal && <p className="text-red-500 text-sm mt-1">{errors.identifiantLegal}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="formeJuridique" className="block text-sm font-medium text-text mb-2">
+                Forme juridique *
+              </label>
+              <select
+                id="formeJuridique"
+                value={formData.formeJuridique}
+                onChange={(e) => setFormData({ ...formData, formeJuridique: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+                required
+              >
+                <option value="SARL">SARL</option>
+                <option value="SAS">SAS</option>
+                <option value="SA">SA</option>
+                <option value="EI">EI</option>
+                <option value="AUTO_ENTREPRENEUR">Auto-entrepreneur</option>
+                <option value="ASSOCIATION">Association</option>
+                <option value="AUTRE">Autre</option>
+              </select>
+              {errors.formeJuridique && <p className="text-red-500 text-sm mt-1">{errors.formeJuridique}</p>}
             </div>
 
             <div>

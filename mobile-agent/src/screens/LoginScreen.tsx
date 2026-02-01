@@ -121,6 +121,7 @@ export const LoginScreen: React.FC = () => {
         <View style={styles.form}>
           <Input
             label={t('auth.email')}
+            placeholder={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -132,6 +133,7 @@ export const LoginScreen: React.FC = () => {
 
           <Input
             label={t('auth.password')}
+            placeholder={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry

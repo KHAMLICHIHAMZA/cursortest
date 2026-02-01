@@ -217,11 +217,12 @@ export class PlanningController {
     // Bookings
     bookings.forEach((booking) => {
       const bookingColor = typeToColor.BOOKING;
+      const bookingNumber = (booking as any).bookingNumber || booking.id.slice(-6).toUpperCase();
 
       events.push({
         id: `booking-${booking.id}`,
         resourceId: vehicleIdToCanonicalId.get(booking.vehicleId) || booking.vehicleId,
-        title: `${booking.client.name} - ${booking.vehicle.brand} ${booking.vehicle.model}`,
+        title: `#${bookingNumber} ${booking.client.name} - ${booking.vehicle.brand} ${booking.vehicle.model}`,
         start: booking.startDate.toISOString(),
         end: booking.endDate.toISOString(),
         backgroundColor: bookingColor,
@@ -229,6 +230,7 @@ export class PlanningController {
         extendedProps: {
           type: 'BOOKING',
           bookingId: booking.id,
+          bookingNumber,
           clientName: booking.client.name,
           status: booking.status,
           totalPrice: booking.totalPrice,

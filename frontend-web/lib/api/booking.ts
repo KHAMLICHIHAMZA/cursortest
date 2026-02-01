@@ -10,6 +10,7 @@ export interface Booking {
   totalAmount?: number;
   totalPrice?: number; // Alias for totalAmount
   status: string;
+  bookingNumber?: string;
   // Champs caution (R3)
   depositRequired?: boolean;
   depositAmount?: number;

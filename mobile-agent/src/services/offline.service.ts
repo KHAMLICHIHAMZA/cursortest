@@ -263,7 +263,7 @@ class OfflineService {
       `SELECT * FROM offline_actions ORDER BY createdAt ASC`
     );
 
-    return result.map((row: any) => ({
+    return (result || []).map((row: any) => ({
       id: row.id,
       actionType: row.actionType,
       payload: row.payload,

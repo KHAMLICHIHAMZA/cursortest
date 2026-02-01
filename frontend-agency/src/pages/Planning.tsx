@@ -109,7 +109,8 @@ export default function Planning() {
       if (selectedTypes.length > 0 && !selectedTypes.includes(bucketType)) return false;
       if (!activeSearch) return true;
       const vehicleTitle = resourceMap.get(event.resourceId) || '';
-      const haystack = `${event.title || ''} ${vehicleTitle}`.toLowerCase();
+      const bookingNumber = String(event.extendedProps?.bookingNumber || '');
+      const haystack = `${event.title || ''} ${vehicleTitle} ${bookingNumber}`.toLowerCase();
       return haystack.includes(activeSearch);
     });
   }, [planningData, selectedVehicle, resourceMap, selectedTypes, search]);
@@ -191,7 +192,7 @@ export default function Planning() {
             className="px-4 py-2 bg-[#1B1F2A] border border-[#2A3241] rounded-lg text-white shadow-sm"
           >
             <option value="">Tous les véhicules</option>
-            {vehicleOptions.map((vehicle) => (
+            {vehicleOptions.map((vehicle: any) => (
               <option key={vehicle.id} value={vehicle.id}>
                 {vehicle.title}
               </option>
@@ -232,7 +233,7 @@ export default function Planning() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher (client, plaque, modèle...)"
+            placeholder="Rechercher (BookingNumber, client, plaque, modèle...)"
             className="px-4 py-2 bg-[#1B1F2A] border border-[#2A3241] rounded-lg text-white shadow-sm min-w-[260px]"
           />
 

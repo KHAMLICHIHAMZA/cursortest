@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import { Plus, Edit, Trash2 } from 'lucide-react';
@@ -24,13 +24,15 @@ export default function Bookings() {
   const [editingBooking, setEditingBooking] = useState<any>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [bookingNumberFilter, setBookingNumberFilter] = useState('');
   const queryClient = useQueryClient();
   const user = getStoredUser();
 
   const { data: bookings, isLoading } = useQuery({
-    queryKey: ['bookings'],
+    queryKey: ['bookings', bookingNumberFilter],
     queryFn: async () => {
-      const res = await api.get('/bookings');
+      const bn = bookingNumberFilter.trim();
+      const res = await api.get('/bookings', bn ? { params: { bookingNumber: bn } } : undefined);
       return res.data;
     },
   });
@@ -123,6 +125,15 @@ export default function Bookings() {
     },
   });
 
+  const bookingsToDisplay = useMemo(() => {
+    const bn = bookingNumberFilter.trim();
+    if (!bn) return bookings || [];
+    // Backend filters by bookingNumber; keep client-side fallback in case
+    return (bookings || []).filter((b: any) =>
+      String(b?.bookingNumber || '').toLowerCase().includes(bn.toLowerCase()),
+    );
+  }, [bookings, bookingNumberFilter]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
@@ -207,6 +218,7 @@ export default function Bookings() {
       agencyId: formData.get('agencyId'),
       vehicleId,
       clientId: formData.get('clientId'),
+      bookingNumber: (formData.get('bookingNumber') as string) || undefined,
       startDate,
       endDate,
       totalPrice: days * (vehicle?.dailyRate || 0),
@@ -250,10 +262,25 @@ export default function Bookings() {
         </div>
       )}
 
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-gray-400">
+          {bookingsToDisplay?.length || 0} résultat(s)
+        </div>
+        <input
+          value={bookingNumberFilter}
+          onChange={(e) => setBookingNumberFilter(e.target.value)}
+          placeholder="Filtrer par N° réservation (BookingNumber)"
+          className="px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white w-full sm:max-w-[360px]"
+        />
+      </div>
+
       <div className="bg-[#2C2F36] rounded-lg border border-gray-700 overflow-hidden">
         <table className="w-full">
           <thead className="bg-[#1D1F23]">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                N°
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
                 Client
               </th>
@@ -275,8 +302,13 @@ export default function Bookings() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700">
-            {bookings?.map((booking: any) => (
+            {bookingsToDisplay?.map((booking: any) => (
               <tr key={booking.id} className="hover:bg-[#1D1F23]">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-white">
+                    #{(booking.bookingNumber || String(booking.id).slice(-6)).toUpperCase()}
+                  </div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-white">
                     {booking.client?.name}
@@ -372,6 +404,22 @@ export default function Bookings() {
                   {success}
                 </div>
               )}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  N° réservation (si mode MANUEL)
+                </label>
+                <input
+                  type="text"
+                  name="bookingNumber"
+                  defaultValue={editingBooking?.bookingNumber || ''}
+                  placeholder="Ex: A00125 (alphanum)"
+                  className="w-full px-4 py-2 bg-[#1D1F23] border border-gray-600 rounded-lg text-white"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Si votre company est en mode AUTO, laissez vide (le backend générera le numéro).
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Agence *

@@ -6,6 +6,9 @@ describe('Company validations', () => {
     it('should validate a valid company', () => {
       const validData = {
         name: 'Test Company',
+        raisonSociale: 'Test Company SARL',
+        identifiantLegal: '001234567000089',
+        formeJuridique: 'SARL',
         phone: '+33123456789',
         address: '123 Test Street',
         adminEmail: 'admin@test.com',
@@ -33,6 +36,9 @@ describe('Company validations', () => {
     it('should validate email format when provided', () => {
       const invalidData = {
         name: 'Test Company',
+        raisonSociale: 'Test Company SARL',
+        identifiantLegal: '001234567000089',
+        formeJuridique: 'SARL',
         adminEmail: 'invalid-email',
       };
 
@@ -46,6 +52,9 @@ describe('Company validations', () => {
     it('should accept empty email string', () => {
       const validData = {
         name: 'Test Company',
+        raisonSociale: 'Test Company SARL',
+        identifiantLegal: '001234567000089',
+        formeJuridique: 'SARL',
         adminEmail: '',
       };
 
@@ -56,6 +65,9 @@ describe('Company validations', () => {
     it('should accept optional fields', () => {
       const minimalData = {
         name: 'Test Company',
+        raisonSociale: 'Test Company SARL',
+        identifiantLegal: '001234567000089',
+        formeJuridique: 'SARL',
       };
 
       const result = createCompanySchema.safeParse(minimalData);
