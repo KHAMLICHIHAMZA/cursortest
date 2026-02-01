@@ -403,6 +403,8 @@ describe('Mobile Agent E2E Tests', () => {
     it('should reject check-in with expired license', async () => {
       const pastDate = new Date();
       pastDate.setFullYear(pastDate.getFullYear() - 1);
+      const restoreDate = new Date();
+      restoreDate.setFullYear(restoreDate.getFullYear() + 1);
 
       const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
 
@@ -430,6 +432,8 @@ describe('Mobile Agent E2E Tests', () => {
       const newBooking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'MA001',
           vehicleId,
           clientId,
           startDate,
@@ -439,11 +443,23 @@ describe('Mobile Agent E2E Tests', () => {
         },
       });
 
+      // Expire the client license in DB (backend validation source of truth)
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { licenseExpiryDate: pastDate },
+      });
+
       await request(app.getHttpServer())
         .post(`/api/v1/bookings/${newBooking.id}/checkin`)
         .set('Authorization', `Bearer ${authToken}`)
         .send(checkInDto)
         .expect(400); // Bad Request - validation error
+
+      // Restore license for next tests
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { licenseExpiryDate: restoreDate },
+      });
 
       await prisma.booking.delete({ where: { id: newBooking.id } });
     });
@@ -477,6 +493,8 @@ describe('Mobile Agent E2E Tests', () => {
       const newBooking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'MA002',
           vehicleId,
           clientId,
           startDate,
@@ -568,6 +586,8 @@ describe('Mobile Agent E2E Tests', () => {
       const newBooking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'MA003',
           vehicleId,
           clientId,
           startDate,
@@ -647,6 +667,8 @@ describe('Mobile Agent E2E Tests', () => {
       const newBooking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'MA004',
           vehicleId,
           clientId,
           startDate,

@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuditService as CommonAuditService } from '../../common/services/audit.service';
 import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
 import { InvoiceService } from '../invoice/invoice.service';
+import { OutboxService } from '../../common/services/outbox.service';
 
 describe('BookingService', () => {
   let service: BookingService;
@@ -21,6 +22,9 @@ describe('BookingService', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    bookingNumberSequence: {
+      upsert: jest.fn(),
+    },
     vehicle: {
       findFirst: jest.fn(),
       update: jest.fn(),
@@ -31,6 +35,9 @@ describe('BookingService', () => {
     agency: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+    },
+    invoice: {
+      findFirst: jest.fn(),
     },
   };
 
@@ -61,6 +68,10 @@ describe('BookingService', () => {
     generateInvoice: jest.fn(),
   };
 
+  const mockOutboxService = {
+    enqueue: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -71,6 +82,7 @@ describe('BookingService', () => {
         { provide: CommonAuditService, useValue: mockCommonAuditService },
         { provide: BusinessEventLogService, useValue: mockBusinessEventLogService },
         { provide: InvoiceService, useValue: mockInvoiceService },
+        { provide: OutboxService, useValue: mockOutboxService },
       ],
     }).compile();
 
@@ -148,17 +160,22 @@ describe('BookingService', () => {
         licenseExpiryDate: new Date('2025-12-31'),
       };
 
+      const mockAgency = {
+        id: 'agency-1',
+        companyId: 'company-1',
+        preparationTimeMinutes: 60,
+        company: { id: 'company-1', bookingNumberMode: 'AUTO' },
+      };
+
       const mockBooking = {
         id: 'booking-1',
+        companyId: 'company-1',
+        bookingNumber: '2024000001',
         ...createBookingDto,
         vehicle: mockVehicle,
         client: mockClient,
-        agency: { id: 'agency-1', company: { id: 'company-1' } },
-      };
-
-      const mockAgency = {
-        id: 'agency-1',
-        preparationTimeMinutes: 60,
+        agency: mockAgency,
+        deletedAt: null,
       };
 
       mockPlanningService.getVehicleAvailability.mockResolvedValue(true);
@@ -166,6 +183,7 @@ describe('BookingService', () => {
       mockPrismaService.vehicle.findFirst.mockResolvedValue(mockVehicle);
       mockPrismaService.client.findFirst.mockResolvedValue(mockClient);
       mockPrismaService.booking.findMany.mockResolvedValue([]); // Pas de bookings actifs
+      mockPrismaService.bookingNumberSequence.upsert.mockResolvedValue({ lastValue: 1 });
       mockPrismaService.booking.create.mockResolvedValue(mockBooking);
       mockPrismaService.vehicle.update.mockResolvedValue({ ...mockVehicle, status: 'RENTED' });
       mockPlanningService.createBookingEvent.mockResolvedValue(undefined);
@@ -175,6 +193,7 @@ describe('BookingService', () => {
       expect(result).toEqual(mockBooking);
       expect(mockPrismaService.booking.create).toHaveBeenCalled();
       expect(mockPlanningService.createBookingEvent).toHaveBeenCalled();
+      expect(mockOutboxService.enqueue).toHaveBeenCalled();
     });
   });
 

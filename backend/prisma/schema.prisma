@@ -278,6 +278,8 @@ model Company {
   updatedAt DateTime @updatedAt
 
   agencies                Agency[]
+  bookings                Booking[]
+  bookingNumberSequences  BookingNumberSequence[]
   users                   User[]
   businessRules           BusinessRule[]
   auditLogs               AuditLog[]
@@ -507,12 +509,16 @@ model Client {
 model Booking {
   id         String        @id @default(cuid())
   agencyId   String
+  companyId  String
   vehicleId  String
   clientId   String
   startDate  DateTime
   endDate    DateTime
   totalPrice Float
   status     BookingStatus @default(DRAFT)
+
+  // V2: BookingNumber (unique par Company)
+  bookingNumber String
 
   // Prolongation
   originalEndDate DateTime? // Date de fin originale si prolongation
@@ -554,6 +560,7 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   agency         Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   fines          Fine[]
@@ -564,12 +571,33 @@ model Booking {
   invoices       Invoice[]
 
   @@index([agencyId])
+  @@index([companyId])
   @@index([vehicleId])
   @@index([clientId])
   @@index([status])
   @@index([startDate])
   @@index([endDate])
   @@index([deletedAt])
+
+  @@unique([companyId, bookingNumber])
+}
+
+// V2: séquence BookingNumber par Company + année (reset annuel)
+model BookingNumberSequence {
+  id String @id @default(cuid())
+
+  companyId String
+  year      Int
+  lastValue Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, year])
+  @@index([companyId])
+  @@index([year])
 }
 
 // ============================================

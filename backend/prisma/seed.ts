@@ -20,6 +20,8 @@ async function main() {
   await prisma.notificationPreference.deleteMany();
   await prisma.fine.deleteMany();
   await prisma.maintenance.deleteMany();
+  await prisma.bookingNumberSequence.deleteMany();
+  await prisma.outboxEvent.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.client.deleteMany();
   await prisma.vehicle.deleteMany();
@@ -441,6 +443,10 @@ async function main() {
 
   console.log('\n📋 Creating bookings with all task use cases...\n');
 
+  // V2: helper to generate unique booking numbers in seed (alphanumeric)
+  let bookingNumberSeq = 1;
+  const nextBookingNumber = () => `S${String(bookingNumberSeq++).padStart(3, '0')}`;
+
   // ============================================
   // CAS 1: CONFIRMED → Génère CHECK_IN (Livraison)
   // ============================================
@@ -449,6 +455,8 @@ async function main() {
   const booking1 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle1!.id,
       clientId: client1.id,
       startDate: today,
@@ -463,6 +471,8 @@ async function main() {
   const booking2 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle2!.id,
       clientId: client2.id,
       startDate: tomorrow,
@@ -477,6 +487,8 @@ async function main() {
   const booking3 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle3!.id,
       clientId: client3.id,
       startDate: in2Days,
@@ -491,6 +503,8 @@ async function main() {
   const booking4 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle4!.id,
       clientId: client6.id,
       startDate: in3Days,
@@ -505,6 +519,8 @@ async function main() {
   const booking5 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle5!.id,
       clientId: client7.id,
       startDate: in7Days,
@@ -523,6 +539,8 @@ async function main() {
   const booking6 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle6!.id,
       clientId: client8.id,
       startDate: twoDaysAgo,
@@ -541,6 +559,8 @@ async function main() {
   const booking7 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle7!.id,
       clientId: client9.id,
       startDate: yesterday,
@@ -559,6 +579,8 @@ async function main() {
   const booking8 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle8!.id,
       clientId: client10.id,
       startDate: twoDaysAgo,
@@ -577,6 +599,8 @@ async function main() {
   const booking9 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle1!.id,
       clientId: client11.id,
       startDate: yesterday,
@@ -591,6 +615,8 @@ async function main() {
   const booking10 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle2!.id,
       clientId: client4.id,
       startDate: yesterday,
@@ -606,6 +632,8 @@ async function main() {
   const booking11 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle3!.id,
       clientId: client5.id,
       startDate: lastWeek,
@@ -625,6 +653,8 @@ async function main() {
   const booking12 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle4!.id,
       clientId: client1.id,
       startDate: lastWeek,
@@ -643,6 +673,8 @@ async function main() {
   const booking13 = await prisma.booking.create({
     data: {
       agencyId: agency1_2.id,
+      companyId: agency1_2.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle9!.id,
       clientId: client5.id,
       startDate: twoDaysAgo,
@@ -661,6 +693,8 @@ async function main() {
   const booking14 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle5!.id,
       clientId: client2.id,
       startDate: tomorrow,
@@ -675,6 +709,8 @@ async function main() {
   const booking15 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle6!.id,
       clientId: client3.id,
       startDate: in2Days,
@@ -689,6 +725,8 @@ async function main() {
   const booking16 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle7!.id,
       clientId: client4.id,
       startDate: lastWeek,
@@ -703,6 +741,8 @@ async function main() {
   const booking17 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle8!.id,
       clientId: client6.id,
       startDate: tomorrow,
@@ -717,6 +757,8 @@ async function main() {
   const booking18 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle1!.id,
       clientId: client7.id,
       startDate: yesterday,
@@ -743,6 +785,8 @@ async function main() {
   const booking19 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle5!.id,
       clientId: client8.id,
       startDate: todayMorning,
@@ -757,6 +801,8 @@ async function main() {
   const booking20 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle6!.id,
       clientId: client9.id,
       startDate: todayAfternoon,
@@ -771,6 +817,8 @@ async function main() {
   const booking21 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle7!.id,
       clientId: client10.id,
       startDate: todayEvening,
@@ -793,6 +841,8 @@ async function main() {
   const booking22 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle8!.id,
       clientId: client11.id,
       startDate: twoDaysAgo,
@@ -811,6 +861,8 @@ async function main() {
   const booking23 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle1!.id,
       clientId: client4.id,
       startDate: yesterday,
@@ -825,6 +877,8 @@ async function main() {
   const booking24 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle2!.id,
       clientId: client6.id,
       startDate: yesterday,
@@ -855,6 +909,8 @@ async function main() {
   const booking25 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle3!.id,
       clientId: client1.id,
       startDate: tomorrowEarly,
@@ -869,6 +925,8 @@ async function main() {
   const booking26 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle4!.id,
       clientId: client2.id,
       startDate: tomorrowNoon,
@@ -883,6 +941,8 @@ async function main() {
   const booking27 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle5!.id,
       clientId: client3.id,
       startDate: yesterday,
@@ -913,6 +973,8 @@ async function main() {
   const booking28 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle6!.id,
       clientId: client7.id,
       startDate: in4Days,
@@ -927,6 +989,8 @@ async function main() {
   const booking29 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle7!.id,
       clientId: client8.id,
       startDate: twoDaysAgo,
@@ -953,6 +1017,8 @@ async function main() {
   const booking30 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle8!.id,
       clientId: client9.id,
       startDate: twoDaysAgo,
@@ -974,6 +1040,8 @@ async function main() {
   const booking31 = await prisma.booking.create({
     data: {
       agencyId: agency1_1.id,
+      companyId: agency1_1.companyId,
+      bookingNumber: nextBookingNumber(),
       vehicleId: vehicle1!.id,
       clientId: client10.id,
       startDate: in30Minutes,

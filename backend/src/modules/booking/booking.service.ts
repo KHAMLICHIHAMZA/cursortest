@@ -10,7 +10,8 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { OverrideLateFeeDto } from './dto/override-late-fee.dto';
-import { BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
+import { BookingNumberMode, BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
+import { OutboxService } from '../../common/services/outbox.service';
 
 @Injectable()
 export class BookingService {
@@ -23,7 +24,24 @@ export class BookingService {
     private commonAuditService: CommonAuditService,
     private businessEventLogService: BusinessEventLogService,
     private invoiceService: InvoiceService,
+    private outboxService: OutboxService,
   ) {}
+
+  private normalizeBookingNumber(input: string): string {
+    return String(input || '').trim().toUpperCase();
+  }
+
+  private async getNextAutoBookingNumber(companyId: string, now: Date): Promise<string> {
+    const year = now.getFullYear();
+    const seq = await this.prisma.bookingNumberSequence.upsert({
+      where: { companyId_year: { companyId, year } },
+      create: { companyId, year, lastValue: 1 },
+      update: { lastValue: { increment: 1 } },
+      select: { lastValue: true },
+    });
+    // Format: YYYY + 6 digits (reset annuel, alphanum)
+    return `${year}${String(seq.lastValue).padStart(6, '0')}`;
+  }
 
   async create(createBookingDto: CreateBookingDto, userId: string) {
     const { agencyId, vehicleId, clientId, startDate, endDate, totalPrice, status } = createBookingDto;
@@ -120,6 +138,7 @@ export class BookingService {
     // Règle: Toute réservation chevauchant la période de préparation est BLOQUÉE
     const agency = await this.prisma.agency.findUnique({
       where: { id: agencyId },
+      include: { company: true },
     });
 
     if (!agency) {
@@ -127,6 +146,43 @@ export class BookingService {
     }
 
     const preparationTimeMinutes = agency.preparationTimeMinutes || 60; // Default 1h
+
+    const companyId = agency.companyId;
+    const bookingNumberMode: BookingNumberMode =
+      agency.company?.bookingNumberMode || BookingNumberMode.AUTO;
+
+    // ============================================
+    // V2: BOOKING NUMBER (unique par company)
+    // ============================================
+    let bookingNumberToUse: string;
+    if (bookingNumberMode === BookingNumberMode.MANUAL) {
+      const raw = createBookingDto.bookingNumber;
+      if (!raw) {
+        throw new BadRequestException(
+          'bookingNumber is required when company bookingNumberMode is MANUAL',
+        );
+      }
+      bookingNumberToUse = this.normalizeBookingNumber(raw);
+
+      const existing = await this.prisma.booking.findFirst({
+        where: {
+          companyId,
+          bookingNumber: bookingNumberToUse,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('bookingNumber already exists for this company');
+      }
+    } else {
+      if (createBookingDto.bookingNumber) {
+        throw new BadRequestException(
+          'bookingNumber cannot be set when company bookingNumberMode is AUTO',
+        );
+      }
+      bookingNumberToUse = await this.getNextAutoBookingNumber(companyId, new Date());
+    }
 
     // Pour chaque booking actif, calculer la fin réelle avec préparation
     const activeBookings = await this.prisma.booking.findMany({
@@ -216,6 +272,8 @@ export class BookingService {
     const booking = await this.prisma.booking.create({
       data: {
         agencyId,
+        companyId,
+        bookingNumber: bookingNumberToUse,
         vehicleId,
         clientId,
         startDate: start,
@@ -267,6 +325,32 @@ export class BookingService {
       .catch(() => {
         // Error already logged in service
       });
+
+    // V2 Domain Events (outbox backbone)
+    await this.outboxService.enqueue({
+      aggregateType: 'Booking',
+      aggregateId: booking.id,
+      eventType: 'BookingCreated',
+      payload: {
+        bookingId: booking.id,
+        companyId,
+        agencyId,
+        bookingNumber: booking.bookingNumber,
+      },
+      deduplicationKey: `BookingCreated:${booking.id}`,
+    });
+    await this.outboxService.enqueue({
+      aggregateType: 'Booking',
+      aggregateId: booking.id,
+      eventType: 'BookingNumberAssigned',
+      payload: {
+        bookingId: booking.id,
+        companyId,
+        bookingNumber: booking.bookingNumber,
+        mode: bookingNumberMode,
+      },
+      deduplicationKey: `BookingNumberAssigned:${booking.id}`,
+    });
 
     // Remove audit fields from response
     return this.commonAuditService.removeAuditFields(booking);
@@ -757,7 +841,20 @@ export class BookingService {
       throw new BadRequestException('Booking not found');
     }
 
-    const { startDate, endDate, status, totalPrice } = updateBookingDto;
+    const { startDate, endDate, status, totalPrice, bookingNumber } = updateBookingDto as any;
+
+    // V2: bookingNumber is locked once an invoice exists (InvoiceIssued)
+    if (bookingNumber !== undefined) {
+      const existingInvoice = await this.prisma.invoice.findFirst({
+        where: { bookingId: id },
+        select: { id: true },
+      });
+      if (existingInvoice) {
+        throw new ForbiddenException(
+          'bookingNumber is locked because an invoice has been issued',
+        );
+      }
+    }
 
     // Validate status transition
     if (status && status !== booking.status) {
@@ -796,6 +893,22 @@ export class BookingService {
     if (endDate) updateData.endDate = new Date(endDate);
     if (status) updateData.status = status;
     if (totalPrice !== undefined) updateData.totalPrice = parseFloat(totalPrice.toString());
+    if (bookingNumber !== undefined) {
+      const normalized = this.normalizeBookingNumber(bookingNumber);
+      const existing = await this.prisma.booking.findFirst({
+        where: {
+          companyId: booking.companyId,
+          bookingNumber: normalized,
+          deletedAt: null,
+          NOT: { id },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('bookingNumber already exists for this company');
+      }
+      updateData.bookingNumber = normalized;
+    }
 
     // Add audit fields
     const dataWithAudit = this.commonAuditService.addUpdateAuditFields(updateData, userId);
@@ -813,6 +926,22 @@ export class BookingService {
         client: true,
       },
     });
+
+    // V2: domain event for bookingNumber change
+    if (bookingNumber !== undefined && updatedBooking.bookingNumber !== booking.bookingNumber) {
+      await this.outboxService.enqueue({
+        aggregateType: 'Booking',
+        aggregateId: updatedBooking.id,
+        eventType: 'BookingNumberEdited',
+        payload: {
+          bookingId: updatedBooking.id,
+          companyId: updatedBooking.companyId,
+          previousBookingNumber: booking.bookingNumber,
+          bookingNumber: updatedBooking.bookingNumber,
+        },
+        deduplicationKey: `BookingNumberEdited:${updatedBooking.id}:${updatedBooking.bookingNumber}`,
+      });
+    }
 
     // Mettre à jour l'événement de planning
     await this.planningService.deleteBookingEvents(booking.id);
@@ -905,12 +1034,19 @@ export class BookingService {
       deletedAt: null,
     };
 
+    const bookingNumberFilterRaw = filters?.bookingNumber;
+    const bookingNumberFilter =
+      bookingNumberFilterRaw != null && String(bookingNumberFilterRaw).trim() !== ''
+        ? this.normalizeBookingNumber(String(bookingNumberFilterRaw))
+        : null;
+
     // Filter by role
     if (user.role === 'SUPER_ADMIN') {
       if (filters?.agencyId) where.agencyId = filters.agencyId;
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
+      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
     } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
       where.agency = { companyId: user.companyId };
       if (filters?.agencyId) {
@@ -926,6 +1062,7 @@ export class BookingService {
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
+      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
     } else if (user.agencyIds && user.agencyIds.length > 0) {
       where.agencyId = { in: user.agencyIds };
       if (filters?.agencyId && user.agencyIds.includes(filters.agencyId)) {
@@ -936,6 +1073,7 @@ export class BookingService {
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
+      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
     } else {
       return [];
     }
