@@ -288,9 +288,15 @@ export class PlanningController {
         return;
       }
       const color = typeToColor[normalizedType];
+
+      // Certains événements peuvent ne pas être rattachés à un véhicule (vehicleId nullable)
+      const resourceVehicleId = event.vehicleId
+        ? vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId
+        : undefined;
+
       events.push({
         id: `event-${event.id}`,
-        resourceId: vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId,
+        resourceId: resourceVehicleId,
         title: event.title,
         start: event.startDate.toISOString(),
         end: event.endDate.toISOString(),
