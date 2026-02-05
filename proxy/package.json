@@ -1,0 +1,15 @@
+{
+  "name": "malocauto-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reverse proxy pour exposer toutes les apps sur un seul port (8080)",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs",
+    "dev": "node server.cjs"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
+  }
+}

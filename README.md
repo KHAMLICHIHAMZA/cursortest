@@ -64,6 +64,29 @@ npm run dev
 
 L'application démarre sur `http://localhost:3001`
 
+### Tout sur un seul port (8080)
+
+Pour lancer **backend + tous les frontends** derrière une seule URL :
+
+```bash
+# À la racine du projet
+npm install
+# Si des serveurs tournent déjà sur 3000/3001/3080/5173/8080 :
+./scripts/kill-dev-ports.sh
+npm run dev
+```
+
+**Une seule adresse :** http://localhost:8080
+
+| Chemin | Application |
+|--------|-------------|
+| http://localhost:8080/ | Frontend Web (Next.js) |
+| http://localhost:8080/agency | Frontend Agence |
+| http://localhost:8080/admin | Frontend Admin |
+| http://localhost:8080/api | Backend API (ex. /api/docs pour Swagger) |
+
+Le proxy (`proxy/`) route le trafic vers chaque app en interne. Pour faire évoluer les chemins ou les ports, modifier `proxy/server.cjs` et les `base` Vite (agency/admin).
+
 ## 🔐 Comptes de Test
 
 Après le seed, vous pouvez vous connecter avec :
@@ -99,13 +122,13 @@ Après le seed, vous pouvez vous connecter avec :
 
 ## 🎯 Applications
 
-MalocAuto comprend **5 applications** :
+MalocAuto comprend **5 applications**. En mode « un seul port » (`npm run dev` à la racine), tout est accessible sur **http://localhost:8080** :
 
-1. **Backend API** (Port 3000) - API REST NestJS
-2. **Frontend Admin** (Port 5173) - Super Admin
-3. **Frontend Agency** (Port 8080) - Gestion agence
-4. **Frontend Web** (Port 3001) - Company Admin
-5. **Mobile Agent** (Port 8081) - Application mobile terrain
+1. **Backend API** — exposé sous `/api` (ex. `/api/docs` pour Swagger)
+2. **Frontend Admin** — http://localhost:8080/admin
+3. **Frontend Agency** — http://localhost:8080/agency
+4. **Frontend Web** — http://localhost:8080/
+5. **Mobile Agent** (Expo) — à lancer à part sur le port 8081
 
 **Voir [APPLICATIONS_DETAILS.md](./APPLICATIONS_DETAILS.md) pour les détails complets de chaque application.**
 
