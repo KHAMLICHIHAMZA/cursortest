@@ -290,13 +290,15 @@ export class PlanningController {
         return;
       }
       const color = typeToColor[normalizedType];
+
+      // `vehicleId` can be null depending on event type / legacy data
+      const resourceId = event.vehicleId
+        ? vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId
+        : '__NO_VEHICLE__';
+
       events.push({
         id: `event-${event.id}`,
-        // `vehicleId` can be null depending on event type / legacy data
-        resourceId:
-          (event.vehicleId
-            ? vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId
-            : '__NO_VEHICLE__'),
+        resourceId,
         title: event.title,
         start: event.startDate.toISOString(),
         end: event.endDate.toISOString(),
