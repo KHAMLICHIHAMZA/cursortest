@@ -290,6 +290,19 @@ export class BookingService {
     }
 
     // ============================================
+    // VALIDATION CAUTION (R3) - BLOQUANTE
+    // ============================================
+    // Si caution requise, elle doit être collectée avant check-in
+    if (booking.depositRequired === true) {
+      const statusCheckIn = checkInDto.depositStatusCheckIn;
+      if (statusCheckIn !== 'COLLECTED') {
+        throw new BadRequestException(
+          'La caution doit être collectée avant le check-in',
+        );
+      }
+    }
+
+    // ============================================
     // VALIDATION PERMIS (R1.3) - BLOQUANTE
     // ============================================
     // Règle: Un check-in est BLOQUÉ si le permis est expiré ou expire le jour même
@@ -671,6 +684,19 @@ export class BookingService {
 
       return this.commonAuditService.removeAuditFields(booking);
     });
+
+    // ============================================
+    // TEMPS DE PRÉPARATION AUTOMATIQUE (R2.2)
+    // ============================================
+    // Au retour, supprimer l'événement booking et créer un créneau de préparation
+    await this.planningService.deleteBookingEvents(id);
+    await this.planningService.createPreparationTime(
+      id,
+      booking.vehicleId,
+      booking.agencyId,
+      actualReturnDate,
+      actualReturnDate > new Date(booking.endDate),
+    );
 
     // ============================================
     // GÉNÉRATION FACTURE (R6)

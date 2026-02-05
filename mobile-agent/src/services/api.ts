@@ -175,6 +175,22 @@ class ApiService {
             );
           }
         }
+
+        const MODULE_403_MSG = "Ce module n'est pas activé pour votre compte.";
+        const isCheckInOut =
+          requestUrl.includes('/checkin') || requestUrl.includes('/checkout');
+        const isModule403 =
+          error.response?.status === 403 &&
+          /module|not included|non inclus/i.test(
+            String(error.response?.data?.message || error.response?.data?.error || ''),
+          );
+        if (isModule403 && !isCheckInOut) {
+          if (Platform.OS === 'web') {
+            window.alert(MODULE_403_MSG);
+          } else {
+            Alert.alert('Module non activé', MODULE_403_MSG, [{ text: 'OK' }]);
+          }
+        }
         return Promise.reject(error);
       }
     );

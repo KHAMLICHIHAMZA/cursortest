@@ -116,14 +116,20 @@ export default function Dashboard() {
                   </div>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      booking.status === 'ACTIVE'
+                      booking.status === 'IN_PROGRESS' || booking.status === 'LATE'
                         ? 'bg-green-500/20 text-green-400'
                         : booking.status === 'CONFIRMED'
                         ? 'bg-blue-500/20 text-blue-400'
                         : 'bg-gray-500/20 text-gray-400'
                     }`}
                   >
-                    {booking.status}
+                    {booking.status === 'IN_PROGRESS' || booking.status === 'LATE'
+                      ? 'ACTIVE'
+                      : booking.status === 'RETURNED'
+                      ? 'TERMINÉE'
+                      : booking.status === 'CONFIRMED'
+                      ? 'Confirmée'
+                      : booking.status}
                   </span>
                 </div>
               ))}

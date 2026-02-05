@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Release Report V1 - MalocAuto</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #1a1a1a;
+      padding: 20px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: 24px;
+      color: #1e40af;
+      border-bottom: 3px solid #1e40af;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    
+    h2 {
+      font-size: 16px;
+      color: #1e40af;
+      margin-top: 25px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    
+    h3 {
+      font-size: 13px;
+      color: #374151;
+      margin-top: 15px;
+      margin-bottom: 8px;
+    }
+    
+    h4 {
+      font-size: 12px;
+      color: #4b5563;
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    
+    p {
+      margin-bottom: 8px;
+    }
+    
+    .header-info {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    
+    .header-info p {
+      margin: 4px 0;
+    }
+    
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 15px 0;
+      font-size: 10px;
+    }
+    
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    
+    th {
+      background: #1e40af;
+      color: white;
+      font-weight: 600;
+    }
+    
+    tr:nth-child(even) {
+      background: #f9fafb;
+    }
+    
+    tr:hover {
+      background: #e5e7eb;
+    }
+    
+    .status-existe {
+      color: #059669;
+      font-weight: bold;
+    }
+    
+    .status-partiel {
+      color: #d97706;
+      font-weight: bold;
+    }
+    
+    .status-manque {
+      color: #dc2626;
+      font-weight: bold;
+    }
+    
+    .status-stub {
+      color: #6b7280;
+      font-weight: bold;
+    }
+    
+    code {
+      background: #e5e7eb;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: 'Consolas', monospace;
+      font-size: 9px;
+    }
+    
+    pre {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 9px;
+      margin: 10px 0;
+    }
+    
+    .priority-critical {
+      background: #fecaca;
+      color: #991b1b;
+    }
+    
+    .priority-high {
+      background: #fed7aa;
+      color: #9a3412;
+    }
+    
+    .priority-medium {
+      background: #fef08a;
+      color: #854d0e;
+    }
+    
+    .priority-low {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .section {
+      page-break-inside: avoid;
+    }
+    
+    .page-break {
+      page-break-before: always;
+    }
+    
+    ul {
+      margin-left: 20px;
+      margin-bottom: 10px;
+    }
+    
+    li {
+      margin-bottom: 3px;
+    }
+    
+    .toc {
+      background: #f3f4f6;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    
+    .toc ul {
+      list-style: none;
+      margin-left: 0;
+    }
+    
+    .toc li {
+      margin-bottom: 5px;
+    }
+    
+    .toc a {
+      color: #1e40af;
+      text-decoration: none;
+    }
+    
+    @media print {
+      body {
+        padding: 10px 20px;
+        font-size: 9px;
+      }
+      
+      h1 {
+        font-size: 18px;
+      }
+      
+      h2 {
+        font-size: 14px;
+      }
+      
+      table {
+        font-size: 8px;
+      }
+      
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h1>📋 RELEASE REPORT V1 - MalocAuto</h1>
+
+<div class="header-info">
+  <p><strong>Date d'analyse :</strong> 28 janvier 2026</p>
+  <p><strong>Référence Git :</strong> Commit <code>bac0280</code> (03/01/2026) — "feat: Implementation complete - Backend, Frontends, Mobile Agent avec todos complétés et optimisations planning"</p>
+</div>
+
+<div class="warning">
+  <strong>⚠️ Note :</strong> Aucun tag Git n'existe (v1, release/v1, etc.). La référence V1 est basée sur le commit <code>bac0280</code> qui précède les 2 commits du Sprint 1 (28/01/2026).
+</div>
+
+<div class="toc">
+  <h3>Table des matières</h3>
+  <ul>
+    <li>1. Analyse Git</li>
+    <li>2. Inventaire fonctionnalités "réelles"</li>
+    <li>3. Endpoints Backend</li>
+    <li>4. Configuration / ENV</li>
+    <li>5. Livrables (A-D)</li>
+  </ul>
+</div>
+
+<h2>1. ANALYSE GIT</h2>
+
+<h3>1.1 Derniers commits (3 commits au total)</h3>
+
+<table>
+  <tr>
+    <th>Hash</th>
+    <th>Date</th>
+    <th>Auteur</th>
+    <th>Message</th>
+    <th>Impact</th>
+  </tr>
+  <tr>
+    <td><code>a72111b</code></td>
+    <td>2026-01-28</td>
+    <td>Hamza</td>
+    <td>feat: add password reset and improve mobile offline sync</td>
+    <td>163 fichiers, +6436/-14357</td>
+  </tr>
+  <tr>
+    <td><code>de8aafe</code></td>
+    <td>2026-01-28</td>
+    <td>Hamza</td>
+    <td>feat: unify planning filters and event colors</td>
+    <td>11 fichiers, +3069/-521</td>
+  </tr>
+  <tr>
+    <td><code>bac0280</code></td>
+    <td>2026-01-03</td>
+    <td>Hamza</td>
+    <td>feat: Implementation complete</td>
+    <td>V1 BASE</td>
+  </tr>
+</table>
+
+<h3>1.2 Diff résumé par application (depuis V1 base)</h3>
+
+<table>
+  <tr>
+    <th>Application</th>
+    <th>Fichiers modifiés</th>
+    <th>Lignes +</th>
+    <th>Lignes -</th>
+    <th>Ajouts notables</th>
+    <th>Suppressions</th>
+  </tr>
+  <tr>
+    <td><strong>backend/</strong></td>
+    <td>~45</td>
+    <td>~1200</td>
+    <td>~300</td>
+    <td>forgot-password.dto.ts, SECURITE_JWT.md, scripts</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td><strong>frontend-admin/</strong></td>
+    <td>~14</td>
+    <td>~800</td>
+    <td>~200</td>
+    <td>PlanningBoard.tsx, ForgotPassword.tsx, ResetPassword.tsx</td>
+    <td>dépendances FullCalendar</td>
+  </tr>
+  <tr>
+    <td><strong>frontend-agency/</strong></td>
+    <td>~16</td>
+    <td>~1100</td>
+    <td>~100</td>
+    <td>PlanningBoard.tsx, DatePicker.tsx, ForgotPassword.tsx</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td><strong>frontend-web/</strong></td>
+    <td>~15</td>
+    <td>~900</td>
+    <td>~700</td>
+    <td>PlanningBoard.tsx, forgot-password/page.tsx</td>
+    <td>refactoring clients/new</td>
+  </tr>
+  <tr>
+    <td><strong>mobile-agent/</strong></td>
+    <td>~10</td>
+    <td>~600</td>
+    <td>~100</td>
+    <td>ForgotPasswordScreen.tsx, offline.service.ts (dedup)</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td><strong>scripts/</strong></td>
+    <td>~12</td>
+    <td>~1500</td>
+    <td>~200</td>
+    <td>PowerShell scripts DevOps</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td><strong>docs (root)</strong></td>
+    <td>~30</td>
+    <td>~1500</td>
+    <td>~8000</td>
+    <td>APPLICATIONS_DETAILS.md, PORTS_APPLICATIONS.md</td>
+    <td>30+ fichiers .md obsolètes</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>2. INVENTAIRE FONCTIONNALITÉS "RÉELLES"</h2>
+
+<h3>2.1 BACKEND</h3>
+
+<table>
+  <tr>
+    <th>Module / Feature</th>
+    <th>Statut</th>
+    <th>Preuve (fichiers)</th>
+    <th>Endpoints</th>
+    <th>Notes / Risques</th>
+  </tr>
+  <tr>
+    <td>Auth - Login</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.controller.ts:16-20</code></td>
+    <td><code>POST /auth/login</code></td>
+    <td>JWT + refresh token</td>
+  </tr>
+  <tr>
+    <td>Auth - Refresh Token</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.controller.ts:22-26</code></td>
+    <td><code>POST /auth/refresh</code></td>
+    <td>RefreshToken model en DB</td>
+  </tr>
+  <tr>
+    <td>Auth - Forgot Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.controller.ts:42-46</code>, <code>forgot-password.dto.ts</code></td>
+    <td><code>POST /auth/forgot-password</code></td>
+    <td>Email SMTP requis</td>
+  </tr>
+  <tr>
+    <td>Auth - Reset Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.controller.ts:36-40</code></td>
+    <td><code>POST /auth/reset-password</code></td>
+    <td>Token 1h expiry</td>
+  </tr>
+  <tr>
+    <td>Auth - Get Me</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.controller.ts:28-34</code></td>
+    <td><code>GET /auth/me</code></td>
+    <td>JwtAuthGuard</td>
+  </tr>
+  <tr>
+    <td>RBAC - RolesGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>roles.guard.ts</code>, <code>roles.decorator.ts</code></td>
+    <td>Global</td>
+    <td>SUPER_ADMIN, COMPANY_ADMIN, AGENCY_MANAGER, AGENT</td>
+  </tr>
+  <tr>
+    <td>RBAC - PermissionGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>permission.guard.ts</code></td>
+    <td>Par endpoint</td>
+    <td>READ, WRITE, FULL</td>
+  </tr>
+  <tr>
+    <td>RequireModuleGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>require-module.guard.ts:48-145</code></td>
+    <td>Global</td>
+    <td>Vérifie CompanyModule + AgencyModule</td>
+  </tr>
+  <tr>
+    <td>RequireActiveCompanyGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>require-active-company.guard.ts</code></td>
+    <td>Global</td>
+    <td>Bloque si Company SUSPENDED/DELETED</td>
+  </tr>
+  <tr>
+    <td>RequireActiveAgencyGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>require-active-agency.guard.ts</code></td>
+    <td>Global</td>
+    <td>Bloque si Agency SUSPENDED</td>
+  </tr>
+  <tr>
+    <td>ReadOnlyGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>read-only.guard.ts:27-65</code></td>
+    <td>Global</td>
+    <td>Env var READ_ONLY_MODE</td>
+  </tr>
+  <tr>
+    <td>Bookings - CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.controller.ts</code>, <code>booking.service.ts</code></td>
+    <td><code>/bookings</code></td>
+    <td>+ check-in, check-out, financial-closure</td>
+  </tr>
+  <tr>
+    <td>Bookings - Statuts &amp; transitions</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>schema.prisma</code> enum, <code>booking.service.ts:709–722</code></td>
+    <td>update()</td>
+    <td>DRAFT→PENDING,CANCELLED; PENDING→CONFIRMED,CANCELLED; CONFIRMED→IN_PROGRESS,CANCELLED,NO_SHOW; IN_PROGRESS→RETURNED,LATE; LATE→RETURNED.</td>
+  </tr>
+  <tr>
+    <td>Bookings - Permis R1.3</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:70-105, 296-350</code></td>
+    <td>create, checkIn</td>
+    <td>Bloque si permis expiré avant fin location</td>
+  </tr>
+  <tr>
+    <td>Bookings - Préparation R2.2</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:120-170</code></td>
+    <td>create</td>
+    <td>preparationTimeMinutes par Agency</td>
+  </tr>
+  <tr>
+    <td>Bookings - Caution R3</td>
+    <td class="status-partiel">⚠️ PARTIEL</td>
+    <td><code>schema.prisma:510-514</code></td>
+    <td>checkIn, checkOut</td>
+    <td>Fields présents, validation manuelle</td>
+  </tr>
+  <tr>
+    <td>Bookings - Retard R4</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:536-562</code></td>
+    <td>checkOut</td>
+    <td>Calcul auto ≤1h=25%, ≤2h=50%, >4h=100%</td>
+  </tr>
+  <tr>
+    <td>Bookings - Override Late Fee</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.controller.ts:109-119</code></td>
+    <td><code>PATCH /bookings/:id/late-fee</code></td>
+    <td>Agency Manager only + justification</td>
+  </tr>
+  <tr>
+    <td>Bookings - Financial Closure</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:1019-1104</code></td>
+    <td><code>POST /bookings/:id/financial-closure</code></td>
+    <td>Bloqué si DISPUTED</td>
+  </tr>
+  <tr>
+    <td>Planning - GET</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>planning.controller.ts:17-313</code></td>
+    <td><code>GET /planning</code></td>
+    <td>Retourne resources + events</td>
+  </tr>
+  <tr>
+    <td>Planning - Check Availability</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>planning.controller.ts:315-337</code></td>
+    <td><code>POST /planning/check-availability</code></td>
+    <td>detectConflicts</td>
+  </tr>
+  <tr>
+    <td>Vehicles - CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>vehicle.controller.ts</code></td>
+    <td><code>/vehicles</code></td>
+    <td>+ imageUrl, horsepower, color</td>
+  </tr>
+  <tr>
+    <td>Clients - CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>client.controller.ts</code></td>
+    <td><code>/clients</code></td>
+    <td>+ licenseExpiryDate obligatoire</td>
+  </tr>
+  <tr>
+    <td>Maintenance - CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>maintenance.controller.ts</code></td>
+    <td><code>/maintenance</code></td>
+    <td>+ documentUrl</td>
+  </tr>
+  <tr>
+    <td>Fines - CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>fine.controller.ts</code></td>
+    <td><code>/fines</code></td>
+    <td>+ attachmentUrl</td>
+  </tr>
+  <tr>
+    <td>Upload - Files</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>upload.controller.ts:56-93</code></td>
+    <td><code>POST /upload</code></td>
+    <td>10MB max, images + PDF</td>
+  </tr>
+  <tr>
+    <td>Invoices</td>
+    <td class="status-partiel">⚠️ PARTIEL</td>
+    <td><code>invoice.controller.ts</code>, <code>invoice.service.ts</code></td>
+    <td><code>/invoices</code></td>
+    <td>Record DB + numéro incrémental par agence. PDF : MANQUE. Envoi email facture : non.</td>
+  </tr>
+  <tr>
+    <td>Company Governance</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>company.controller.ts:38-43</code>, <code>schema.prisma:227-279</code></td>
+    <td><code>GET /companies/me</code></td>
+    <td>raisonSociale, identifiantLegal, formeJuridique, maxAgencies</td>
+  </tr>
+  <tr>
+    <td>Modules - Management</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>module.controller.ts:24-86</code></td>
+    <td><code>/modules</code></td>
+    <td>activate/deactivate company + agency</td>
+  </tr>
+  <tr>
+    <td>BusinessEventLog</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>business-event-log.service.ts</code></td>
+    <td>Via services</td>
+    <td>37 event types dans schema</td>
+  </tr>
+  <tr>
+    <td>CORS</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>main.ts:16-100</code></td>
+    <td>Global</td>
+    <td>FRONTEND_URL, FRONTEND_AGENCY_URL, FRONTEND_ADMIN_URL, MOBILE_WEB_URL</td>
+  </tr>
+  <tr>
+    <td>Notifications - Email</td>
+    <td class="status-partiel">⚠️ PARTIEL</td>
+    <td><code>email.service.ts</code></td>
+    <td>Via services</td>
+    <td>Nodemailer configuré, requires SMTP env</td>
+  </tr>
+  <tr>
+    <td>Notifications - WhatsApp</td>
+    <td class="status-stub">⚠️ STUB</td>
+    <td><code>whatsapp.service.ts</code></td>
+    <td>Via services</td>
+    <td>Placeholders, non fonctionnel</td>
+  </tr>
+  <tr>
+    <td>Payment CMI</td>
+    <td class="status-stub">⚠️ STUB</td>
+    <td><code>payment.service.ts</code></td>
+    <td><code>/payment</code></td>
+    <td>Structure présente, non connecté</td>
+  </tr>
+  <tr>
+    <td>AI (Vision) – Détection dommages</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>ai.controller.ts</code>, <code>damage-detection.service.ts</code></td>
+    <td><code>POST /ai/damage/detect</code>, <code>POST /ai/damage/detect-batch</code></td>
+    <td>OpenAI + Google Vision. OCR permis : non. VISION_API_KEY / GOOGLE_VISION_API_KEY.</td>
+  </tr>
+</table>
+
+<h3>2.2 FRONTEND-ADMIN (Port 5173)</h3>
+
+<table>
+  <tr>
+    <th>Module / Feature</th>
+    <th>Statut</th>
+    <th>Preuve (fichiers)</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>Login</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Login.tsx</code></td>
+    <td>JWT auth</td>
+  </tr>
+  <tr>
+    <td>Forgot Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/ForgotPassword.tsx</code></td>
+    <td>Nouveau Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Reset Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/ResetPassword.tsx</code></td>
+    <td>Nouveau Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Dashboard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Dashboard.tsx</code></td>
+    <td>Stats basiques</td>
+  </tr>
+  <tr>
+    <td>Companies CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Companies.tsx</code></td>
+    <td>+ raisonSociale, formeJuridique</td>
+  </tr>
+  <tr>
+    <td>Agencies CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Agencies.tsx</code></td>
+    <td>Via company filter</td>
+  </tr>
+  <tr>
+    <td>Users CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Users.tsx</code></td>
+    <td>+ role, agencies</td>
+  </tr>
+  <tr>
+    <td>Subscriptions</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Subscriptions.tsx</code></td>
+    <td>Plans, status</td>
+  </tr>
+  <tr>
+    <td>Planning</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Planning.tsx</code>, <code>components/PlanningBoard.tsx</code></td>
+    <td>Custom, pas FullCalendar</td>
+  </tr>
+  <tr>
+    <td>CompanyHealth</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/CompanyHealth.tsx</code></td>
+    <td>Monitoring status</td>
+  </tr>
+  <tr>
+    <td>Module 403 UI</td>
+    <td class="status-partiel">⚠️ PARTIEL</td>
+    <td>-</td>
+    <td>Admin / Agency : non. Web : oui (isModuleError + messages). Mobile : partiel (check-in/out).</td>
+  </tr>
+</table>
+
+<h3>2.3 FRONTEND-AGENCY (Port 8080)</h3>
+
+<table>
+  <tr>
+    <th>Module / Feature</th>
+    <th>Statut</th>
+    <th>Preuve (fichiers)</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>Login</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Login.tsx</code></td>
+    <td>JWT auth</td>
+  </tr>
+  <tr>
+    <td>Forgot Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/ForgotPassword.tsx</code></td>
+    <td>Nouveau Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Reset Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/ResetPassword.tsx</code></td>
+    <td>Nouveau Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Vehicles CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Vehicles.tsx</code></td>
+    <td>+ imageUpload, color</td>
+  </tr>
+  <tr>
+    <td>Clients CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Clients.tsx</code></td>
+    <td>+ licenseImageUrl</td>
+  </tr>
+  <tr>
+    <td>Bookings CRUD</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Bookings.tsx</code></td>
+    <td>Status transitions</td>
+  </tr>
+  <tr>
+    <td>Planning</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Planning.tsx</code>, <code>components/PlanningBoard.tsx</code></td>
+    <td>Custom, day/week/month</td>
+  </tr>
+  <tr>
+    <td>Fines</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Fines.tsx</code></td>
+    <td>+ attachmentUrl</td>
+  </tr>
+  <tr>
+    <td>Maintenance</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>pages/Maintenance.tsx</code></td>
+    <td>+ documentUrl</td>
+  </tr>
+</table>
+
+<h3>2.4 MOBILE-AGENT (Port 8081 web / Expo)</h3>
+
+<table>
+  <tr>
+    <th>Module / Feature</th>
+    <th>Statut</th>
+    <th>Preuve (fichiers)</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>Language Selection</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>screens/LanguageSelectionScreen.tsx</code></td>
+    <td>FR, EN, Darija</td>
+  </tr>
+  <tr>
+    <td>Login</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>screens/LoginScreen.tsx</code></td>
+    <td>+ error messages améliorés Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Forgot Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>screens/ForgotPasswordScreen.tsx</code></td>
+    <td>Nouveau Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Bookings List</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>screens/BookingsScreen.tsx</code></td>
+    <td>Filter by status, search</td>
+  </tr>
+  <tr>
+    <td>Check-In</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>screens/CheckInScreen.tsx</code></td>
+    <td>Photos, signature, odomètre</td>
+  </tr>
+  <tr>
+    <td>Check-Out</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>screens/CheckOutScreen.tsx</code></td>
+    <td>Photos, signature, damages</td>
+  </tr>
+  <tr>
+    <td>Offline Queue</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>services/offline.service.ts</code></td>
+    <td>SQLite + localStorage fallback</td>
+  </tr>
+  <tr>
+    <td>Offline Dedup</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>services/offline.service.ts:180-224</code></td>
+    <td>Nouveau Sprint 1 - évite accumulation</td>
+  </tr>
+  <tr>
+    <td>Sync Service</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>services/sync.service.ts</code></td>
+    <td>Auto-sync 30s, NetInfo</td>
+  </tr>
+  <tr>
+    <td>i18n</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>i18n/fr.json, en.json, darija.json</code></td>
+    <td>3 langues</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>3. ENDPOINTS BACKEND (Liste complète)</h2>
+
+<h3>3.1 Routes /api/v1 exposées</h3>
+
+<table>
+  <tr>
+    <th>Controller</th>
+    <th>Endpoints</th>
+    <th>Guards</th>
+  </tr>
+  <tr>
+    <td><strong>auth</strong></td>
+    <td><code>POST /login</code>, <code>POST /refresh</code>, <code>GET /me</code>, <code>POST /forgot-password</code>, <code>POST /reset-password</code></td>
+    <td>JwtAuthGuard (me)</td>
+  </tr>
+  <tr>
+    <td><strong>planning</strong></td>
+    <td><code>GET /</code>, <code>POST /check-availability</code>, <code>GET /next-availability/:vehicleId</code>, <code>POST /preparation-time</code></td>
+    <td>JwtAuthGuard</td>
+  </tr>
+  <tr>
+    <td><strong>bookings</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code>, <code>POST /:id/checkin</code>, <code>POST /:id/checkout</code>, <code>POST /:id/financial-closure</code>, <code>PATCH /:id/late-fee</code></td>
+    <td>JwtAuthGuard, RequireModuleGuard(BOOKINGS), PermissionGuard</td>
+  </tr>
+  <tr>
+    <td><strong>vehicles</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard, RequireModuleGuard(VEHICLES)</td>
+  </tr>
+  <tr>
+    <td><strong>clients</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard</td>
+  </tr>
+  <tr>
+    <td><strong>maintenance</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard, RequireModuleGuard(MAINTENANCE)</td>
+  </tr>
+  <tr>
+    <td><strong>fines</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard, RequireModuleGuard(FINES)</td>
+  </tr>
+  <tr>
+    <td><strong>companies</strong></td>
+    <td><code>GET /</code>, <code>GET /me</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard, RolesGuard</td>
+  </tr>
+  <tr>
+    <td><strong>agencies</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard, RolesGuard</td>
+  </tr>
+  <tr>
+    <td><strong>users</strong></td>
+    <td><code>GET /</code>, <code>GET /:id</code>, <code>POST /</code>, <code>PATCH /:id</code>, <code>DELETE /:id</code></td>
+    <td>JwtAuthGuard, RolesGuard</td>
+  </tr>
+  <tr>
+    <td><strong>modules</strong></td>
+    <td><code>GET /company/:companyId</code>, <code>GET /agency/:agencyId</code>, <code>GET /dependencies</code>, <code>POST /company/:companyId/:moduleCode/activate</code>, etc.</td>
+    <td>JwtAuthGuard, RolesGuard</td>
+  </tr>
+  <tr>
+    <td><strong>upload</strong></td>
+    <td><code>POST /</code></td>
+    <td>JwtAuthGuard</td>
+  </tr>
+</table>
+
+<h3>3.2 Utilisation par frontend</h3>
+
+<table>
+  <tr>
+    <th>Endpoint</th>
+    <th>Admin</th>
+    <th>Agency</th>
+    <th>Web</th>
+    <th>Mobile</th>
+  </tr>
+  <tr>
+    <td><code>/auth/*</code></td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅</td>
+  </tr>
+  <tr>
+    <td><code>/planning</code></td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>❌</td>
+  </tr>
+  <tr>
+    <td><code>/bookings</code></td>
+    <td>❌</td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅</td>
+  </tr>
+  <tr>
+    <td><code>/bookings/:id/checkin</code></td>
+    <td>❌</td>
+    <td>❌</td>
+    <td>❌</td>
+    <td>✅</td>
+  </tr>
+  <tr>
+    <td><code>/bookings/:id/checkout</code></td>
+    <td>❌</td>
+    <td>❌</td>
+    <td>❌</td>
+    <td>✅</td>
+  </tr>
+  <tr>
+    <td><code>/vehicles</code></td>
+    <td>❌</td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅ (read)</td>
+  </tr>
+  <tr>
+    <td><code>/clients</code></td>
+    <td>❌</td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅ (read)</td>
+  </tr>
+  <tr>
+    <td><code>/companies</code></td>
+    <td>✅</td>
+    <td>❌</td>
+    <td>✅</td>
+    <td>❌</td>
+  </tr>
+  <tr>
+    <td><code>/upload</code></td>
+    <td>❌</td>
+    <td>✅</td>
+    <td>✅</td>
+    <td>✅</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>4. CONFIGURATION / ENV</h2>
+
+<h3>4.1 Variables indispensables (local dev)</h3>
+
+<pre>
+# Database (obligatoire)
+DATABASE_URL="postgresql://postgres:password@localhost:5432/malocauto?schema=public"
+
+# JWT (obligatoire)
+JWT_SECRET=&lt;64+ caractères&gt;
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=&lt;64+ caractères&gt;
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Server
+PORT=3000
+NODE_ENV=development
+
+# CORS (obligatoire pour les 4 frontends)
+FRONTEND_URL=http://localhost:3001
+FRONTEND_ADMIN_URL=http://localhost:5173
+FRONTEND_AGENCY_URL=http://localhost:8080
+MOBILE_WEB_URL=http://localhost:8081
+
+# Email (requis pour forgot-password)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=&lt;email&gt;
+SMTP_PASS=&lt;app-password&gt;
+SMTP_FROM=noreply@malocauto.com
+</pre>
+
+<h3>4.2 Variables optionnelles</h3>
+
+<table>
+  <tr>
+    <th>Variable</th>
+    <th>Usage</th>
+    <th>Statut V1</th>
+  </tr>
+  <tr>
+    <td><code>UPLOAD_PATH</code></td>
+    <td>Chemin stockage images</td>
+    <td>Optionnel (default: backend/uploads/)</td>
+  </tr>
+  <tr>
+    <td><code>S3_*</code></td>
+    <td>Stockage S3</td>
+    <td>Non utilisé</td>
+  </tr>
+  <tr>
+    <td><code>CMI_*</code></td>
+    <td>Paiement CMI</td>
+    <td>Non utilisé</td>
+  </tr>
+  <tr>
+    <td><code>WHATSAPP_*</code></td>
+    <td>Notifications WhatsApp</td>
+    <td>Non utilisé</td>
+  </tr>
+  <tr>
+    <td><code>OPENAI_API_KEY</code></td>
+    <td>AI services</td>
+    <td>Non utilisé</td>
+  </tr>
+  <tr>
+    <td><code>VISION_API_KEY</code></td>
+    <td>Extraction permis</td>
+    <td>Non utilisé</td>
+  </tr>
+  <tr>
+    <td><code>READ_ONLY_MODE</code></td>
+    <td>Mode maintenance</td>
+    <td>false par défaut</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>5. LIVRABLES</h2>
+
+<h3>A) Mini-report EXISTE/MANQUE</h3>
+
+<table>
+  <tr>
+    <th>Feature</th>
+    <th>Statut</th>
+    <th>Preuve</th>
+  </tr>
+  <tr>
+    <td>Login + JWT</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.controller.ts</code>, tous frontends</td>
+  </tr>
+  <tr>
+    <td>Refresh Token</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>auth.service.ts</code>, RefreshToken model</td>
+  </tr>
+  <tr>
+    <td>Forgot Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>forgot-password.dto.ts</code>, 4 frontends</td>
+  </tr>
+  <tr>
+    <td>Reset Password</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>reset-password.dto.ts</code>, 4 frontends</td>
+  </tr>
+  <tr>
+    <td>RBAC (Roles)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td>RolesGuard, 4 roles</td>
+  </tr>
+  <tr>
+    <td>RBAC (Permissions)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td>PermissionGuard, READ/WRITE/FULL</td>
+  </tr>
+  <tr>
+    <td>RequireModuleGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>require-module.guard.ts</code></td>
+  </tr>
+  <tr>
+    <td>ReadOnlyGuard</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>read-only.guard.ts</code></td>
+  </tr>
+  <tr>
+    <td>Company Governance</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td>raisonSociale, identifiantLegal, formeJuridique, maxAgencies</td>
+  </tr>
+  <tr>
+    <td>Company /me</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>company.controller.ts:38-43</code></td>
+  </tr>
+  <tr>
+    <td>PlanningBoard custom</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td>4 composants identiques</td>
+  </tr>
+  <tr>
+    <td>FullCalendar</td>
+    <td class="status-manque">❌ SUPPRIMÉ</td>
+    <td>Remplacé Sprint 1</td>
+  </tr>
+  <tr>
+    <td>Booking rules R1.3 (permis)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:70-105, 296-350</code></td>
+  </tr>
+  <tr>
+    <td>Booking rules R2.2 (préparation)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:120-170</code></td>
+  </tr>
+  <tr>
+    <td>Booking rules R3 (caution)</td>
+    <td class="status-partiel">⚠️ PARTIEL</td>
+    <td>Fields présents, validation manuelle</td>
+  </tr>
+  <tr>
+    <td>Booking rules R4 (retard)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:536-562</code></td>
+  </tr>
+  <tr>
+    <td>Booking rules R5 (dommages/litiges)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>booking.service.ts:1034-1067</code></td>
+  </tr>
+  <tr>
+    <td>Booking rules R6 (facture)</td>
+    <td class="status-partiel">⚠️ PARTIEL</td>
+    <td>Record Invoice DB + numéro par agence. Pas PDF ni email.</td>
+  </tr>
+  <tr>
+    <td>Upload files</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>upload.controller.ts</code>, images + PDF</td>
+  </tr>
+  <tr>
+    <td>Offline queue (mobile)</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>offline.service.ts</code></td>
+  </tr>
+  <tr>
+    <td>Offline dedup</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>offline.service.ts:180-224</code> (Sprint 1)</td>
+  </tr>
+  <tr>
+    <td>BusinessEventLog</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>business-event-log.service.ts</code>, 37 event types</td>
+  </tr>
+  <tr>
+    <td>CORS multi-frontend</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>main.ts:16-100</code></td>
+  </tr>
+  <tr>
+    <td>2FA</td>
+    <td class="status-manque">❌ MANQUE</td>
+    <td>Fields présents, UI/flow non implémenté</td>
+  </tr>
+  <tr>
+    <td>WhatsApp notifications</td>
+    <td class="status-stub">❌ STUB</td>
+    <td>Placeholders only</td>
+  </tr>
+  <tr>
+    <td>CMI Payment</td>
+    <td class="status-stub">❌ STUB</td>
+    <td>Structure only</td>
+  </tr>
+  <tr>
+    <td>AI Vision – Détection dommages</td>
+    <td class="status-existe">✅ EXISTE</td>
+    <td><code>POST /ai/damage/detect</code>, <code>damage-detection.service</code>. OCR permis : non.</td>
+  </tr>
+  <tr>
+    <td>PDF Invoice</td>
+    <td class="status-manque">❌ MANQUE</td>
+    <td>Record DB + numéro par agence. Pas de PDF ni envoi email.</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h3>B) Release Notes V1</h3>
+
+<h4>MalocAuto V1.0.0 - 28 janvier 2026</h4>
+
+<h4>Inclus dans cette version</h4>
+
+<p><strong>Backend</strong></p>
+<ul>
+  <li>✅ Authentification complète (login, refresh, forgot/reset password)</li>
+  <li>✅ RBAC avec 4 rôles et 3 niveaux de permission</li>
+  <li>✅ Guards: RequireModuleGuard, RequireActiveCompanyGuard, RequireActiveAgencyGuard, ReadOnlyGuard</li>
+  <li>✅ Gestion Companies avec governance (raisonSociale, identifiantLegal, formeJuridique, maxAgencies)</li>
+  <li>✅ Gestion Agencies avec timezone et preparationTimeMinutes</li>
+  <li>✅ Gestion Users avec multi-agences</li>
+  <li>✅ Gestion Vehicles avec images et couleurs</li>
+  <li>✅ Gestion Clients avec validation permis (R1.3)</li>
+  <li>✅ Gestion Bookings avec check-in/check-out, règles métier (R1.3, R2.2, R4, R5)</li>
+  <li>✅ Planning centralisé avec détection conflits</li>
+  <li>✅ Maintenance, Fines, Incidents</li>
+  <li>✅ Modules SaaS activables par Company/Agency</li>
+  <li>✅ Subscriptions avec scheduler suspend/delete</li>
+  <li>✅ Upload fichiers (images, PDF) jusqu'à 10MB</li>
+  <li>✅ BusinessEventLog (37 event types)</li>
+  <li>✅ AuditLog avec timestamps</li>
+  <li>✅ CORS multi-frontend configuré</li>
+</ul>
+
+<p><strong>Frontend-Admin (SuperAdmin)</strong></p>
+<ul>
+  <li>✅ Dashboard, Companies, Agencies, Users, Subscriptions</li>
+  <li>✅ Planning unifié (PlanningBoard custom)</li>
+  <li>✅ Forgot/Reset password</li>
+</ul>
+
+<p><strong>Frontend-Agency</strong></p>
+<ul>
+  <li>✅ Dashboard, Vehicles, Clients, Bookings, Maintenance, Fines</li>
+  <li>✅ Planning unifié (PlanningBoard custom)</li>
+  <li>✅ Upload images véhicules/permis</li>
+  <li>✅ Forgot/Reset password</li>
+</ul>
+
+<p><strong>Frontend-Web (Next.js)</strong></p>
+<ul>
+  <li>✅ Admin, Company, Agency sections complètes</li>
+  <li>✅ Planning unifié (PlanningBoard custom)</li>
+  <li>✅ Forgot/Reset password</li>
+</ul>
+
+<p><strong>Mobile-Agent (React Native / Expo)</strong></p>
+<ul>
+  <li>✅ Login avec 3 langues (FR, EN, Darija)</li>
+  <li>✅ Liste bookings avec filtres</li>
+  <li>✅ Check-in avec photos, signature, odomètre, dommages</li>
+  <li>✅ Check-out avec photos, signature, frais, dommages</li>
+  <li>✅ Offline queue avec SQLite (+ localStorage fallback web)</li>
+  <li>✅ Déduplication actions offline (Sprint 1)</li>
+  <li>✅ Sync automatique toutes les 30s</li>
+  <li>✅ Forgot password</li>
+</ul>
+
+<h4>Explicitement hors scope V1</h4>
+<ul>
+  <li>❌ 2FA (champs présents, UI non implémentée)</li>
+  <li>❌ Paiement CMI (structure stub)</li>
+  <li>❌ WhatsApp notifications (stub)</li>
+  <li>❌ OCR / extraction permis (non implémenté)</li>
+  <li>❌ Génération PDF factures (DB + numéro uniquement)</li>
+  <li>❌ S3 storage (utilise stockage local)</li>
+  <li>❌ Push notifications mobile</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h3>C) Checklist de tests manuels V1</h3>
+
+<h4>Backend API (via Swagger /api/docs ou curl)</h4>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Test</th>
+    <th>Résultat attendu</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td><code>POST /auth/login</code> avec credentials valides</td>
+    <td>200 + access_token + refresh_token</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><code>POST /auth/login</code> avec mauvais password</td>
+    <td>401 + "Mot de passe incorrect"</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><code>POST /auth/forgot-password</code> avec email existant</td>
+    <td>200 + email envoyé (si SMTP)</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><code>POST /auth/refresh</code> avec refresh_token valide</td>
+    <td>200 + nouveau access_token</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><code>GET /auth/me</code> avec Bearer token</td>
+    <td>200 + user info</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><code>GET /companies</code> en tant que SUPER_ADMIN</td>
+    <td>200 + liste companies</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td><code>GET /companies/me</code> en tant que COMPANY_ADMIN</td>
+    <td>200 + ma company</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td><code>POST /bookings</code> avec permis expiré avant endDate</td>
+    <td>400 + "permis expire avant fin location"</td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td><code>POST /bookings/:id/checkin</code> avec permis expiré</td>
+    <td>400 + "check-in impossible"</td>
+  </tr>
+  <tr>
+    <td>10</td>
+    <td><code>POST /bookings/:id/checkout</code> en retard 1h30</td>
+    <td>200 + lateFeeAmount = 50% dailyRate</td>
+  </tr>
+  <tr>
+    <td>11</td>
+    <td><code>POST /bookings/:id/financial-closure</code> avec incident DISPUTED</td>
+    <td>400 + "litige en cours"</td>
+  </tr>
+  <tr>
+    <td>12</td>
+    <td><code>POST /upload</code> avec image JPG 5MB</td>
+    <td>200 + url fichier</td>
+  </tr>
+  <tr>
+    <td>13</td>
+    <td><code>GET /planning?agencyId=xxx</code></td>
+    <td>200 + resources + events</td>
+  </tr>
+  <tr>
+    <td>14</td>
+    <td><code>POST /planning/check-availability</code> période occupée</td>
+    <td>200 + available:false + conflicts</td>
+  </tr>
+  <tr>
+    <td>15</td>
+    <td>Appel <code>/bookings</code> sans module BOOKINGS activé</td>
+    <td>403 + "Module BOOKINGS not included"</td>
+  </tr>
+</table>
+
+<h4>Frontend-Admin</h4>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Test</th>
+    <th>Résultat attendu</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>Login admin@malocauto.com</td>
+    <td>Redirect dashboard</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Créer une Company</td>
+    <td>Company créée avec slug</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Activer module BOOKINGS pour Company</td>
+    <td>Module activé</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>Voir planning</td>
+    <td>PlanningBoard affiche véhicules</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>Forgot password</td>
+    <td>Email reçu (si SMTP)</td>
+  </tr>
+</table>
+
+<h4>Frontend-Agency</h4>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Test</th>
+    <th>Résultat attendu</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>Login agent</td>
+    <td>Redirect dashboard agence</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Créer véhicule avec image</td>
+    <td>Véhicule + imageUrl</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Créer client avec permis</td>
+    <td>Client + licenseExpiryDate</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>Créer booking</td>
+    <td>Booking status DRAFT</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>Voir planning jour/semaine/mois</td>
+    <td>3 vues fonctionnelles</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>Drag & drop booking (même véhicule)</td>
+    <td>Update dates seulement. Changement de véhicule : non dispo V1.</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>Upload document maintenance</td>
+    <td>Document attaché</td>
+  </tr>
+</table>
+
+<h4>Mobile-Agent (Web mode localhost:8081)</h4>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Test</th>
+    <th>Résultat attendu</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>Sélection langue FR</td>
+    <td>Interface en français</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Login agent</td>
+    <td>Affiche liste bookings</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Login mauvais password</td>
+    <td>Message "Email ou mot de passe incorrect"</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>Check-in avec photos</td>
+    <td>Transition CONFIRMED → IN_PROGRESS</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>Check-out avec signature</td>
+    <td>Transition IN_PROGRESS → RETURNED</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>Mode offline (couper réseau)</td>
+    <td>Badge "X en attente de synchro"</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>Cliquer 3x sur check-in offline</td>
+    <td>Compteur reste à 1 (dedup)</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td>Reconnecter</td>
+    <td>Sync automatique, compteur → 0</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h3>D) Risques / Tech Debt</h3>
+
+<table>
+  <tr>
+    <th>Priorité</th>
+    <th>Risque</th>
+    <th>Description</th>
+    <th>Fichiers concernés</th>
+  </tr>
+  <tr class="priority-critical">
+    <td>🔴 Critical</td>
+    <td>SMTP non configuré</td>
+    <td>Forgot password silently fails</td>
+    <td><code>email.service.ts</code></td>
+  </tr>
+  <tr class="priority-critical">
+    <td>🔴 Critical</td>
+    <td>JWT secrets faibles en prod</td>
+    <td>Risque sécurité si non changés</td>
+    <td><code>backend/.env</code>, <code>jwt.ts</code></td>
+  </tr>
+  <tr class="priority-high">
+    <td>🟠 High</td>
+    <td>Pas de 2FA</td>
+    <td>UI non implémentée</td>
+    <td><code>user.controller.ts</code></td>
+  </tr>
+  <tr class="priority-high">
+    <td>🟠 High</td>
+    <td>Pas de PDF factures</td>
+    <td>Record DB + numéro par agence. Pas de PDF ni email.</td>
+    <td><code>invoice.service.ts</code></td>
+  </tr>
+  <tr class="priority-high">
+    <td>🟠 High</td>
+    <td>403 modules : Admin / Agency sans UI dédiée</td>
+    <td>Web oui, Mobile partiel. Admin/Agency : pas de page 403 modules.</td>
+    <td>frontend-admin, frontend-agency</td>
+  </tr>
+  <tr class="priority-medium">
+    <td>🟡 Medium</td>
+    <td>WhatsApp stub</td>
+    <td>Non fonctionnel</td>
+    <td><code>whatsapp.service.ts</code></td>
+  </tr>
+  <tr class="priority-medium">
+    <td>🟡 Medium</td>
+    <td>CMI stub</td>
+    <td>Non fonctionnel</td>
+    <td><code>payment.service.ts</code></td>
+  </tr>
+  <tr class="priority-medium">
+    <td>🟡 Medium</td>
+    <td>OCR permis non implémenté</td>
+    <td>Détection dommages OK. Pas d’extraction permis.</td>
+    <td><code>ai.controller.ts</code></td>
+  </tr>
+  <tr class="priority-medium">
+    <td>🟡 Medium</td>
+    <td>Analytics peu rempli</td>
+    <td>Peu de valeur</td>
+    <td><code>analytics.controller.ts</code></td>
+  </tr>
+  <tr class="priority-low">
+    <td>🟢 Low</td>
+    <td>Pas de S3</td>
+    <td>Stockage local uniquement</td>
+    <td><code>upload.controller.ts</code></td>
+  </tr>
+  <tr class="priority-low">
+    <td>🟢 Low</td>
+    <td>Pas de push notifications</td>
+    <td>Mobile sans push</td>
+    <td><code>mobile-agent/</code></td>
+  </tr>
+  <tr class="priority-low">
+    <td>🟢 Low</td>
+    <td>Tests E2E partiels</td>
+    <td>Couverture limitée</td>
+    <td><code>backend/test/</code></td>
+  </tr>
+</table>
+
+<h3>Changelog (mise à jour cohérente avec le code)</h3>
+
+<table>
+  <tr>
+    <th>Élément</th>
+    <th>Correction</th>
+  </tr>
+  <tr>
+    <td>AI Vision</td>
+    <td>Détection dommages implémentée (OpenAI + Google). OCR permis : non. Endpoints <code>/ai/damage/detect</code>, <code>/ai/damage/detect-batch</code>.</td>
+  </tr>
+  <tr>
+    <td>Invoice</td>
+    <td>Record DB + numéro incrémental par agence. PDF : MANQUE. Envoi email facture : non.</td>
+  </tr>
+  <tr>
+    <td>Statuts booking</td>
+    <td>Enum exact : DRAFT, PENDING, CONFIRMED, IN_PROGRESS, EXTENDED, LATE, RETURNED, CANCELLED, NO_SHOW. Flows : create→DRAFT; check-in CONFIRMED→IN_PROGRESS; check-out IN_PROGRESS/LATE→RETURNED.</td>
+  </tr>
+  <tr>
+    <td>Drag &amp; drop planning</td>
+    <td>Implémenté pour modification dates (même véhicule). Changement de véhicule via planning : non disponible V1 (<code>UpdateBookingDto</code> sans <code>vehicleId</code>).</td>
+  </tr>
+  <tr>
+    <td>403 modules UI</td>
+    <td>Web : isModuleError + messages. Admin, Agency, Mobile (hors check-in/out) : message standard &quot;Ce module n'est pas activé pour votre compte.&quot;</td>
+  </tr>
+</table>
+
+<h3>Stabilisation V1 (corrections appliquées)</h3>
+
+<table>
+  <tr>
+    <th>Tâche</th>
+    <th>Fichiers</th>
+    <th>Résumé</th>
+  </tr>
+  <tr>
+    <td>R3 Caution</td>
+    <td><code>booking.service.ts</code>, <code>business-rules.e2e-spec.ts</code></td>
+    <td>Check-in refusé (400) si <code>depositRequired</code> et <code>depositStatusCheckIn !== 'COLLECTED'</code>. Message : &quot;La caution doit être collectée avant le check-in.&quot;</td>
+  </tr>
+  <tr>
+    <td>Statuts UI</td>
+    <td>frontend-agency (Bookings, Dashboard, Planning), frontend-web (bookings)</td>
+    <td>IN_PROGRESS → &quot;ACTIVE&quot;, RETURNED → &quot;TERMINÉE&quot; (FR). Harmonisation partout.</td>
+  </tr>
+  <tr>
+    <td>Planning drag</td>
+    <td><code>PlanningBoard</code> admin, agency, web</td>
+    <td>Drag vers autre véhicule bloqué. Message : &quot;Vous pouvez uniquement modifier la date. Le changement de véhicule n'est pas disponible dans cette version.&quot;</td>
+  </tr>
+  <tr>
+    <td>403 Module UX</td>
+    <td>admin/agency <code>axios</code>, mobile <code>api.ts</code></td>
+    <td>Message standard &quot;Ce module n'est pas activé pour votre compte.&quot; Mobile : hors check-in/check-out.</td>
+  </tr>
+  <tr>
+    <td>AI Vision</td>
+    <td>Doc uniquement</td>
+    <td>Disponible côté backend. Aucune intégration UI en V1. Lors de l’intégration future : afficher un message explicite si IA non configurée.</td>
+  </tr>
+</table>
+
+<hr>
+
+<p style="text-align: center; margin-top: 30px; color: #6b7280;">
+  <strong>Fin du Release Report V1</strong><br>
+  Généré le 28 janvier 2026 - MalocAuto. Aligné avec <code>REPONSES_QUESTIONS_V1.md</code>. Stabilisation V1 appliquée.
+</p>
+
+</body>
+</html>

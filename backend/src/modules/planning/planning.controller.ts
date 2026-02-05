@@ -289,14 +289,14 @@ export class PlanningController {
       }
       const color = typeToColor[normalizedType];
 
-      // Certains événements peuvent ne pas être rattachés à un véhicule (vehicleId nullable)
-      const resourceVehicleId = event.vehicleId
+      // `vehicleId` can be null depending on event type / legacy data
+      const resourceId = event.vehicleId
         ? vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId
-        : undefined;
+        : '__NO_VEHICLE__';
 
       events.push({
         id: `event-${event.id}`,
-        resourceId: resourceVehicleId,
+        resourceId,
         title: event.title,
         start: event.startDate.toISOString(),
         end: event.endDate.toISOString(),
