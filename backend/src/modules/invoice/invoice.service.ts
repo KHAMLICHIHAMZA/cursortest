@@ -2,8 +2,68 @@ import { Injectable, BadRequestException, ForbiddenException, NotFoundException 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PermissionService } from '../../common/services/permission.service';
 import { AuditService } from '../audit/audit.service';
+import { OutboxService } from '../../common/services/outbox.service';
 import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { BusinessEventType, InvoiceStatus, AuditAction } from '@prisma/client';
+import { BusinessEventType, InvoiceStatus, InvoiceType, AuditAction, Prisma } from '@prisma/client';
+
+// Morocco timezone (Africa/Casablanca)
+const MOROCCO_TIMEZONE = 'Africa/Casablanca';
+
+/**
+ * V2 Invoice Payload structure (frozen at issuance)
+ */
+export interface InvoicePayload {
+  version: number;
+  issuedAt: string; // ISO 8601 with timezone
+  timezone: string;
+  company: {
+    id: string;
+    name: string;
+    raisonSociale: string;
+    identifiantLegal: string | null;
+    formeJuridique: string;
+    address: string | null;
+  };
+  agency: {
+    id: string;
+    name: string;
+    address: string | null;
+    phone: string | null;
+  };
+  client: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    idCardNumber: string | null;
+    passportNumber: string | null;
+  };
+  vehicle: {
+    id: string;
+    brand: string;
+    model: string;
+    registrationNumber: string;
+  };
+  booking: {
+    id: string;
+    bookingNumber: string;
+    startDate: string;
+    endDate: string;
+    originalEndDate: string | null;
+    extensionDays: number | null;
+    totalPrice: number;
+    lateFeeAmount: number | null;
+    depositAmount: number | null;
+    depositRequired: boolean;
+    depositStatusFinal: string | null;
+  };
+  amounts: {
+    subtotal: number;
+    lateFees: number;
+    total: number;
+    currency: string;
+  };
+}
 
 @Injectable()
 export class InvoiceService {
@@ -11,46 +71,130 @@ export class InvoiceService {
     private prisma: PrismaService,
     private permissionService: PermissionService,
     private auditService: AuditService,
+    private outboxService: OutboxService,
     private businessEventLogService: BusinessEventLogService,
   ) {}
 
   /**
-   * Générer le prochain numéro de facture pour une agence
-   * Format: {AGENCY_PREFIX}-{NUMERO_INCREMENTAL}
-   * Exemple: AGEN-000001, AGEN-000002, etc.
+   * V2: Get Morocco time for invoice issuance
    */
-  private async getNextInvoiceNumber(agencyId: string): Promise<string> {
-    // Récupérer la dernière facture de l'agence
-    const lastInvoice = await this.prisma.invoice.findFirst({
-      where: { agencyId },
-      orderBy: { invoiceNumber: 'desc' },
-    });
-
-    // Récupérer le préfixe de l'agence (4 premiers caractères de l'ID)
-    const agencyPrefix = agencyId.slice(0, 4).toUpperCase();
-
-    if (!lastInvoice) {
-      // Première facture de l'agence
-      return `${agencyPrefix}-000001`;
-    }
-
-    // Extraire le numéro de la dernière facture
-    const lastNumberMatch = lastInvoice.invoiceNumber.match(/-(\d+)$/);
-    if (!lastNumberMatch) {
-      // Format inattendu, commencer à 1
-      return `${agencyPrefix}-000001`;
-    }
-
-    const lastNumber = parseInt(lastNumberMatch[1], 10);
-    const nextNumber = lastNumber + 1;
-
-    // Formater avec padding de 6 chiffres
-    return `${agencyPrefix}-${nextNumber.toString().padStart(6, '0')}`;
+  private getMoroccoTime(): Date {
+    // Get current UTC time and format for Morocco
+    // Note: Node.js handles timezone conversion; we store the exact moment
+    return new Date();
   }
 
   /**
-   * Générer une facture pour un booking
+   * V2: Format date in Morocco timezone for display
+   */
+  private formatMoroccoDate(date: Date): string {
+    return date.toLocaleString('fr-MA', { timeZone: MOROCCO_TIMEZONE });
+  }
+
+  /**
+   * V2: Générer le prochain numéro de facture pour une Company (séquence annuelle)
+   * Format: FAC-{YEAR}-{SEQUENCE}
+   * Exemple: FAC-2026-000001, FAC-2026-000002, etc.
+   * Transactional to ensure no duplicates
+   */
+  private async getNextInvoiceNumber(
+    companyId: string,
+    year: number,
+  ): Promise<{ invoiceNumber: string; sequence: number }> {
+    // Atomic upsert to get next sequence value
+    const result = await (this.prisma as any).invoiceNumberSequence.upsert({
+      where: {
+        companyId_year: { companyId, year },
+      },
+      update: {
+        lastValue: { increment: 1 },
+      },
+      create: {
+        companyId,
+        year,
+        lastValue: 1,
+      },
+    });
+
+    const sequence = result.lastValue;
+    const invoiceNumber = `FAC-${year}-${sequence.toString().padStart(6, '0')}`;
+
+    return { invoiceNumber, sequence };
+  }
+
+  /**
+   * V2: Build frozen payload for invoice (immutable snapshot)
+   */
+  private buildInvoicePayload(
+    booking: any,
+    amounts: { subtotal: number; lateFees: number; total: number },
+    issuedAt: Date,
+  ): InvoicePayload {
+    const company = booking.agency?.company;
+    const agency = booking.agency;
+    const client = booking.client;
+    const vehicle = booking.vehicle;
+
+    return {
+      version: 1,
+      issuedAt: issuedAt.toISOString(),
+      timezone: MOROCCO_TIMEZONE,
+      company: {
+        id: company?.id || '',
+        name: company?.name || '',
+        raisonSociale: company?.raisonSociale || '',
+        identifiantLegal: company?.identifiantLegal || null,
+        formeJuridique: company?.formeJuridique || 'AUTRE',
+        address: company?.address || null,
+      },
+      agency: {
+        id: agency?.id || '',
+        name: agency?.name || '',
+        address: agency?.address || null,
+        phone: agency?.phone || null,
+      },
+      client: {
+        id: client?.id || '',
+        name: client?.name || '',
+        email: client?.email || null,
+        phone: client?.phone || null,
+        idCardNumber: client?.idCardNumber || null,
+        passportNumber: client?.passportNumber || null,
+      },
+      vehicle: {
+        id: vehicle?.id || '',
+        brand: vehicle?.brand || '',
+        model: vehicle?.model || '',
+        registrationNumber: vehicle?.registrationNumber || '',
+      },
+      booking: {
+        id: booking.id,
+        bookingNumber: booking.bookingNumber || '',
+        startDate: booking.startDate?.toISOString() || '',
+        endDate: booking.endDate?.toISOString() || '',
+        originalEndDate: booking.originalEndDate?.toISOString() || null,
+        extensionDays: booking.extensionDays || null,
+        totalPrice: amounts.subtotal,
+        lateFeeAmount: amounts.lateFees || null,
+        depositAmount: booking.depositAmount ? Number(booking.depositAmount) : null,
+        depositRequired: booking.depositRequired || false,
+        depositStatusFinal: booking.depositStatusFinal || null,
+      },
+      amounts: {
+        subtotal: amounts.subtotal,
+        lateFees: amounts.lateFees,
+        total: amounts.total,
+        currency: company?.currency || 'MAD',
+      },
+    };
+  }
+
+  /**
+   * V2: Générer une facture pour un booking
    * Règle: Génération au check-out si pas de litige, ou après clôture financière si litige résolu
+   * - Séquence par Company avec reset annuel
+   * - Payload figé (immutable snapshot)
+   * - Timezone Maroc
    */
   async generateInvoice(bookingId: string, userId: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({
@@ -71,14 +215,19 @@ export class InvoiceService {
       throw new NotFoundException('Booking not found');
     }
 
+    const companyId = booking.agency?.companyId;
+    if (!companyId) {
+      throw new BadRequestException('Booking agency has no company');
+    }
+
     // ============================================
     // VALIDATION FACTURATION (R6)
     // ============================================
     // Vérifier qu'il n'y a pas de litige en cours
-    if (booking.incidents.some((inc) => inc.status === 'DISPUTED')) {
+    if (booking.incidents.some((inc: any) => inc.status === 'DISPUTED')) {
       throw new BadRequestException(
         'Impossible de générer la facture: un ou plusieurs incidents sont en litige (DISPUTED). ' +
-        'Veuillez résoudre les litiges avant de générer la facture.'
+        'Veuillez résoudre les litiges avant de générer la facture.',
       );
     }
 
@@ -86,40 +235,62 @@ export class InvoiceService {
     if (booking.depositStatusFinal === 'DISPUTED') {
       throw new BadRequestException(
         'Impossible de générer la facture: la caution est en litige (DISPUTED). ' +
-        'Veuillez résoudre le litige avant de générer la facture.'
+        'Veuillez résoudre le litige avant de générer la facture.',
       );
     }
 
-    // Vérifier qu'une facture n'existe pas déjà pour ce booking
+    // Vérifier qu'une facture INVOICE n'existe pas déjà pour ce booking
     const existingInvoice = await this.prisma.invoice.findFirst({
-      where: { bookingId },
+      where: { bookingId, type: InvoiceType.INVOICE },
     });
 
     if (existingInvoice) {
       throw new BadRequestException(
-        `Une facture existe déjà pour ce booking (${existingInvoice.invoiceNumber})`
+        `Une facture existe déjà pour ce booking (${existingInvoice.invoiceNumber})`,
       );
     }
 
-    // Générer le numéro de facture (incrémental par agence)
-    const invoiceNumber = await this.getNextInvoiceNumber(booking.agencyId);
+    // V2: Get Morocco time for issuance
+    const issuedAt = this.getMoroccoTime();
+    const year = issuedAt.getFullYear();
 
-    // Calculer le montant total
-    // totalPrice (prix de base) + lateFeeAmount (frais de retard) + extraFees (si applicable)
-    const totalPriceValue = booking.totalPrice ? (typeof booking.totalPrice === 'number' ? booking.totalPrice : Number(booking.totalPrice)) : 0;
-    const lateFeeValue = booking.lateFeeAmount ? (typeof booking.lateFeeAmount === 'number' ? booking.lateFeeAmount : Number(booking.lateFeeAmount)) : 0;
+    // V2: Générer le numéro de facture (séquence par Company + année)
+    const { invoiceNumber, sequence } = await this.getNextInvoiceNumber(companyId, year);
+
+    // Calculer les montants
+    const totalPriceValue = booking.totalPrice
+      ? typeof booking.totalPrice === 'number'
+        ? booking.totalPrice
+        : Number(booking.totalPrice)
+      : 0;
+    const lateFeeValue = booking.lateFeeAmount
+      ? typeof booking.lateFeeAmount === 'number'
+        ? booking.lateFeeAmount
+        : Number(booking.lateFeeAmount)
+      : 0;
     const totalAmount = totalPriceValue + lateFeeValue;
-    // Note: extraFees est déjà inclus dans totalPrice après check-out
 
-    // Créer la facture
+    // V2: Build frozen payload
+    const payload = this.buildInvoicePayload(
+      booking,
+      { subtotal: totalPriceValue, lateFees: lateFeeValue, total: totalAmount },
+      issuedAt,
+    );
+
+    // V2: Créer la facture avec payload figé
     const invoice = await this.prisma.invoice.create({
       data: {
+        companyId,
         agencyId: booking.agencyId,
         bookingId: booking.id,
         invoiceNumber,
-        issuedAt: new Date(),
+        type: InvoiceType.INVOICE,
+        year,
+        sequence,
+        issuedAt,
         totalAmount,
         status: InvoiceStatus.ISSUED,
+        payload: payload as unknown as Prisma.InputJsonValue,
       },
       include: {
         agency: {
@@ -134,10 +305,27 @@ export class InvoiceService {
       },
     });
 
+    // V2: Emit domain event InvoiceIssued
+    await this.outboxService.enqueue({
+      aggregateType: 'Invoice',
+      aggregateId: invoice.id,
+      eventType: 'InvoiceIssued',
+      payload: {
+        invoiceId: invoice.id,
+        invoiceNumber,
+        bookingId: booking.id,
+        bookingNumber: booking.bookingNumber,
+        companyId,
+        agencyId: booking.agencyId,
+        totalAmount,
+        issuedAt: issuedAt.toISOString(),
+      },
+    });
+
     // Logger l'audit
     await this.auditService.log({
       userId,
-      companyId: booking.agency.companyId,
+      companyId,
       agencyId: booking.agencyId,
       action: AuditAction.CREATE,
       entityType: 'Invoice',
@@ -145,6 +333,7 @@ export class InvoiceService {
       description: `Facture ${invoiceNumber} générée pour le booking ${bookingId}. Montant: ${totalAmount} MAD`,
       metadata: {
         bookingId,
+        bookingNumber: booking.bookingNumber,
         invoiceNumber,
         totalAmount,
         bookingTotalPrice: booking.totalPrice,
@@ -158,7 +347,7 @@ export class InvoiceService {
         booking.agencyId,
         'Invoice',
         invoice.id,
-        BusinessEventType.FINE_CREATED, // Utiliser FINE_CREATED pour l'instant (à ajouter INVOICE_GENERATED si nécessaire)
+        BusinessEventType.FINE_CREATED, // TODO: Add INVOICE_GENERATED to enum
         null,
         invoice,
         userId,
@@ -168,6 +357,131 @@ export class InvoiceService {
       });
 
     return invoice;
+  }
+
+  /**
+   * V2: Generate a credit note (avoir) for an existing invoice
+   */
+  async generateCreditNote(
+    originalInvoiceId: string,
+    userId: string,
+    reason: string,
+  ): Promise<any> {
+    const originalInvoice = await this.prisma.invoice.findUnique({
+      where: { id: originalInvoiceId },
+      include: {
+        company: true,
+        agency: true,
+        booking: {
+          include: {
+            vehicle: true,
+            client: true,
+          },
+        },
+      },
+    });
+
+    if (!originalInvoice) {
+      throw new NotFoundException('Original invoice not found');
+    }
+
+    if (originalInvoice.type !== InvoiceType.INVOICE) {
+      throw new BadRequestException('Cannot create credit note for non-invoice document');
+    }
+
+    if (originalInvoice.status === InvoiceStatus.CANCELLED) {
+      throw new BadRequestException('Cannot create credit note for cancelled invoice');
+    }
+
+    const issuedAt = this.getMoroccoTime();
+    const year = issuedAt.getFullYear();
+    const { invoiceNumber, sequence } = await this.getNextInvoiceNumber(
+      originalInvoice.companyId,
+      year,
+    );
+
+    // Credit note has negative amount
+    const creditAmount = -Number(originalInvoice.totalAmount);
+
+    // Build payload from original invoice payload
+    const originalPayload = originalInvoice.payload as unknown as InvoicePayload;
+    const creditNotePayload: InvoicePayload = {
+      ...originalPayload,
+      version: 1,
+      issuedAt: issuedAt.toISOString(),
+      amounts: {
+        ...originalPayload.amounts,
+        subtotal: -originalPayload.amounts.subtotal,
+        lateFees: -originalPayload.amounts.lateFees,
+        total: creditAmount,
+      },
+    };
+
+    const creditNote = await this.prisma.invoice.create({
+      data: {
+        companyId: originalInvoice.companyId,
+        agencyId: originalInvoice.agencyId,
+        bookingId: originalInvoice.bookingId,
+        invoiceNumber: invoiceNumber.replace('FAC-', 'AVO-'), // AVO for Avoir
+        type: InvoiceType.CREDIT_NOTE,
+        year,
+        sequence,
+        issuedAt,
+        totalAmount: creditAmount,
+        status: InvoiceStatus.ISSUED,
+        payload: creditNotePayload as unknown as Prisma.InputJsonValue,
+        originalInvoiceId,
+      },
+    });
+
+    // Emit domain event
+    await this.outboxService.enqueue({
+      aggregateType: 'Invoice',
+      aggregateId: creditNote.id,
+      eventType: 'CreditNoteIssued',
+      payload: {
+        creditNoteId: creditNote.id,
+        originalInvoiceId,
+        reason,
+        amount: creditAmount,
+        issuedAt: issuedAt.toISOString(),
+      },
+    });
+
+    // Audit log
+    await this.auditService.log({
+      userId,
+      companyId: originalInvoice.companyId,
+      agencyId: originalInvoice.agencyId,
+      action: AuditAction.CREATE,
+      entityType: 'Invoice',
+      entityId: creditNote.id,
+      description: `Avoir ${creditNote.invoiceNumber} créé pour la facture ${originalInvoice.invoiceNumber}. Raison: ${reason}`,
+      metadata: {
+        originalInvoiceId,
+        originalInvoiceNumber: originalInvoice.invoiceNumber,
+        creditNoteNumber: creditNote.invoiceNumber,
+        amount: creditAmount,
+        reason,
+      },
+    });
+
+    return creditNote;
+  }
+
+  /**
+   * V2: Get invoice payload for PDF rendering (always from frozen payload)
+   */
+  async getInvoicePayload(invoiceId: string): Promise<InvoicePayload> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    return invoice.payload as unknown as InvoicePayload;
   }
 
   /**

@@ -1,15 +1,13 @@
 {
   "name": "malocauto",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "MalocAuto — un seul port (8080) pour toutes les applications",
+  "description": "MalocAuto — Application unifiée sur un seul port (8080)",
   "scripts": {
-    "dev": "concurrently -n backend,web,agency,admin,proxy -c blue,green,yellow,magenta,cyan \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:agency\" \"npm run dev:admin\" \"npm run dev:proxy\"",
+    "dev": "concurrently -n backend,web,proxy -c blue,green,cyan \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:proxy\"",
     "dev:proxy": "cd proxy && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "dev:web": "cd frontend-web && npm run dev -- -p 3001",
-    "dev:agency": "npm run dev --prefix frontend-agency",
-    "dev:admin": "npm run dev --prefix frontend-admin",
     "postinstall": "npm run install:proxy",
     "install:proxy": "cd proxy && npm install"
   },

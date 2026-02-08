@@ -39,17 +39,39 @@ export class OutboxService {
       data: {
         status: OutboxEventStatus.PROCESSED,
         processedAt: new Date(),
+        availableAt: new Date(),
         lastError: null,
       },
     });
   }
 
-  async markFailed(id: string, errorMessage: string) {
+  /**
+   * Mark permanently failed (dead-letter).
+   */
+  async markDead(id: string, errorMessage: string) {
     await this.prisma.outboxEvent.update({
       where: { id },
       data: {
         status: OutboxEventStatus.FAILED,
         attempts: { increment: 1 },
+        availableAt: new Date(),
+        lastError: errorMessage,
+      },
+    });
+  }
+
+  /**
+   * Keep event pending and schedule retry via availableAt.
+   */
+  async scheduleRetry(id: string, errorMessage: string, delayMs: number) {
+    const now = new Date();
+    const availableAt = new Date(now.getTime() + Math.max(0, delayMs));
+    await this.prisma.outboxEvent.update({
+      where: { id },
+      data: {
+        status: OutboxEventStatus.PENDING,
+        attempts: { increment: 1 },
+        availableAt,
         lastError: errorMessage,
       },
     });

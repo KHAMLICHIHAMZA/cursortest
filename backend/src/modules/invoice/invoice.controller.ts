@@ -8,9 +8,10 @@ import { RequireModuleGuard } from '../../common/guards/require-module.guard';
 import { RequireActiveCompanyGuard } from '../../common/guards/require-active-company.guard';
 import { RequireActiveAgencyGuard } from '../../common/guards/require-active-agency.guard';
 import { RequirePermission } from '../../common/decorators/permission.decorator';
-import { ModuleCode, UserAgencyPermission, InvoiceStatus } from '@prisma/client';
+import { ModuleCode, UserAgencyPermission, InvoiceStatus, Role } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequireModule } from '../../common/guards/require-module.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @ApiTags('Invoices')
 @Controller('invoices')
@@ -41,12 +42,32 @@ export class InvoiceController {
     return this.invoiceService.findOne(id, user);
   }
 
+  @Get(':id/payload')
+  @Permissions('invoices:read')
+  @ApiOperation({ summary: 'V2: Get frozen invoice payload for PDF rendering' })
+  async getPayload(@Param('id') id: string) {
+    return this.invoiceService.getInvoicePayload(id);
+  }
+
   @Post('booking/:bookingId/generate')
   @RequirePermission(UserAgencyPermission.WRITE)
   @Permissions('invoices:create')
   @ApiOperation({ summary: 'Generate an invoice for a booking' })
   async generateInvoice(@Param('bookingId') bookingId: string, @CurrentUser() user: any) {
     return this.invoiceService.generateInvoice(bookingId, user.userId);
+  }
+
+  @Post(':id/credit-note')
+  @Roles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.AGENCY_MANAGER)
+  @RequirePermission(UserAgencyPermission.FULL)
+  @Permissions('invoices:create')
+  @ApiOperation({ summary: 'V2: Generate a credit note (avoir) for an existing invoice' })
+  async generateCreditNote(
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.invoiceService.generateCreditNote(id, user.userId, body.reason);
   }
 
   @Patch(':id/status')

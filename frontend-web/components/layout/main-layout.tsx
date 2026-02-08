@@ -18,7 +18,11 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar userRole={user?.role} />
+      <Sidebar 
+        userRole={user?.role} 
+        companyId={user?.companyId}
+        agencyId={user?.agencyIds?.[0]}
+      />
       <div className="flex-1 ml-64">
         <Header userName={user?.name} userRole={user?.role} />
         <main className="pt-16 p-8">{children}</main>

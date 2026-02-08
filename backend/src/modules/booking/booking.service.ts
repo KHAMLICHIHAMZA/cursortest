@@ -10,12 +10,18 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { OverrideLateFeeDto } from './dto/override-late-fee.dto';
-import { BookingNumberMode, BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
+import { BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
 import { OutboxService } from '../../common/services/outbox.service';
 
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
+  private static readonly BOOKING_NUMBER_MAX_LEN = 32;
+  // Local runtime constants (avoid relying on Prisma enum exports in tooling)
+  private static readonly BookingNumberMode = {
+    AUTO: 'AUTO',
+    MANUAL: 'MANUAL',
+  } as const;
 
   constructor(
     private prisma: PrismaService,
@@ -31,9 +37,27 @@ export class BookingService {
     return String(input || '').trim().toUpperCase();
   }
 
+  private normalizeAndValidateManualBookingNumber(input: unknown): string {
+    const normalized = this.normalizeBookingNumber(String(input ?? ''));
+    if (!normalized) {
+      throw new BadRequestException('bookingNumber is required');
+    }
+    if (normalized.length > BookingService.BOOKING_NUMBER_MAX_LEN) {
+      throw new BadRequestException(
+        `bookingNumber must be <= ${BookingService.BOOKING_NUMBER_MAX_LEN} characters`,
+      );
+    }
+    if (!/^[A-Z0-9]+$/.test(normalized)) {
+      throw new BadRequestException(
+        'bookingNumber must be alphanumeric (A-Z, 0-9) with no spaces',
+      );
+    }
+    return normalized;
+  }
+
   private async getNextAutoBookingNumber(companyId: string, now: Date): Promise<string> {
     const year = now.getFullYear();
-    const seq = await this.prisma.bookingNumberSequence.upsert({
+    const seq = await (this.prisma as any).bookingNumberSequence.upsert({
       where: { companyId_year: { companyId, year } },
       create: { companyId, year, lastValue: 1 },
       update: { lastValue: { increment: 1 } },
@@ -148,28 +172,28 @@ export class BookingService {
     const preparationTimeMinutes = agency.preparationTimeMinutes || 60; // Default 1h
 
     const companyId = agency.companyId;
-    const bookingNumberMode: BookingNumberMode =
-      agency.company?.bookingNumberMode || BookingNumberMode.AUTO;
+    const bookingNumberMode: 'AUTO' | 'MANUAL' =
+      ((agency as any).company?.bookingNumberMode as any) || BookingService.BookingNumberMode.AUTO;
 
     // ============================================
     // V2: BOOKING NUMBER (unique par company)
     // ============================================
     let bookingNumberToUse: string;
-    if (bookingNumberMode === BookingNumberMode.MANUAL) {
+    if (bookingNumberMode === BookingService.BookingNumberMode.MANUAL) {
       const raw = createBookingDto.bookingNumber;
       if (!raw) {
         throw new BadRequestException(
           'bookingNumber is required when company bookingNumberMode is MANUAL',
         );
       }
-      bookingNumberToUse = this.normalizeBookingNumber(raw);
+      bookingNumberToUse = this.normalizeAndValidateManualBookingNumber(raw);
 
       const existing = await this.prisma.booking.findFirst({
         where: {
           companyId,
           bookingNumber: bookingNumberToUse,
           deletedAt: null,
-        },
+        } as any,
         select: { id: true },
       });
       if (existing) {
@@ -280,7 +304,7 @@ export class BookingService {
         endDate: end,
         totalPrice: parseFloat(totalPrice.toString()),
         status: status || 'DRAFT',
-      },
+      } as any,
       include: {
         agency: {
           include: {
@@ -335,7 +359,7 @@ export class BookingService {
         bookingId: booking.id,
         companyId,
         agencyId,
-        bookingNumber: booking.bookingNumber,
+        bookingNumber: (booking as any).bookingNumber,
       },
       deduplicationKey: `BookingCreated:${booking.id}`,
     });
@@ -346,7 +370,7 @@ export class BookingService {
       payload: {
         bookingId: booking.id,
         companyId,
-        bookingNumber: booking.bookingNumber,
+        bookingNumber: (booking as any).bookingNumber,
         mode: bookingNumberMode,
       },
       deduplicationKey: `BookingNumberAssigned:${booking.id}`,
@@ -894,14 +918,14 @@ export class BookingService {
     if (status) updateData.status = status;
     if (totalPrice !== undefined) updateData.totalPrice = parseFloat(totalPrice.toString());
     if (bookingNumber !== undefined) {
-      const normalized = this.normalizeBookingNumber(bookingNumber);
+      const normalized = this.normalizeAndValidateManualBookingNumber(bookingNumber);
       const existing = await this.prisma.booking.findFirst({
         where: {
-          companyId: booking.companyId,
+          companyId: (booking as any).companyId,
           bookingNumber: normalized,
           deletedAt: null,
           NOT: { id },
-        },
+        } as any,
         select: { id: true },
       });
       if (existing) {
@@ -928,18 +952,21 @@ export class BookingService {
     });
 
     // V2: domain event for bookingNumber change
-    if (bookingNumber !== undefined && updatedBooking.bookingNumber !== booking.bookingNumber) {
+    if (
+      bookingNumber !== undefined &&
+      (updatedBooking as any).bookingNumber !== (booking as any).bookingNumber
+    ) {
       await this.outboxService.enqueue({
         aggregateType: 'Booking',
         aggregateId: updatedBooking.id,
         eventType: 'BookingNumberEdited',
         payload: {
           bookingId: updatedBooking.id,
-          companyId: updatedBooking.companyId,
-          previousBookingNumber: booking.bookingNumber,
-          bookingNumber: updatedBooking.bookingNumber,
+          companyId: (updatedBooking as any).companyId,
+          previousBookingNumber: (booking as any).bookingNumber,
+          bookingNumber: (updatedBooking as any).bookingNumber,
         },
-        deduplicationKey: `BookingNumberEdited:${updatedBooking.id}:${updatedBooking.bookingNumber}`,
+        deduplicationKey: `BookingNumberEdited:${updatedBooking.id}:${(updatedBooking as any).bookingNumber}`,
       });
     }
 
