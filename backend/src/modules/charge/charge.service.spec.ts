@@ -1,5 +1,14 @@
 import { ChargeService } from './charge.service';
 
+function makeUser(overrides: Partial<{ userId: string; role: string; companyId: string; agencyIds: string[] }> = {}) {
+  return {
+    userId: overrides.userId ?? 'u1',
+    role: overrides.role ?? 'AGENCY_MANAGER',
+    companyId: overrides.companyId ?? 'comp1',
+    agencyIds: overrides.agencyIds ?? ['a1'],
+  };
+}
+
 describe('ChargeService', () => {
   let service: ChargeService;
   let mockPrisma: any;
@@ -15,6 +24,7 @@ describe('ChargeService', () => {
       },
       booking: { findMany: jest.fn() },
       vehicle: { count: jest.fn(), findMany: jest.fn() },
+      agency: { findUnique: jest.fn() },
     };
     service = new ChargeService(mockPrisma as any);
   });
@@ -23,7 +33,7 @@ describe('ChargeService', () => {
     it('should create a charge', async () => {
       const dto = { agencyId: 'a1', vehicleId: 'v1', category: 'FUEL', description: 'Fuel', amount: 500, date: '2026-01-15' };
       mockPrisma.charge.create.mockResolvedValue({ id: 'c1', ...dto });
-      const result = await service.create('comp1', dto, 'u1');
+      const result = await service.create(makeUser(), dto);
       expect(mockPrisma.charge.create).toHaveBeenCalled();
       expect(result.id).toBe('c1');
     });
@@ -32,18 +42,18 @@ describe('ChargeService', () => {
   describe('findOne', () => {
     it('should return a charge if it belongs to the company', async () => {
       mockPrisma.charge.findUnique.mockResolvedValue({ id: 'c1', companyId: 'comp1' });
-      const result = await service.findOne('c1', 'comp1');
+      const result = await service.findOne('c1', makeUser());
       expect(result.id).toBe('c1');
     });
 
     it('should throw if charge does not belong to company', async () => {
       mockPrisma.charge.findUnique.mockResolvedValue({ id: 'c1', companyId: 'other' });
-      await expect(service.findOne('c1', 'comp1')).rejects.toThrow('Charge introuvable');
+      await expect(service.findOne('c1', makeUser())).rejects.toThrow('Charge introuvable');
     });
 
     it('should throw if charge not found', async () => {
       mockPrisma.charge.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('c1', 'comp1')).rejects.toThrow('Charge introuvable');
+      await expect(service.findOne('c1', makeUser())).rejects.toThrow('Charge introuvable');
     });
   });
 
@@ -64,7 +74,7 @@ describe('ChargeService', () => {
 
       mockPrisma.vehicle.count.mockResolvedValue(3);
 
-      const result = await service.computeKpi('comp1', { startDate: start, endDate: end });
+      const result = await service.computeKpi(makeUser(), { startDate: start, endDate: end });
 
       expect(result.revenue).toBe(5000);
       expect(result.charges).toBe(800);
@@ -82,7 +92,7 @@ describe('ChargeService', () => {
       mockPrisma.charge.findMany.mockResolvedValue([]);
       mockPrisma.vehicle.count.mockResolvedValue(0);
 
-      const result = await service.computeKpi('comp1', { startDate: '2026-01-01', endDate: '2026-01-31' });
+      const result = await service.computeKpi(makeUser(), { startDate: '2026-01-01', endDate: '2026-01-31' });
       expect(result.revenue).toBe(0);
       expect(result.margin).toBe(0);
       expect(result.occupancyRate).toBe(0);
@@ -93,7 +103,7 @@ describe('ChargeService', () => {
     it('should delete a charge', async () => {
       mockPrisma.charge.findUnique.mockResolvedValue({ id: 'c1', companyId: 'comp1' });
       mockPrisma.charge.delete.mockResolvedValue({ id: 'c1' });
-      await service.delete('c1', 'comp1');
+      await service.delete('c1', makeUser());
       expect(mockPrisma.charge.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
     });
   });

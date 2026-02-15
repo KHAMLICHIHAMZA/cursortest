@@ -5,9 +5,9 @@ const nextConfig = {
     domains: ['localhost'],
   },
   webpack: (config, { dev }) => {
-    // Temp workaround: cssnano-simple fails to minify some generated CSS selectors.
-    // Disable minimization in prod builds to unblock local builds.
-    if (!dev && config.optimization) {
+    // Workaround: cssnano-simple may fail on some generated CSS selectors.
+    // Only disable minimization when DISABLE_CSS_MINIFY=1 is set.
+    if (!dev && config.optimization && process.env.DISABLE_CSS_MINIFY === '1') {
       config.optimization.minimize = false;
     }
     return config;

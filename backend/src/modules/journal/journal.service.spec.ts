@@ -5,6 +5,16 @@ import { AuditService } from '../audit/audit.service';
 import { ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 
+// Helper to build a user object matching the new service signatures
+function makeUser(overrides: Partial<{ userId: string; role: string; companyId: string; agencyIds: string[] }> = {}) {
+  return {
+    userId: overrides.userId ?? 'user-1',
+    role: overrides.role ?? Role.AGENCY_MANAGER,
+    companyId: overrides.companyId ?? 'company-1',
+    agencyIds: overrides.agencyIds ?? ['agency-1'],
+  };
+}
+
 describe('JournalService', () => {
   let service: JournalService;
   let prismaService: any;
@@ -76,9 +86,7 @@ describe('JournalService', () => {
           title: 'Note importante',
           content: 'Détails de la note',
         },
-        'user-1',
-        Role.AGENCY_MANAGER,
-        'company-1',
+        makeUser({ role: Role.AGENCY_MANAGER }),
       );
 
       expect(result.type).toBe('MANUAL_NOTE');
@@ -93,9 +101,7 @@ describe('JournalService', () => {
             title: 'Note',
             content: 'Content',
           },
-          'user-1',
-          Role.AGENT,
-          'company-1',
+          makeUser({ role: Role.AGENT }),
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -113,9 +119,7 @@ describe('JournalService', () => {
           title: 'Admin Note',
           content: 'Content',
         },
-        'user-1',
-        Role.SUPER_ADMIN,
-        'company-1',
+        makeUser({ role: Role.SUPER_ADMIN }),
       );
 
       expect(result.isManualNote).toBe(true);
@@ -145,8 +149,7 @@ describe('JournalService', () => {
       const result = await service.updateManualNote(
         'note-1',
         { title: 'Updated Title' },
-        'user-1',
-        Role.AGENCY_MANAGER,
+        makeUser({ role: Role.AGENCY_MANAGER }),
       );
 
       expect(result.title).toBe('Updated Title');
@@ -158,8 +161,7 @@ describe('JournalService', () => {
         service.updateManualNote(
           'note-1',
           { title: 'New' },
-          'user-1',
-          Role.AGENT,
+          makeUser({ role: Role.AGENT }),
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -175,8 +177,7 @@ describe('JournalService', () => {
         service.updateManualNote(
           'note-1',
           { title: 'New' },
-          'user-1',
-          Role.AGENCY_MANAGER,
+          makeUser({ role: Role.AGENCY_MANAGER }),
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -196,7 +197,7 @@ describe('JournalService', () => {
       mockPrismaService.journalEntry.findUnique.mockResolvedValue(mockNote);
       mockPrismaService.journalEntry.delete.mockResolvedValue(mockNote);
 
-      await service.deleteManualNote('note-1', 'user-1', Role.AGENCY_MANAGER);
+      await service.deleteManualNote('note-1', makeUser({ role: Role.AGENCY_MANAGER }));
 
       expect(mockPrismaService.journalEntry.delete).toHaveBeenCalledWith({
         where: { id: 'note-1' },
@@ -205,7 +206,7 @@ describe('JournalService', () => {
 
     it('should reject delete for AGENT role', async () => {
       await expect(
-        service.deleteManualNote('note-1', 'user-1', Role.AGENT),
+        service.deleteManualNote('note-1', makeUser({ role: Role.AGENT })),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -216,7 +217,7 @@ describe('JournalService', () => {
       });
 
       await expect(
-        service.deleteManualNote('note-1', 'user-1', Role.AGENCY_MANAGER),
+        service.deleteManualNote('note-1', makeUser({ role: Role.AGENCY_MANAGER })),
       ).rejects.toThrow(BadRequestException);
     });
   });

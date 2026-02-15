@@ -345,30 +345,30 @@ export class ContractService {
       throw new NotFoundException('Contrat introuvable');
     }
 
-    // Mark original as expired
-    await (this.prisma as any).contract.update({
-      where: { id: contractId },
-      data: { status: ContractStatus.EXPIRED },
-    });
-
     // Build new payload from current booking state
     const payload = this.buildContractPayload(originalContract.booking);
 
-    // Create new version
-    const newContract = await (this.prisma as any).contract.create({
-      data: {
-        bookingId: originalContract.bookingId,
-        agencyId: originalContract.agencyId,
-        companyId: originalContract.companyId,
-        templateId: originalContract.templateId,
-        templateVersion: originalContract.templateVersion,
-        status: ContractStatus.DRAFT,
-        payload,
-        version: originalContract.version + 1,
-        previousVersion: originalContract.id,
-        versionReason: reason,
-      },
-    });
+    // Atomic: expire original + create new version in one transaction
+    const [, newContract] = await this.prisma.$transaction([
+      (this.prisma as any).contract.update({
+        where: { id: contractId },
+        data: { status: ContractStatus.EXPIRED },
+      }),
+      (this.prisma as any).contract.create({
+        data: {
+          bookingId: originalContract.bookingId,
+          agencyId: originalContract.agencyId,
+          companyId: originalContract.companyId,
+          templateId: originalContract.templateId,
+          templateVersion: originalContract.templateVersion,
+          status: ContractStatus.DRAFT,
+          payload,
+          version: originalContract.version + 1,
+          previousVersion: originalContract.id,
+          versionReason: reason,
+        },
+      }),
+    ]);
 
     // Audit log
     await this.auditService.log({
@@ -417,9 +417,9 @@ export class ContractService {
   }
 
   /**
-   * Get contract by ID
+   * Get contract by ID (with access control)
    */
-  async findOne(id: string): Promise<any> {
+  async findOne(id: string, user?: any): Promise<any> {
     const contract = await (this.prisma as any).contract.findUnique({
       where: { id },
       include: {
@@ -436,13 +436,23 @@ export class ContractService {
       throw new NotFoundException('Contrat introuvable');
     }
 
+    // Access control: verify user can access this contract's agency/company
+    if (user && user.role !== 'SUPER_ADMIN') {
+      if (contract.companyId !== user.companyId) {
+        throw new ForbiddenException('Accès refusé à ce contrat');
+      }
+      if (user.role !== 'COMPANY_ADMIN' && user.agencyIds && !user.agencyIds.includes(contract.agencyId)) {
+        throw new ForbiddenException('Accès refusé à ce contrat');
+      }
+    }
+
     return contract;
   }
 
   /**
-   * Get contract by booking ID
+   * Get contract by booking ID (with access control)
    */
-  async findByBookingId(bookingId: string): Promise<any> {
+  async findByBookingId(bookingId: string, user?: any): Promise<any> {
     const contract = await (this.prisma as any).contract.findFirst({
       where: {
         bookingId,
@@ -450,6 +460,16 @@ export class ContractService {
       },
       orderBy: { version: 'desc' },
     });
+
+    // Access control
+    if (contract && user && user.role !== 'SUPER_ADMIN') {
+      if (contract.companyId !== user.companyId) {
+        throw new ForbiddenException('Accès refusé');
+      }
+      if (user.role !== 'COMPANY_ADMIN' && user.agencyIds && !user.agencyIds.includes(contract.agencyId)) {
+        throw new ForbiddenException('Accès refusé');
+      }
+    }
 
     return contract;
   }

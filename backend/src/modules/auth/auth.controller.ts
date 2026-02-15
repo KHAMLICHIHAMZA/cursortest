@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -56,6 +56,10 @@ export class AuthController {
     @Param('userId') targetUserId: string,
     @CurrentUser() user: any,
   ) {
+    // Double guard: controller + service both enforce SUPER_ADMIN
+    if (user?.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Seul un Super Admin peut utiliser l\'impersonation');
+    }
     return this.authService.impersonate(targetUserId, user.userId);
   }
 }

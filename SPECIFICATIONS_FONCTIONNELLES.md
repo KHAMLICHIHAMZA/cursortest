@@ -1,1279 +1,903 @@
-# Specifications Fonctionnelles et Architecturales - MALOC SaaS
+# Spécifications Fonctionnelles — MalocAuto
 
-## Document de Reference
-
-**Ce document fait foi fonctionnellement et architecturalement pour toutes les evolutions du SaaS MALOC.**
-
-**Date de creation** : 2024
-**Derniere mise a jour** : 28 Janvier 2026
-**Version** : 2.1.0
-**Statut** : Phase de developpement FINAL (pas MVP)
+> **Version** : 3.0.0  
+> **Date** : 15 février 2026  
+> **Statut** : Document de référence — reflète l'état réel du code  
 
 ---
 
-## Table des Matieres
+## Table des matières
 
-1. [Contexte General](#contexte-general)
-2. [Regles Fondamentales (Non Negociables)](#regles-fondamentales-non-negociables)
-3. [Roles et Permissions](#roles-et-permissions)
-4. [Heritage Dynamique COMPANY_ADMIN (Gerant Solo)](#heritage-dynamique-company_admin-gerant-solo)
-5. [Systeme de Modules](#systeme-de-modules)
-6. [Numero de Booking (bookingNumberMode)](#numero-de-booking-bookingnumbermode)
-7. [Modele Vehicule-Agence](#modele-vehicule-agence)
-8. [Perimetres Planning (Company vs Agence)](#perimetres-planning-company-vs-agence)
-9. [Depot (Deposit) - Regles Metier](#depot-deposit---regles-metier)
-10. [Soft Delete et Tracabilite](#soft-delete-et-tracabilite)
-11. [Audit et Journal Technique](#audit-et-journal-technique)
-12. [Back-office Agence](#back-office-agence)
-13. [Planning](#planning)
-14. [Location (Booking)](#location-booking)
-15. [Contrat](#contrat)
-16. [Vehicule](#vehicule)
-17. [Charges](#charges)
-18. [Amendes](#amendes)
-19. [Application Mobile Agent](#application-mobile-agent)
-20. [Securite et RBAC](#securite-et-rbac)
-21. [Evolutions Futures](#evolutions-futures)
-22. [Matrice des Responsabilites](#matrice-des-responsabilites)
-23. [Glossaire et Definitions](#glossaire-et-definitions)
-
----
-
-## Contexte General
-
-### Vue d'Ensemble
-
-**MALOC** est un SaaS de location de vehicules multi-agences pour le marche marocain.
-
-### Phase de Developpement
-
-- **Statut actuel** : Phase de developpement **FINAL** (pas MVP)
-- **Validation** : Le noyau metier a ete valide par :
-  - CTO
-  - DSI
-  - MOA
-  - Tech Lead
-
-### Applications Existantes
-
-1. **Back-office Web** (Next.js / frontend-web)
-   - Espace SUPER_ADMIN (administration SaaS)
-   - Espace COMPANY_ADMIN (gestion entreprise)
-   - Espace Agence (AGENCY_MANAGER + AGENT)
-   - Gestion des locations, vehicules, clients
-   - Module Charges, Module Amendes
-   - Planning global des vehicules
-
-2. **Frontend Admin** (React + Vite / frontend-admin)
-   - Interface d'administration SaaS simplifiee
-
-3. **Frontend Agence** (React + Vite / frontend-agency)
-   - Interface operationnelle agence simplifiee
-
-4. **Application Mobile Agent** (Expo / React Native / mobile-agent)
-   - Execution terrain (check-in / check-out)
-   - Planning des taches agents
-   - Mode offline complet
-
-### Applications Prevues
-
-5. **Application Client** (Web + Mobile) - **Moyen terme**
-   - Consultation contrats
-   - Consultation amendes
-   - Reservations
+1. [Vue d'ensemble et architecture SaaS](#1-vue-densemble-et-architecture-saas)
+2. [Rôles, permissions et RBAC](#2-rôles-permissions-et-rbac)
+3. [Système de modules](#3-système-de-modules)
+4. [Entreprises et abonnements](#4-entreprises-et-abonnements)
+5. [Agences](#5-agences)
+6. [Utilisateurs](#6-utilisateurs)
+7. [Véhicules](#7-véhicules)
+8. [Clients](#8-clients)
+9. [Réservations / Locations](#9-réservations--locations)
+10. [Planning](#10-planning)
+11. [Contrats](#11-contrats)
+12. [Factures](#12-factures)
+13. [Amendes](#13-amendes)
+14. [Charges et Dépenses](#14-charges-et-dépenses)
+15. [GPS et Localisation](#15-gps-et-localisation)
+16. [Paiements](#16-paiements)
+17. [Journal d'agence](#17-journal-dagence)
+18. [Notifications](#18-notifications)
+19. [Incidents](#19-incidents)
+20. [Analytics et KPI](#20-analytics-et-kpi)
+21. [Intelligence artificielle](#21-intelligence-artificielle)
+22. [Sécurité](#22-sécurité)
+23. [Audit et traçabilité](#23-audit-et-traçabilité)
+24. [Soft delete et conventions](#24-soft-delete-et-conventions)
+25. [Application mobile agent](#25-application-mobile-agent)
+26. [Glossaire](#26-glossaire)
 
 ---
 
-## Regles Fondamentales (Non Negociables)
+## 1. Vue d'ensemble et architecture SaaS
 
-### 1. MALOC est la SOURCE DE VERITE
+### 1.1 Contexte
 
-- Toutes les donnees metier sont centralisees dans MALOC
-- Aucune duplication de donnees entre applications
-- Le backend est l'unique source de verite
+MalocAuto est une plateforme SaaS multi-tenant de gestion de location de véhicules, destinée au marché marocain. La plateforme permet à plusieurs entreprises (tenants) de gérer leurs agences, véhicules, réservations et flux financiers via une interface web unique.
 
-### 2. La LOCATION est le PIVOT Central du Systeme
-
-- Toute action metier est liee a une location
-- Les contrats, occupations vehicules, actions terrain sont derives de la location
-- La location genere automatiquement les entites associees
-
-### 3. Aucune Duplication de Donnees
-
-- **Client** : Stocke une seule fois, reference partout
-- **Contrat** : 1 location = 1 contrat, genere automatiquement
-- **Vehicule** : Donnees centralisees, pas de duplication
-
-### 4. Aucune Logique Metier Lourde Cote Mobile
-
-- Le mobile est un **outil d'execution terrain**
-- Toute logique metier complexe est dans le backend
-- Le mobile fait des appels API et affiche les resultats
-
-### 5. Aucun Automatisme Bloquant
-
-- **Alertes uniquement** (informatives)
-- Aucun blocage automatique de processus
-- L'utilisateur garde le controle
-
-### 6. Backward Compatibility
-
-- Toute evolution doit rester compatible avec les versions precedentes
-- Pas de breaking changes sans migration planifiee
-- Versioning API : `/api/v1`, `/api/v2`, etc.
-
-### 7. Separation Stricte des Responsabilites
-
-- Chaque application a un perimetre clair et defini
-- Pas de chevauchement de fonctionnalites
-- Communication via API uniquement
-
-### 8. Modules CHARGES et AMENDES Distincts
-
-- **Charges** : Rattachees au vehicule, gestion agence
-- **Amendes** : Module separe, intermediaire administratif
-- Aucune confusion entre les deux
-
-### 9. Compatibilite Future App Client
-
-- Toute evolution doit prendre en compte la future app client
-- Pas de decision qui bloquerait l'integration client
-- Architecture extensible
-
-### 10. Pas de Librairies Externes Payantes
-
-- Aucune librairie externe payante (FullCalendar Timeline, etc.)
-- Composants custom developpes en interne
-- Dependances uniquement open-source et gratuites
-
----
-
-## Roles et Permissions
-
-### Hierarchie des Roles
-
-| Role | Niveau | Description |
-|------|--------|-------------|
-| **SUPER_ADMIN** | SaaS | Administrateur de la plateforme SaaS |
-| **COMPANY_ADMIN** | Entreprise | Administrateur d'une entreprise cliente |
-| **AGENCY_MANAGER** | Agence | Gestionnaire d'une ou plusieurs agences |
-| **AGENT** | Terrain | Profil operationnel, acces limite |
-
-### SUPER_ADMIN
-
-- Gere les entreprises clientes (Companies)
-- Gere la facturation et les modules
-- Gere l'etat des comptes (active/desactive)
-- Acces total a toutes les fonctionnalites SaaS
-
-### COMPANY_ADMIN
-
-- Admin d'une entreprise cliente
-- Peut creer/agencer ses agences
-- Peut creer des utilisateurs et leur attribuer des agences
-- **Heritage dynamique** : comble les roles manquants (voir section dediee)
-
-### AGENCY_MANAGER
-
-- Gere une seule ou plusieurs agences
-- Gere les vehicules, locations, amendes, maintenance, contrats, factures, journal, KPI
-- Gere les agents de son agence
-- Acces complet a tous les menus operationnels de l'agence
-
-### AGENT
-
-- Profil operationnel (terrain)
-- Peut creer des locations et gerer des clients
-- Peut consulter les vehicules (lecture seule de la flotte)
-- Peut consulter le planning
-- **NE PEUT PAS** :
-  - Creer/modifier/supprimer des vehicules
-  - Acceder aux amendes
-  - Acceder aux charges
-  - Acceder a la maintenance
-  - Acceder au journal
-  - Acceder aux factures
-  - Acceder aux contrats
-  - Acceder au KPI / GPS Eco
-  - Supprimer quoi que ce soit
-
-### Matrice d'Acces Detaillee
-
-| Action | SUPER_ADMIN | COMPANY_ADMIN | AGENCY_MANAGER | AGENT |
-|--------|:-----------:|:-------------:|:--------------:|:-----:|
-| Creer entreprise | Oui | Non | Non | Non |
-| Creer agence | Non | Oui | Non | Non |
-| Creer utilisateurs | Non | Oui | Partiel (ses agences) | Non |
-| Gerer flotte (CRUD vehicules) | Non | Partiel | Oui | Lecture seule |
-| Gerer locations | Non | Partiel | Oui | Oui |
-| Gerer clients | Non | Partiel | Oui | Oui |
-| Gerer amendes | Non | Partiel | Oui | **Non** |
-| Gerer charges | Non | Partiel | Oui | **Non** |
-| Gerer maintenance | Non | Partiel | Oui | **Non** |
-| Acceder planning | Non | Partiel | Oui | Oui |
-| Gerer factures | Non | Partiel | Oui | **Non** |
-| Gerer contrats | Non | Partiel | Oui | **Non** |
-| Voir journal | Non | Partiel | Oui | **Non** |
-| Voir KPI | Non | Partiel | Oui | **Non** |
-| Voir GPS Eco | Non | Partiel | Oui | **Non** |
-
-> **Partiel** = acces conditionnel via heritage dynamique (voir section suivante)
-
----
-
-## Heritage Dynamique COMPANY_ADMIN (Gerant Solo)
-
-### Principe
-
-Le COMPANY_ADMIN **comble dynamiquement les roles manquants** dans sa company. S'il est seul, il fait tout. Des qu'il cree des collaborateurs, il delegue progressivement.
-
-### Logique de Detection
-
-Le systeme analyse les utilisateurs existants de la company (hors le COMPANY_ADMIN lui-meme) :
+### 1.2 Architecture multi-tenant
 
 ```
-otherUsers = tous les users de la company sauf le COMPANY_ADMIN
-hasManager = otherUsers contient au moins un AGENCY_MANAGER
-hasAgent   = otherUsers contient au moins un AGENT
+SUPER_ADMIN (plateforme)
+  └── Company (tenant / entreprise)
+        ├── Subscription (abonnement SaaS)
+        ├── Agency 1
+        │     ├── Vehicles
+        │     ├── Bookings
+        │     ├── Clients
+        │     └── Users (Manager, Agents)
+        └── Agency 2
+              └── ...
 ```
 
-### Tableau d'Heritage
+Chaque Company est un tenant isolé. Les données ne traversent jamais les frontières d'une Company, sauf pour le SUPER_ADMIN qui a une vue globale.
 
-| Situation | hasManager | hasAgent | Role herite | Menus agence visibles |
-|-----------|:----------:|:--------:|-------------|----------------------|
-| **Solo** (aucun autre user) | Non | Non | BOTH (Manager + Agent) | **Tous** les menus agence |
-| **A des agents seulement** | Non | Oui | AGENCY_MANAGER | Menus **manager** : Factures, Contrats, Journal, Amendes, Maintenance, KPI, GPS Eco + menus partages |
-| **A des managers seulement** | Oui | Non | AGENT | Menus **agent** : Vehicules, Clients, Locations, Planning, Notifications |
-| **A manager + agent** | Oui | Oui | null (aucun) | **Aucun** menu agence (mode entreprise normal) |
+### 1.3 Stack technique
 
-### Menus par Niveau de Role
-
-**Menus accessibles a AGENT** :
-- Tableau de bord agence
-- Vehicules (lecture seule)
-- Clients
-- Locations
-- Planning agence
-- Notifications
-
-**Menus reserves a AGENCY_MANAGER** (en plus des menus agent) :
-- Factures
-- Contrats
-- Journal
-- Amendes
-- Maintenance
-- KPI
-- GPS Eco
-
-### Comportement Dynamique
-
-Le passage d'un mode a l'autre est **automatique et instantane** :
-- Le COMPANY_ADMIN demarre seul → il voit tous les menus (entreprise + agence)
-- Il cree un agent → les menus agent disparaissent, il garde les menus manager
-- Il cree aussi un manager → tous les menus agence disparaissent
-- Il supprime tous les autres utilisateurs → il revient en mode solo complet
-
-### Separateur Visuel
-
-Quand le COMPANY_ADMIN herite de menus agence, un separateur visuel **"Operations Agence"** s'affiche dans le sidebar entre la section Entreprise et la section Agence.
-
-### Implementation Technique
-
-**`main-layout.tsx`** : Detecte le role effectif en fetchant les users de la company
-**`sidebar.tsx`** : Recoit `effectiveAgencyRole` ('BOTH' | 'AGENCY_MANAGER' | 'AGENT' | null) et filtre les menus en consequence
-
----
-
-## Systeme de Modules
-
-### Principe
-
-Chaque agence a des modules actifs/inactifs qui conditionnent l'acces aux fonctionnalites.
-
-### Modules Disponibles
-
-| Code Module | Description | Routes associees |
-|-------------|-------------|-----------------|
-| VEHICLES | Gestion de la flotte | /agency/vehicles |
-| BOOKINGS | Gestion des locations | /agency/bookings, /agency/planning, /agency/contracts, /agency/kpi |
-| INVOICES | Facturation | /agency/invoices |
-| MAINTENANCE | Maintenance vehicules | /agency/maintenance |
-| FINES | Gestion des amendes | /agency/fines |
-| ANALYTICS | Analytique avancee | /company/analytics |
-| GPS | Suivi GPS / Eco | /agency/gps-kpi |
-
-### Double Filtrage Menus
-
-Les menus du sidebar sont filtres par **deux couches** :
-1. **Role** : Le role de l'utilisateur determine les menus autorises
-2. **Module** : Seuls les menus dont le module est actif s'affichent
-
-Un menu s'affiche uniquement si les DEUX conditions sont remplies.
-
-### Routes Sans Module Requis
-
-Certaines routes sont toujours visibles (pas de module requis) :
-- Dashboard (/agency)
-- Clients (/agency/clients)
-- Journal (/agency/journal)
-- Notifications (/agency/notifications)
-
----
-
-## Numero de Booking (bookingNumberMode)
-
-### Principe
-
-Chaque Company a un mode de numerotation des bookings : **AUTO** ou **MANUAL**.
-
-### Mode AUTO (par defaut)
-
-- Le numero est genere automatiquement a la creation du booking
-- Format : `AAAA` + 6 chiffres (ex: `2026000001`, `2026000002`)
-- Sequence atomique par Company et par annee (table `BookingNumberSequence`)
-- Reset annuel automatique
-- Si le booking fournit un `bookingNumber`, il est **rejete** (erreur)
-
-### Mode MANUAL
-
-- Le numero est **obligatoire** a la creation du booking
-- Validation : alphanumerique, max 32 caracteres, pas d'espaces, normalise en majuscules
-- Si le numero n'est pas fourni, erreur 400
-
-### Unicite
-
-- Contrainte DB : `@@unique([companyId, bookingNumber])`
-- Unicite au **niveau Company** (pas global, pas par agence)
-- Verification applicative avant insertion (double controle)
-
-### Modification
-
-- Autorisee tant qu'aucune **facture** n'a ete emise pour ce booking
-- Apres emission de facture : le numero est **verrouille** (ForbiddenException)
-- Validation d'unicite lors de la modification
-- Evenement `BookingNumberEdited` emis
-
-### Recherche et Filtrage
-
-- Recherche par `bookingNumber` dans les listings de bookings
-- Recherche dans le planning (champ de recherche global)
-- Filtre `contains` (recherche partielle, insensible a la casse)
-
----
-
-## Modele Vehicule-Agence
-
-### Decision : Option A (Simple) — 1 vehicule = 1 agence
-
-Un vehicule appartient a **exactement une agence** a tout instant.
-
-```
-Vehicle.agencyId (String, OBLIGATOIRE, FK Agency)
-```
-
-### Pas de Partage Cross-Agence
-
-- Pas de table `VehicleAgency` (junction)
-- Pas de champ `assignedAgencyId` ou `ownerCompanyId`
-- Le vehicule est scope a son agence pour toutes les operations
-
-### Transfert de Vehicule
-
-Un vehicule peut etre **transfere** d'une agence a l'autre :
-- Via mise a jour du champ `agencyId`
-- Operation manuelle (pas d'automatisme)
-- Historique du transfert trace dans le `BusinessEventLog`
-
-### Visibilite Multi-Agence
-
-La visibilite multi-agence existe via les **permissions utilisateur**, pas via le vehicule :
-- COMPANY_ADMIN : voit les vehicules de toutes ses agences dans le planning
-- AGENCY_MANAGER : voit les vehicules de ses agences rattachees (UserAgency)
-- AGENT : voit les vehicules de ses agences rattachees (UserAgency)
-
-> **Clarification** : Quand la spec mentionne "ressources partagees (vehicules)", cela signifie que les utilisateurs multi-agences peuvent **voir** les vehicules de plusieurs agences, pas que les vehicules sont partages entre agences.
-
----
-
-## Perimetres Planning (Company vs Agence)
-
-### Planning Entreprise (`/company/planning`)
-
-| Aspect | Regle |
-|--------|-------|
-| **Acces** | COMPANY_ADMIN, SUPER_ADMIN |
-| **Scope par defaut** | Toutes les agences de la company |
-| **Filtre agence** | Optionnel (dropdown "Toutes les agences" ou agence specifique) |
-| **Donnees** | Vehicules + bookings + maintenances + events de toutes les agences accessibles |
-
-### Planning Agence (`/agency/planning`)
-
-| Aspect | Regle |
-|--------|-------|
-| **Acces** | AGENCY_MANAGER, AGENT (+ COMPANY_ADMIN en mode solo) |
-| **Scope par defaut** | Agences rattachees a l'utilisateur (via UserAgency) |
-| **Filtre agence** | Optionnel (si multi-agence) |
-| **Donnees** | Vehicules + bookings + maintenances + events des agences accessibles uniquement |
-
-### Backend : Calcul des Agences Accessibles
-
-```
-SUPER_ADMIN     → toutes les agences (ou filtre par agencyId)
-COMPANY_ADMIN   → toutes les agences de sa company (ou filtre par agencyId)
-AGENCY_MANAGER  → ses agences rattachees via UserAgency (ou filtre par agencyId si autorise)
-AGENT           → ses agences rattachees via UserAgency (ou filtre par agencyId si autorise)
-```
-
-Si aucune agence accessible : retourne `{ resources: [], events: [] }`.
-
----
-
-## Depot (Deposit) - Regles Metier
-
-### Champs Schema
-
-| Champ | Type | Description |
-|-------|------|-------------|
-| `depositRequired` | Boolean (defaut: false) | Le depot est-il requis pour ce booking ? |
-| `depositAmount` | Decimal? | Montant du depot (obligatoire si depositRequired=true) |
-| `depositDecisionSource` | DepositDecisionSource? | Qui a decide : COMPANY ou AGENCY |
-
-### Enum DepositDecisionSource
-
-| Valeur | Signification |
-|--------|---------------|
-| `COMPANY` | Politique definie au niveau de la company (regle globale) |
-| `AGENCY` | Decision prise au niveau de l'agence (cas par cas) |
-
-### Regles de Validation
-
-1. **A la creation du booking** :
-   - Si `depositRequired = true` → `depositAmount` et `depositDecisionSource` sont **obligatoires**
-   - Si `depositRequired = false` → `depositAmount` et `depositDecisionSource` ignorees
-   - Validation DTO + validation service
-
-2. **Au check-in** :
-   - Si `depositRequired = true` → le champ `depositStatusCheckIn` doit etre `COLLECTED`
-   - Sinon → check-in bloque (BadRequestException)
-
-3. **Qui peut modifier** :
-   - AGENCY_MANAGER : peut modifier le depot sur un booking
-   - AGENT : ne peut **pas** modifier le depot
-   - COMPANY_ADMIN : peut modifier (si heritage dynamique actif)
-
-### Logique Metier
-
-Le depot n'est **PAS un automatisme bloquant** au sens general :
-- Le blocage au check-in est une **verification operationnelle** (le vehicule ne part pas sans depot collecte)
-- Aucun blocage automatique a la creation du booking (on peut creer un booking avec depot requis, il sera collecte plus tard)
-
----
-
-## Soft Delete et Tracabilite
-
-### Entites avec Soft Delete
-
-Les entites suivantes supportent le soft delete (`deletedAt`, `deletedByUserId`, `deletedReason`) :
-
-| Entite | Soft Delete | Raison |
-|--------|:-----------:|--------|
-| **Company** | Oui | Tracabilite client SaaS |
-| **Agency** | Oui | Historique agence |
-| **User** | Oui | Tracabilite utilisateur + RGPD |
-| **Vehicle** | Oui | Historique flotte |
-| **Client** | Oui | Tracabilite client + RGPD |
-| **Booking** | Oui | Tracabilite location (pivot central) |
-| **Maintenance** | Oui | Historique interventions |
-
-### Entites avec Hard Delete
-
-| Entite | Hard Delete | Raison |
-|--------|:-----------:|--------|
-| **Fine** | Oui* | *A migrer vers soft delete (document administratif) |
-| **Charge** | Oui* | *A migrer vers soft delete (document financier) |
-| **JournalEntry** | Oui | Entree de log, suppression rare |
-| **PlanningEvent** | Oui | Projection temporelle |
-| **PasswordResetToken** | Oui | Token temporaire |
-| **UserAgency** | Oui | Junction table, cascade |
-
-> **Evolution prevue** : Fine et Charge doivent migrer vers le soft delete pour conserver la trace des documents administratifs/financiers.
-
-### Filtrage Standard
-
-Toutes les requetes sur les entites soft-delete incluent `deletedAt: null` dans leur clause WHERE.
-
-### Champs d'Audit
-
-Service commun `AuditService` fournit :
-- `addCreateAuditFields(user)` → ajoute `createdByUserId`, `updatedByUserId`
-- `addUpdateAuditFields(user)` → ajoute `updatedByUserId`
-- `addDeleteAuditFields(user, reason?)` → ajoute `deletedByUserId`, `deletedReason`, `deletedAt`
-- `removeAuditFields(data)` → retire les champs d'audit des reponses API
-
----
-
-## Audit et Journal Technique
-
-### Double Systeme d'Audit
-
-Le systeme dispose de **deux tables complementaires** pour l'audit :
-
-### 1. AuditLog (Actions Techniques)
-
-Table `AuditLog` — trace les actions utilisateur avec contexte technique.
-
-| Champ | Description |
-|-------|-------------|
-| `userId` | Utilisateur ayant effectue l'action |
-| `companyId` | Company concernee |
-| `agencyId` | Agence concernee |
-| `action` | Type d'action (enum) |
-| `entityType` | Type d'entite concernee |
-| `entityId` | ID de l'entite |
-| `description` | Description textuelle |
-| `metadata` | JSON libre (details supplementaires) |
-| `ipAddress` | Adresse IP de l'utilisateur |
-| `userAgent` | User-Agent du navigateur |
-| `createdAt` | Horodatage |
-
-**Actions tracees** :
-
-| Action | Description |
+| Couche | Technologie |
 |--------|-------------|
-| CREATE | Creation d'entite |
-| UPDATE | Modification d'entite |
-| DELETE | Suppression d'entite |
-| LOGIN | Connexion utilisateur |
-| LOGOUT | Deconnexion utilisateur |
-| EXPORT | Export de donnees |
-| IMPORT | Import de donnees |
-| PAYMENT | Paiement effectue |
-| BOOKING_STATUS_CHANGE | Changement de statut booking |
-| OTHER | Autre action |
+| Backend | NestJS (TypeScript), Prisma ORM, PostgreSQL |
+| Frontend Web | Next.js 14 (App Router), React, TailwindCSS, TanStack Query |
+| Mobile Agent | React Native (Expo) |
+| Auth | JWT (access + refresh tokens), bcrypt |
+| PDF | PDFKit |
+| Carte | Leaflet / react-leaflet |
+| Paiement | CMI (Centre Monétique Interbancaire) |
+| Email | Nodemailer (SMTP) |
 
-### 2. BusinessEventLog (Evenements Metier)
+### 1.4 Applications
 
-Table `BusinessEventLog` — trace les evenements metier avec etat avant/apres.
+| Application | Port | Description |
+|-------------|------|-------------|
+| Backend API | 3000 | API REST NestJS, préfixe `/api/v1` |
+| Frontend Web | 3100 | Interface unique Next.js (admin, company, agency) |
+| Mobile Agent | — | Application React Native (Expo) |
+
+---
+
+## 2. Rôles, permissions et RBAC
+
+### 2.1 Hiérarchie des rôles
+
+| Rôle | Portée | Description |
+|------|--------|-------------|
+| `SUPER_ADMIN` | Plateforme | Gestion des entreprises, abonnements, santé plateforme |
+| `COMPANY_ADMIN` | Entreprise | Gestion des agences, utilisateurs, paramètres entreprise |
+| `AGENCY_MANAGER` | Agence(s) | Gestion opérationnelle complète de l'agence |
+| `AGENT` | Agence(s) | Opérations terrain (réservations, check-in/out, GPS) |
+
+### 2.2 Héritage dynamique COMPANY_ADMIN (gérant solo)
+
+Un `COMPANY_ADMIN` qui est le seul utilisateur de sa Company hérite automatiquement des menus et permissions d'`AGENCY_MANAGER` pour pouvoir tout gérer seul. Dès qu'un deuxième utilisateur est créé dans la Company, il reprend son rôle normal de `COMPANY_ADMIN`.
+
+**Détection** : `effectiveAgencyRole` est calculé côté frontend en comptant les utilisateurs de la Company.
+
+### 2.3 Permissions par agence (UserAgency)
+
+Chaque utilisateur est relié à une ou plusieurs agences via la table `UserAgency` avec un niveau de permission :
+
+| Permission | Lecture | Écriture | Suppression |
+|------------|---------|----------|-------------|
+| `READ` | Oui | Non | Non |
+| `WRITE` | Oui | Oui | Non |
+| `FULL` | Oui | Oui | Oui |
+
+### 2.4 Matrice d'accès par rôle
+
+| Fonctionnalité | SUPER_ADMIN | COMPANY_ADMIN | AGENCY_MANAGER | AGENT |
+|---------------|:-----------:|:-------------:|:--------------:|:-----:|
+| Gestion entreprises | Oui | — | — | — |
+| Abonnements | Oui | — | — | — |
+| Santé comptes | Oui | — | — | — |
+| Gestion agences | Oui | Oui | — | — |
+| Gestion utilisateurs | Oui | Oui | — | — |
+| Analytics entreprise | Oui | Oui | — | — |
+| Planning entreprise | Oui | Oui | — | — |
+| Véhicules | Oui | Via héritage | Oui | Lecture |
+| Clients | Oui | Via héritage | Oui | Oui |
+| Réservations | Oui | Via héritage | Oui | Oui |
+| Planning agence | Oui | Via héritage | Oui | Oui |
+| Factures | Oui | Via héritage | Oui | — |
+| Contrats | Oui | Via héritage | Oui | — |
+| Journal | Oui | Via héritage | Oui | — |
+| Amendes | Oui | Via héritage | Oui | — |
+| Charges & Dépenses | Oui | Via héritage | Oui | — |
+| KPI | Oui | Via héritage | Oui | — |
+| GPS | Oui | Via héritage | Oui | Oui |
+| Notifications | Oui | Via héritage | Oui | Oui |
+
+### 2.5 Protection self-modification
+
+Un utilisateur ne peut jamais :
+- Modifier son propre rôle
+- Désactiver son propre compte
+- Retirer ses propres agences/permissions
+- Supprimer son propre compte
+
+Ces protections sont appliquées côté backend (ForbiddenException) et côté frontend (champs désactivés avec message explicatif).
+
+---
+
+## 3. Système de modules
+
+### 3.1 Principe
+
+Chaque fonctionnalité est rattachée à un module SaaS activable par Company et par Agency. Un module non activé masque les menus correspondants et bloque les appels API.
+
+### 3.2 Modules disponibles
+
+| Code | Module | Dépendances |
+|------|--------|-------------|
+| `VEHICLES` | Véhicules, GPS, Charges | — |
+| `BOOKINGS` | Réservations, Planning | `VEHICLES` |
+| `INVOICES` | Factures, Contrats | `BOOKINGS` |
+| `MAINTENANCE` | Maintenance | `VEHICLES` |
+| `FINES` | Amendes | `VEHICLES` |
+| `ANALYTICS` | Analytics, KPI | `BOOKINGS` |
+
+### 3.3 Double filtrage des menus
+
+1. **Rôle** : le menu n'apparaît que si le rôle de l'utilisateur est autorisé (`agencyRouteRoleMap`)
+2. **Module** : le menu n'apparaît que si le module correspondant est activé pour l'agence/company (`agencyRouteModuleMap`)
+
+### 3.4 Routes sans module requis
+
+Certaines routes sont toujours accessibles : tableau de bord, notifications, profil utilisateur.
+
+---
+
+## 4. Entreprises et abonnements
+
+### 4.1 Modèle Company
 
 | Champ | Description |
 |-------|-------------|
-| `agencyId` | Agence concernee |
-| `companyId` | Company concernee |
-| `entityType` | Type d'entite (Booking, Vehicle, Client, etc.) |
-| `entityId` | ID de l'entite |
-| `eventType` | Type d'evenement (30+ types) |
-| `previousState` | Etat avant modification (JSON) |
-| `newState` | Etat apres modification (JSON) |
-| `triggeredByUserId` | Utilisateur declencheur |
-| `createdAt` | Horodatage |
+| `name` | Nom commercial |
+| `raisonSociale` | Raison sociale légale |
+| `identifiantLegal` | ICE (identifiant commun d'entreprise, unique) |
+| `formeJuridique` | Forme juridique (SARL, SAS, SA, EI, AUTO_ENTREPRENEUR, ASSOCIATION, AUTRE) |
+| `status` | ACTIVE, SUSPENDED, DELETED |
+| `currency` | Devise (défaut : MAD) |
+| `maxAgencies` | Nombre max d'agences autorisées |
+| `bookingNumberMode` | AUTO ou MANUAL |
 
-**Evenements traces** :
-- CREATED, UPDATED, DELETED (toutes entites)
-- STATUS_CHANGED (Booking, Vehicle, Maintenance)
-- BOOKING_STATUS_CHANGED, BOOKING_NUMBER_ASSIGNED, BOOKING_NUMBER_EDITED
-- VEHICLE_STATUS_CHANGED
-- MAINTENANCE_STATUS_CHANGED
-- CONTRACT_CREATED, CONTRACT_SIGNED
-- INVOICE_GENERATED
-- Et 20+ autres...
+### 4.2 Numéro de booking (bookingNumberMode)
 
-### Couverture d'Audit
+- **AUTO** : Généré automatiquement au format `YYYY` + 6 chiffres (ex: `2026000042`). Séquence par Company + année, reset annuel.
+- **MANUAL** : Saisi manuellement par l'utilisateur. Obligatoire à la création. Unicité vérifiée au niveau Company.
 
-| Evenement | AuditLog | BusinessEventLog |
-|-----------|:--------:|:----------------:|
-| Connexion/Deconnexion | Oui | - |
-| Changement statut booking | Oui | Oui |
-| Signature contrat | Oui | Oui |
-| Changement module | - | Oui |
-| Creation/suspension user | Oui | Oui |
-| Creation/suspension agency | Oui | Oui |
-| Creation/suspension company | Oui | Oui |
-| CRUD vehicule | Oui | Oui |
-| CRUD client | Oui | Oui |
-| CRUD amende | Oui | Oui |
+### 4.3 Abonnements SaaS
+
+Chaque Company possède un `Subscription` rattaché à un `Plan`. Le plan définit :
+- Les modules inclus (`PlanModule`)
+- Les quotas (nombre de véhicules, agences, utilisateurs) (`PlanQuota`)
+- La période de facturation (mensuelle, trimestrielle, annuelle)
+
+**Lifecycle** : ACTIVE → SUSPENDED (impayé) → EXPIRED (fin de terme) → CANCELLED.
+
+Quand un abonnement est suspendu, la Company est bloquée : tous les endpoints API retournent 403 "La société est suspendue".
 
 ---
 
-## Back-office Agence
+## 5. Agences
 
-### Sidebar Navigation
+### 5.1 Modèle Agency
 
-Le sidebar est fixe a gauche (largeur 256px) et affiche les menus selon le role + modules.
+| Champ | Description |
+|-------|-------------|
+| `name` | Nom de l'agence |
+| `address`, `phone`, `email` | Coordonnées |
+| `status` | ACTIVE, SUSPENDED, DELETED |
+| `companyId` | Rattachement à la Company |
 
-#### Menus SUPER_ADMIN
-- Tableau de bord
-- Entreprises
-- Agences
-- Utilisateurs
-- Abonnements
-- Sante comptes
-- Notifications
+### 5.2 Modules agence
 
-#### Menus COMPANY_ADMIN (mode normal)
-- Tableau de bord
-- Agences
-- Utilisateurs
-- Analytics (si module actif)
-- Planning
+Chaque agence peut activer un sous-ensemble des modules de sa Company. Un module ne peut être activé au niveau agence que s'il est inclus dans l'abonnement de la Company.
 
-#### Menus AGENCY_MANAGER
-- Tableau de bord
-- Vehicules
-- Clients
-- Locations
-- Planning agence
-- Factures
-- Contrats
-- Journal
-- Amendes
-- Maintenance
-- KPI
-- GPS Eco
-- Notifications
+### 5.3 Règle véhicule-agence
 
-#### Menus AGENT
-- Tableau de bord
-- Vehicules (lecture seule, pas de bouton creation)
-- Clients
-- Locations
-- Planning agence
-- Notifications
+Un véhicule appartient à **une seule** agence (`Vehicle.agencyId`). Pas de partage cross-agence. Pour transférer un véhicule, il faut changer son `agencyId`.
 
 ---
 
-## Planning
+## 6. Utilisateurs
 
-### Vue Planning Global Vehicules
+### 6.1 Modèle User
 
-Le back-office affiche **UNIQUEMENT** le planning **GLOBAL DES VOITURES**.
+| Champ | Description |
+|-------|-------------|
+| `email` | Email unique, sert d'identifiant |
+| `name` | Nom complet |
+| `role` | SUPER_ADMIN, COMPANY_ADMIN, AGENCY_MANAGER, AGENT |
+| `isActive` | Compte actif/inactif |
+| `companyId` | Rattachement Company (null pour SUPER_ADMIN) |
+| `twoFactorEnabled` | Support 2FA |
 
-### Composant Technique
+### 6.2 Relations agences
 
-Le planning utilise un **composant timeline custom** developpe en interne (`PlanningBoard.tsx`).
+Via `UserAgency` : un utilisateur peut être rattaché à plusieurs agences avec des permissions différentes (READ, WRITE, FULL).
 
-> **IMPORTANT** : On n'utilise PAS FullCalendar (librairie payante pour Timeline View). Le composant est 100% custom, open-source.
+### 6.3 Restrictions de création
 
-### Structure d'Affichage
+- Un `COMPANY_ADMIN` ne peut créer que des `AGENCY_MANAGER` et `AGENT`.
+- Seul `SUPER_ADMIN` peut créer des `COMPANY_ADMIN` et d'autres `SUPER_ADMIN`.
 
-- Chaque **ligne** = un vehicule
-- Chaque **bloc/evenement** = une location, maintenance, preparation, ou autre
-- Affichage horizontal par temps (heure/jour/semaine/mois)
+### 6.4 Sécurité des réponses API
 
-### Vues Disponibles
+Le champ `password` (hash bcrypt) n'est **jamais** retourné dans les réponses API. Une méthode `sanitizeUser()` supprime systématiquement `password`, `resetToken` et `resetTokenExpiry` avant tout retour.
+
+---
+
+## 7. Véhicules
+
+### 7.1 Modèle Vehicle
+
+| Champ | Description |
+|-------|-------------|
+| `brand`, `model` | Marque et modèle |
+| `registrationNumber` | Immatriculation (unique par agence) |
+| `year`, `mileage`, `color` | Caractéristiques |
+| `dailyRate` | Tarif journalier |
+| `status` | Statut opérationnel |
+| `imageUrl` | Photo du véhicule |
+| `gpsTrackerId` | ID du tracker GPS physique |
+| `gpsTrackerLabel` | Libellé du tracker |
+
+### 7.2 Statuts véhicule
+
+| Statut | Description |
+|--------|-------------|
+| `AVAILABLE` | Disponible à la location |
+| `RESERVED` | Réservé (booking confirmé, pas encore livré) |
+| `RENTED` | En location active |
+| `IN_DELIVERY` | En cours de livraison (check-in) |
+| `IN_RECOVERY` | En récupération (check-out) |
+| `MAINTENANCE` | En maintenance |
+| `UNAVAILABLE` | Non disponible |
+| `TEMP_UNAVAILABLE` | Temporairement indisponible |
+
+### 7.3 Recherche
+
+Base de données intégrée de marques et modèles de véhicules avec autocomplétion. Upload d'images véhicule vers le serveur.
+
+---
+
+## 8. Clients
+
+### 8.1 Modèle Client
+
+| Champ | Description |
+|-------|-------------|
+| `name` | Nom complet |
+| `email`, `phone` | Contact (optionnels) |
+| `idCardNumber` | Numéro CIN |
+| `passportNumber` | Numéro de passeport |
+| `driverLicenseNumber` | Numéro de permis |
+| `licenseExpiryDate` | Date d'expiration du permis |
+| `address`, `city`, `country` | Adresse |
+| `dateOfBirth` | Date de naissance |
+| `blacklisted`, `blacklistReason` | Gestion liste noire |
+
+### 8.2 Documents
+
+Les documents client (CIN, permis, photos) sont stockés via le modèle `Document` avec upload vers le serveur.
+
+### 8.3 Analyse de permis (IA)
+
+Endpoint `POST /clients/analyze-license` : analyse d'une photo de permis de conduire pour extraire automatiquement les informations (nom, numéro, date d'expiration).
+
+---
+
+## 9. Réservations / Locations
+
+### 9.1 Workflow complet
+
+```
+DRAFT → PENDING → CONFIRMED → IN_PROGRESS → RETURNED → (Clôture financière)
+                                    ↓
+                               EXTENDED / LATE
+                                    ↓
+                               RETURNED
+```
+
+Transitions possibles : CONFIRMED → CANCELLED, PENDING → NO_SHOW, etc.
+
+### 9.2 Statuts de réservation
+
+| Statut | Description |
+|--------|-------------|
+| `DRAFT` | Brouillon, pas encore validé |
+| `PENDING` | En attente de confirmation |
+| `CONFIRMED` | Confirmée, véhicule réservé |
+| `IN_PROGRESS` | Location en cours (après check-in) |
+| `EXTENDED` | Prolongation de la durée |
+| `LATE` | Retard de restitution |
+| `RETURNED` | Véhicule restitué (après check-out) |
+| `CANCELLED` | Annulée |
+| `NO_SHOW` | Client ne s'est pas présenté |
+
+### 9.3 Check-in (CONFIRMED → IN_PROGRESS)
+
+- Relevé du kilométrage de départ
+- Niveau de carburant
+- État des lieux (dommages existants)
+- Photos du véhicule
+- Signature client
+- Collecte de la caution
+- Capture GPS
+
+### 9.4 Check-out (IN_PROGRESS → RETURNED)
+
+- Relevé du kilométrage de retour
+- Niveau de carburant
+- État des lieux de retour (nouveaux dommages)
+- Photos du véhicule
+- Signature client
+- Calcul des frais de retard
+- Capture GPS
+
+### 9.5 Clôture financière
+
+Après le check-out, le manager effectue la clôture financière : vérification des montants, ajustement des frais, statut final de la caution (REFUNDED, PARTIAL, FORFEITED, DISPUTED).
+
+### 9.6 Caution (Deposit)
+
+| Champ | Description |
+|-------|-------------|
+| `depositRequired` | Caution requise (oui/non) |
+| `depositAmount` | Montant de la caution |
+| `depositType` | Type (CASH, CARD_HOLD, TRANSFER, CHEQUE, OTHER) |
+| `depositDecisionSource` | Source de la décision (COMPANY, AGENCY) |
+| `depositStatusCheckIn` | Statut au check-in (PENDING, COLLECTED) |
+| `depositStatusFinal` | Statut final (REFUNDED, PARTIAL, FORFEITED, DISPUTED) |
+
+### 9.7 Frais de retard
+
+Calculés automatiquement à partir de `originalEndDate` vs date de retour réelle. Le manager peut les modifier manuellement (`lateFeeAmount`, `lateFeeOverriddenBy`).
+
+### 9.8 Validation d'accès agence
+
+Toutes les opérations sur les bookings vérifient que l'utilisateur a accès à l'agence du booking :
+- `SUPER_ADMIN` : accès total
+- `COMPANY_ADMIN` : booking de sa company uniquement
+- `AGENT/MANAGER` : booking de leurs agences assignées uniquement
+
+---
+
+## 10. Planning
+
+### 10.1 Composant
+
+Le planning est une grille ressources x temps. Les ressources sont les véhicules, les événements sont les bookings, maintenances, blocages et temps de préparation.
+
+### 10.2 Vues disponibles
 
 | Vue | Description |
 |-----|-------------|
-| **Jour** | Creneaux de 30 min de 6h a 22h |
-| **Semaine** | 7 jours affiches |
-| **Mois** | Jours du mois affiches |
+| Jour | Créneaux horaires par véhicule |
+| Semaine | 7 jours par véhicule |
+| Mois | Vue calendrier mensuelle |
 
-### Navigation
-
-- Bouton **Precedent** (fleche gauche)
-- Bouton **Aujourd'hui** (recentre sur la date du jour)
-- Bouton **Suivant** (fleche droite)
-
-### Types d'Evenements et Couleurs
+### 10.3 Types d'événements et couleurs
 
 | Type | Couleur | Description |
 |------|---------|-------------|
-| **Location** (Booking) | Bleu | Reservation ou location active |
-| **Maintenance** | Rouge | Intervention de maintenance |
-| **Preparation** | Vert | Temps de preparation vehicule |
-| **Autre** | Gris | Evenement divers |
+| `BOOKING` | Bleu | Réservation |
+| `MAINTENANCE` | Orange | Maintenance planifiée |
+| `BLOCKAGE` | Rouge | Blocage (véhicule indisponible) |
+| `PREPARATION_TIME` | Gris | Temps de préparation entre locations |
 
-### Legende
+### 10.4 Disponibilité et conflits
 
-Une legende visuelle est affichee sous les filtres avec les 4 types et leurs couleurs.
+- `POST /planning/check-availability` : vérifie la disponibilité d'un véhicule sur une période
+- `GET /planning/next-availability/:vehicleId` : prochaine date disponible
+- Détection de conflits : chevauchement de réservations sur le même véhicule
 
-### Filtres du Planning
+### 10.5 Ownership validation
 
-| Filtre | Type | Description |
-|--------|------|-------------|
-| **Agence** | Dropdown | Filtre par agence (en haut de page, composant AgencyFilter) |
-| **Vehicule** | Dropdown | "Filtrer par vehicule" - selectionne un vehicule specifique |
-| **Marque** | Dropdown | "Marque" - filtre par marque de vehicule (liste dynamique) |
-| **Statut vehicule** | Dropdown | "Statut vehicule" - filtre par statut (AVAILABLE, RENTED, etc.) |
-| **Type d'evenement** | Boutons toggle | 4 boutons : Booking, Maintenance, Prepa, Autres (activables/desactivables) |
-| **Recherche** | Champ texte | Recherche par numero de booking, client, plaque, modele |
-| **Reinitialiser** | Bouton | Remet tous les filtres a zero (visible uniquement quand des filtres sont actifs) |
-
-### Etats Vehicule dans le Planning
-
-Un vehicule peut etre dans l'un des etats suivants :
-
-| Etat | Icone | Description |
-|------|-------|-------------|
-| **AVAILABLE** | Vert | Vehicule disponible pour location |
-| **RESERVED** | Bleu | Vehicule reserve (booking CONFIRMED) |
-| **RENTED** | Orange | Vehicule en location active (booking IN_PROGRESS) |
-| **IN_DELIVERY** | Camion | Vehicule en cours de livraison (check-in en cours) |
-| **IN_RECOVERY** | Retour | Vehicule en cours de recuperation (check-out en cours) |
-| **IN_MAINTENANCE** | Rouge | Vehicule en maintenance (hors location) |
-| **OUT_OF_SERVICE** | Noir | Vehicule hors service |
-
-### Limitations
-
-- Le back-office **ne gere PAS** le planning detaille des taches agents
-- Le back-office **ne voit PAS** les taches individuelles des agents
-- Le back-office voit uniquement l'etat global de chaque vehicule
+Tous les endpoints planning vérifient que l'utilisateur a accès au véhicule/agence concerné avant toute opération.
 
 ---
 
-## Location (Booking)
+## 11. Contrats
 
-### Creation
+### 11.1 Workflow
 
-Une location :
+1. **Création** : un contrat est généré à partir d'un booking avec un payload gelé (snapshot des données au moment de la création)
+2. **Signature** : signature digitale client puis agent (`signerType: 'client' | 'agent'`)
+3. **Effectivité** : le contrat devient effectif après les deux signatures
+4. **Versioning** : possibilité de créer une nouvelle version (l'ancienne est expirée) dans une transaction atomique
 
-1. **Est creee AVANT toute action terrain**
-   - La location peut etre creee depuis :
-     - Back-office
-     - Telephone / WhatsApp (saisie manuelle)
-     - Future app client (reservation en ligne)
+### 11.2 Statuts
 
-2. **Genere automatiquement** :
-   - Un **contrat** (1 location = 1 contrat)
-   - Une **occupation vehicule** (planning)
-   - Des **actions terrain** (check-in / check-out)
+| Statut | Description |
+|--------|-------------|
+| `DRAFT` | Brouillon |
+| `PENDING_SIGNATURE` | En attente de signature |
+| `SIGNED` | Signé par les deux parties |
+| `EXPIRED` | Version expirée (nouvelle version créée) |
+| `CANCELLED` | Annulé |
 
-### Statuts de Location
+### 11.3 PDF
 
-| Statut | Description | Etat vehicule |
-|--------|-------------|---------------|
-| PENDING | En attente de confirmation | - |
-| CONFIRMED | Confirmee, prete pour check-in | RESERVED |
-| IN_PROGRESS | En cours (vehicule loue) | RENTED |
-| COMPLETED | Terminee (vehicule rendu) | AVAILABLE |
-| CANCELLED | Annulee | AVAILABLE |
+Génération de PDF via PDFKit au format A4 marocain. Le PDF est généré à partir du payload gelé, garantissant la conformité légale.
 
-### Transition de Statut Vehicule
+### 11.4 Sécurité
 
-- Booking passe a **CONFIRMED** → vehicule passe a **RESERVED**
-- Booking passe a **IN_PROGRESS** → vehicule passe a **RENTED**
-- Booking passe a **COMPLETED** ou **CANCELLED** → vehicule revient a **AVAILABLE**
-
-### Sources de Creation
-
-- **Back-office** : Saisie manuelle par manager/gerant
-- **Telephone / WhatsApp** : Saisie manuelle apres contact client
-- **Future app client** : Reservation en ligne (a venir)
-
-### Numero de Booking
-
-Voir section dediee [Numero de Booking (bookingNumberMode)](#numero-de-booking-bookingnumbermode).
+- Contrôle IDOR : l'utilisateur qui accède au contrat doit avoir accès à l'agence du booking
+- Validation `signerType` avec `@IsIn(['client', 'agent'])`
 
 ---
 
-## Contrat
+## 12. Factures
 
-### Generation
+### 12.1 Principe
 
-- **1 location = 1 contrat**
-- Contrat genere **automatiquement** a la creation de la location
-- Pas de creation manuelle de contrat
-- L'auto-generation est implementee dans `BookingService.create()` qui appelle `ContractService.createContract()`
+Chaque facture contient un **payload gelé** (snapshot) de toutes les données au moment de l'émission : company, agency, client, booking, vehicle, montants. Cela garantit que la facture reste fidèle même si les données source changent.
 
-### Signature
+### 12.2 Numérotation
 
-**Deux modes de signature** :
+Format : séquence par Company + année. Exemple : `FAC-2026-000042`. Contrainte d'unicité `@@unique([companyId, year, sequence])`.
 
-1. **Immediate en agence**
-   - Client present en agence
-   - Signature immediate lors de la creation location
-   - Contrat signe avant check-in
+### 12.3 Timezone Maroc
 
-2. **Differee lors de la livraison terrain**
-   - Client absent en agence
-   - Signature lors du check-in terrain
-   - Contrat signe par l'agent mobile
+L'année de la facture est calculée en timezone `Africa/Casablanca` via `getMoroccoYear()` pour éviter les bugs de frontière d'année (31 déc 23h UTC = 1er jan 00h Maroc).
 
-### Tracabilite
+### 12.4 Types
 
-- Signature **horodatee**
-- Signature **tracable** (qui, quand, ou)
-- Stockage signature (base64 ou fichier)
+| Type | Description |
+|------|-------------|
+| `INVOICE` | Facture standard |
+| `CREDIT_NOTE` | Avoir (annulation partielle ou totale) |
+
+### 12.5 Statuts
+
+| Statut | Description |
+|--------|-------------|
+| `ISSUED` | Émise |
+| `PAID` | Payée |
+| `CANCELLED` | Annulée |
+
+### 12.6 PDF
+
+Génération PDF au format A4 avec : en-tête company, informations client, détails location, tableau des prix avec devise dynamique (pas de "MAD" hardcodé), totaux, informations de caution.
 
 ---
 
-## Vehicule
+## 13. Amendes
 
-### Etats Possibles (VehicleStatus)
+### 13.1 Saisie minimale
+
+Pour créer une amende, les données minimales sont :
+- Numéro de l'amende
+- Montant
+- Description
+- Date d'infraction (optionnelle, pour auto-identification)
+- Numéro d'immatriculation (optionnel, pour auto-identification)
+
+### 13.2 Auto-identification du client
+
+Si `registrationNumber` et `infractionDate` sont fournis, le système identifie automatiquement le booking actif à cette date pour ce véhicule et le client responsable.
+
+**Règles exactes** :
+- Match si `startDate <= infractionDate <= endDate` (inclus)
+- Si plusieurs matchs : priorité au booking le plus récent
+- Si aucun match : statut reste RECUE, client null
+
+### 13.3 Workflow statut
 
 ```
-enum VehicleStatus {
-  AVAILABLE        // Disponible
-  RENTED           // En location active
-  IN_MAINTENANCE   // En maintenance
-  OUT_OF_SERVICE   // Hors service
-  RESERVED         // Reserve (booking confirme)
-  IN_DELIVERY      // En livraison (check-in en cours)
-  IN_RECOVERY      // En recuperation (check-out en cours)
-}
+RECUE → CLIENT_IDENTIFIE → TRANSMISE → CONTESTEE → CLOTUREE
 ```
 
-### Alertes Age Vehicule
+| Statut | Description |
+|--------|-------------|
+| `RECUE` | Amende reçue par l'agence |
+| `CLIENT_IDENTIFIE` | Client responsable identifié (auto ou manuel) |
+| `TRANSMISE` | Amende transmise au client |
+| `CONTESTEE` | Client conteste l'amende |
+| `CLOTUREE` | Amende traitée (payée ou annulée) |
 
-**Alertes informatives uniquement** (non bloquantes) :
+---
 
-| Alerte | Condition | Description |
+## 14. Charges et Dépenses
+
+### 14.1 Principe
+
+Module central qui regroupe toutes les charges liées aux véhicules. Remplace le lien "Maintenance" dans la sidebar par "Charges & Dépenses" qui englobe les maintenances et toutes les autres dépenses.
+
+### 14.2 Catégories
+
+| Code | Libellé |
+|------|---------|
+| `INSURANCE` | Assurance |
+| `VIGNETTE` | Vignette |
+| `BANK_INSTALLMENT` | Crédit bancaire |
+| `PREVENTIVE_MAINTENANCE` | Maintenance préventive |
+| `CORRECTIVE_MAINTENANCE` | Maintenance corrective |
+| `FUEL` | Carburant |
+| `EXCEPTIONAL` | Dépense exceptionnelle |
+| `OTHER` | Autre |
+
+### 14.3 KPI
+
+- **Revenu** : somme des `totalPrice` des bookings sur la période
+- **Charges** : somme des charges sur la période
+- **Marge** : Revenu - Charges
+- **Taux de marge** : Marge / Revenu × 100
+- **Taux d'occupation** : jours loués / (nombre véhicules × jours période) × 100
+- **Rentabilité par véhicule** : classement des véhicules par profit net
+
+---
+
+## 15. GPS et Localisation
+
+### 15.1 Captures GPS (Snapshots)
+
+Les positions GPS sont capturées à des moments clés :
+
+| Raison | Déclencheur |
+|--------|------------|
+| `CHECK_IN` | Lors du départ du véhicule |
+| `CHECK_OUT` | Lors de la restitution |
+| `INCIDENT` | Lors d'un incident |
+| `MANUAL` | Capture manuelle par le manager |
+
+### 15.2 GPS manquant
+
+Si le GPS n'est pas disponible (permission refusée, hors ligne, appareil incompatible), un enregistrement `isGpsMissing: true` est créé avec la raison.
+
+### 15.3 Carte interactive
+
+Page GPS avec carte Leaflet affichant :
+- Dernières positions de tous les véhicules
+- Historique des positions par véhicule (polyline)
+- Position de l'utilisateur (marqueur pulsant)
+- Marqueurs colorés par raison
+
+### 15.4 Trackers GPS physiques
+
+Chaque véhicule peut être associé à un tracker GPS physique via `gpsTrackerId` et `gpsTrackerLabel`. L'association/dissociation se fait depuis la page GPS.
+
+### 15.5 Coordonnées zéro
+
+La vérification des coordonnées utilise `!= null` (pas de check falsy) car latitude 0 et longitude 0 sont des coordonnées valides (intersection méridien de Greenwich et équateur).
+
+---
+
+## 16. Paiements
+
+### 16.1 Méthodes de paiement
+
+| Méthode | Description |
+|---------|-------------|
+| `ONLINE_CMI` | Paiement en ligne via CMI (Centre Monétique Interbancaire) |
+| `CASH` | Espèces |
+| `BANK_TRANSFER` | Virement bancaire |
+| `OTHER` | Autre |
+
+### 16.2 Statuts
+
+| Statut | Description |
+|--------|-------------|
+| `PENDING` | En attente |
+| `PAID` | Payé |
+| `FAILED` | Échoué |
+| `REFUNDED` | Remboursé |
+| `PARTIAL` | Paiement partiel |
+
+### 16.3 Caution
+
+Gestion complète du cycle de vie de la caution : collecte au check-in, statut final au check-out/clôture financière.
+
+---
+
+## 17. Journal d'agence
+
+### 17.1 Principe
+
+Le journal est une projection chronologique de tous les événements d'une agence. Il combine des entrées automatiques (générées par le système) et des notes manuelles (créées par les managers).
+
+### 17.2 Types d'entrées automatiques
+
+| Type | Événement |
+|------|-----------|
+| `BOOKING_CREATED` | Réservation créée |
+| `BOOKING_UPDATED` | Réservation modifiée |
+| `BOOKING_CANCELLED` | Réservation annulée |
+| `CHECK_IN` | Check-in effectué |
+| `CHECK_OUT` | Check-out effectué |
+| `INVOICE_ISSUED` | Facture émise |
+| `CREDIT_NOTE_ISSUED` | Avoir émis |
+| `CONTRACT_CREATED` | Contrat créé |
+| `CONTRACT_SIGNED` | Contrat signé |
+| `INCIDENT_REPORTED` | Incident signalé |
+| `INCIDENT_RESOLVED` | Incident résolu |
+| `GPS_SNAPSHOT` | Position GPS capturée |
+| `SYSTEM_EVENT` | Événement système |
+
+### 17.3 Notes manuelles
+
+Les `AGENCY_MANAGER` et `COMPANY_ADMIN` peuvent créer, modifier et supprimer des notes manuelles. Les `AGENT` ne peuvent pas créer de notes.
+
+### 17.4 Contrôle d'accès
+
+La méthode `assertEntryAccess()` vérifie que l'utilisateur a accès à l'entrée de journal (même company, même agence). `findOne()` inclut ce contrôle.
+
+---
+
+## 18. Notifications
+
+### 18.1 Canaux
+
+| Canal | Implémentation |
+|-------|---------------|
+| Email | Nodemailer (SMTP), templates HTML |
+| Push | FCM (Firebase Cloud Messaging) via `DeviceToken` |
+| In-app | Table `InAppNotification`, badge non-lu |
+| WhatsApp | Service WhatsApp (optionnel) |
+
+### 18.2 Types de notifications in-app
+
+| Type | Description |
+|------|-------------|
+| `CONTRACT_TO_SIGN` | Contrat à signer |
+| `INVOICE_AVAILABLE` | Facture disponible |
+| `BOOKING_LATE` | Retard de restitution |
+| `CHECK_OUT_REMINDER` | Rappel de check-out |
+| `INCIDENT_REPORTED` | Incident signalé |
+| `SYSTEM_ALERT` | Alerte système |
+| `ADMIN_ANNOUNCEMENT` | Annonce admin (broadcast) |
+
+### 18.3 Broadcast admin
+
+Le `SUPER_ADMIN` peut envoyer des notifications à toutes les entreprises ou à une entreprise spécifique. Le bouton d'envoi est désactivé tant qu'aucune entreprise n'est sélectionnée (si mode "entreprise spécifique").
+
+### 18.4 Emails
+
+Les emails contiennent les informations sensibles redactées dans les logs : `admin@example.com` → `a***@example.com`.
+
+---
+
+## 19. Incidents
+
+### 19.1 Types
+
+| Type | Description |
+|------|-------------|
+| `DAMAGE` | Dommage sur le véhicule |
+| `FINE` | Amende |
+| `ACCIDENT` | Accident |
+| `THEFT` | Vol |
+| `OTHER` | Autre |
+
+### 19.2 Workflow
+
+```
+REPORTED → UNDER_REVIEW → RESOLVED / DISPUTED
+```
+
+### 19.3 Association
+
+Un incident est lié à un booking et optionnellement à un véhicule. Photos et documents peuvent être attachés.
+
+---
+
+## 20. Analytics et KPI
+
+### 20.1 Dashboard Super Admin
+
+KPI globaux de la plateforme : nombre de companies, revenue total, bookings actifs, véhicules totaux.
+
+### 20.2 Dashboard Company
+
+Analytics par entreprise avec vue sur toutes les agences.
+
+### 20.3 Dashboard Agence (KPI)
+
+| KPI | Calcul |
+|-----|--------|
+| Revenu | Somme `totalPrice` des bookings |
+| Charges | Somme des charges |
+| Marge nette | Revenu - Charges |
+| Taux de marge | Marge / Revenu × 100 |
+| Taux d'occupation | Jours loués / jours disponibles |
+| Panier moyen | Revenu / nombre de bookings |
+| Rentabilité par véhicule | Classement profit net par véhicule |
+
+### 20.4 Filtres
+
+Tous les KPI sont filtrables par période (date début / fin) et par agence.
+
+---
+
+## 21. Intelligence artificielle
+
+### 21.1 Détection de dommages
+
+- `POST /ai/damage/detect` : analyse d'une photo pour détecter des dommages
+- `POST /ai/damage/detect-batch` : analyse de plusieurs photos
+
+### 21.2 Analyse de permis
+
+- `POST /clients/analyze-license` : extraction automatique des données d'un permis de conduire à partir d'une photo
+
+### 21.3 Chatbot
+
+- `POST /ai/chatbot/question` : question au chatbot
+- `GET /ai/chatbot/faq` : FAQ prédéfinie
+
+---
+
+## 22. Sécurité
+
+### 22.1 Protection à 3 niveaux
+
+| Niveau | Mécanisme | Description |
 |--------|-----------|-------------|
-| **AGE_WARNING_6_MONTHS** | Vehicule entre 4.5 et 5 ans | Alerte preventive : le vehicule approche de 5 ans |
-| **AGE_LIMIT_REACHED** | Vehicule de 5 ans ou plus | Alerte : age limite atteint |
+| 1 - Frontend | Sidebar + RouteGuard | Masque les menus non autorisés, redirige si URL directe |
+| 2 - Middleware | Next.js middleware | Vérifie le token JWT côté serveur pour les routes protégées |
+| 3 - Backend | Guards NestJS | 8 guards vérifient auth, rôle, permissions, modules, statut company/agency |
 
-**Comportement** :
-- Les alertes sont calculees cote backend dans `VehicleService`
-- Retournees dans un champ `alerts[]` sur chaque vehicule (findAll et findOne)
-- Affichage dans le back-office (informatives)
-- **Aucun blocage** de processus (le vehicule reste utilisable)
+### 22.2 Guards backend
 
-### Bouton Creation Vehicule
+| Guard | Description |
+|-------|-------------|
+| `JwtAuthGuard` | Authentification JWT obligatoire |
+| `RolesGuard` | Vérifie le rôle de l'utilisateur |
+| `PermissionGuard` | Vérifie les permissions (bookings:read, etc.) |
+| `RequireModuleGuard` | Vérifie que le module est activé |
+| `RequirePermissionGuard` | Vérifie la permission UserAgency (READ/WRITE/FULL) |
+| `RequireActiveCompanyGuard` | Vérifie que la Company est active (pas suspendue) |
+| `RequireActiveAgencyGuard` | Vérifie que l'Agency est active |
+| `ReadOnlyGuard` | Mode lecture seule |
 
-- Visible pour : SUPER_ADMIN, COMPANY_ADMIN, AGENCY_MANAGER
-- **Masque pour AGENT** (l'agent ne peut pas creer de vehicules)
+### 22.3 Authentification
 
----
+- JWT access token (1h) + refresh token (7j)
+- Rate limiting : 5 tentatives/min sur login, 3/min sur forgot-password
+- Impersonation : réservée au `SUPER_ADMIN`, le refresh token d'impersonation ne peut pas être étendu en session normale
+- Hash bcrypt pour les mots de passe
+- Token de réinitialisation avec expiration
 
-## Charges
+### 22.4 Protections récentes
 
-### Module Central
-
-Le module **CHARGES** est rattache **AU VEHICULE** (champ `vehicleId` **obligatoire**).
-
-### Categories de Charges (ChargeCategory)
-
-```
-enum ChargeCategory {
-  INSURANCE                // Assurance (annuelle)
-  VIGNETTE                 // Vignette / Dariba (annuelle)
-  BANK_INSTALLMENT         // Mensualite bancaire (mensuelle)
-  PREVENTIVE_MAINTENANCE   // Maintenance preventive
-  CORRECTIVE_MAINTENANCE   // Maintenance corrective
-  FUEL                     // Carburant
-  EXCEPTIONAL              // Charges exceptionnelles (hors amendes)
-  OTHER                    // Autre
-}
-```
-
-### Caracteristiques
-
-- **Aucune donnee client** : Les charges sont liees au vehicule uniquement
-- **vehicleId est OBLIGATOIRE** : Toute charge doit etre associee a un vehicule
-- **Acces** : Manager / Gerant uniquement (AGENT bloque au niveau API)
-- **Alertes informatives uniquement** : Pas de blocage
-
-### Exemples d'Alertes
-
-- Assurance a renouveler dans 30 jours → Alerte
-- Vignette expiree → Alerte
-- Mensualite bancaire due → Alerte
+- **Password hash exclu** des réponses API (sanitizeUser)
+- **Validation cross-agence** sur les bookings (assertBookingAccess)
+- **Self-modification bloquée** (rôle, statut actif, agences)
+- **Ownership planning** (assertVehicleAccess, assertAgencyAccess)
+- **Outbox idempotent** (gestion collision P2002)
+- **Blob response interceptor** (pas de parsing JSON sur les téléchargements PDF)
 
 ---
 
-## Amendes
+## 23. Audit et traçabilité
 
-### Module Distinct
+### 23.1 Double système d'audit
 
-Le module est nomme strictement : **AMENDES**.
+| Système | Table | Usage |
+|---------|-------|-------|
+| AuditLog | `AuditLog` | Actions techniques (CREATE, UPDATE, DELETE, LOGIN, etc.) |
+| BusinessEventLog | `BusinessEventLog` | Événements métier (BOOKING_CREATED, INVOICE_ISSUED, etc.) |
 
-**Important** : Les amendes **ne sont PAS des charges agence**.
+### 23.2 Outbox pattern
 
-### Role de l'Agence
+Les événements de domaine sont persistés via un **outbox pattern** pour garantir la fiabilité :
+1. L'événement est créé dans la table `OutboxEvent` avec statut PENDING
+2. Un processeur traite les événements en arrière-plan
+3. En cas d'échec : retry avec backoff exponentiel
+4. Après N échecs : statut FAILED (dead-letter)
+5. Idempotence : collision `deduplicationKey` (P2002) retourne l'ID existant au lieu de lever une erreur
 
-L'agence est **intermediaire administratif** pour les amendes :
-- L'agence recoit l'amende (vehicule immatricule a son nom)
-- L'agence identifie le client responsable
-- L'agence transmet l'amende au client
-- Le client paie directement l'administration
+### 23.3 Journal d'agence
 
-### Saisie Minimale
+Le journal (`JournalEntry`) est la projection côté utilisateur des événements métier. C'est une vue lisible et filtrable de l'activité de l'agence.
 
-A partir de ces **3 donnees minimales** :
+### 23.4 Champs d'audit
 
-1. **Date d'infraction** (`infractionDate`)
-2. **Numero d'immatriculation** (`registrationNumber`)
-3. **Reference amende** (`description`)
-
-> **Note** : `bookingId` est **optionnel**. Si non fourni, le systeme tente l'auto-identification.
-
-### Traitement Automatique (Auto-Identification)
-
-Le systeme **automatiquement** a la creation d'une amende :
-
-1. **Identifie le vehicule** via le numero d'immatriculation (recherche insensible a la casse)
-2. **Retrouve la location** a la date d'infraction
-3. **Remonte automatiquement** :
-   - Le **client principal** (titulaire de la location)
-   - Le **conducteur secondaire** (si existant)
-4. **Met a jour le statut** a `CLIENT_IDENTIFIE` si un client est trouve
-
-### Detection du Booking (Regles Exactes)
-
-**Requete de match** :
-```
-booking.startDate <= infractionDate AND booking.endDate >= infractionDate
-```
-(bornes **inclusives** des deux cotes)
-
-**Filtres obligatoires** :
-- Meme `agencyId` que l'amende
-- Meme `vehicleId` que le vehicule identifie
-- `deletedAt: null` (pas de bookings supprimes)
-- `status IN ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED']` (exclut CANCELLED et PENDING)
-
-**Cas de multiples matchs** :
-- Le systeme prend le **booking le plus recent** (`orderBy startDate DESC`, `findFirst`)
-- Pas de warning ni d'intervention manuelle requise
-
-**Cas sans match** :
-- Le statut reste `RECUE`
-- `bookingId = null`, `clientId = null`
-- L'amende est creee mais non liee — identification manuelle requise
-
-**Cas vehicule non trouve** :
-- Si le `registrationNumber` ne correspond a aucun vehicule de l'agence
-- L'amende est creee avec statut `RECUE`, sans vehicule ni booking
-
-### Statuts d'Amende (FineStatus)
-
-```
-enum FineStatus {
-  RECUE              // Amende recue par l'agence
-  CLIENT_IDENTIFIE   // Client responsable identifie automatiquement
-  TRANSMISE          // Amende transmise au client
-  CONTESTEE          // Client conteste l'amende
-  CLOTUREE           // Amende traitee (payee ou annulee)
-}
-```
-
-### Champs du Modele Fine
-
-| Champ | Type | Obligatoire | Description |
-|-------|------|:-----------:|-------------|
-| id | String | Oui | Identifiant unique |
-| agencyId | String | Oui | Agence concernee |
-| bookingId | String | **Non** | Location associee (auto-identifiee si possible) |
-| clientId | String | Non | Client identifie (auto ou manuel) |
-| secondaryDriverId | String | Non | Conducteur secondaire |
-| vehicleId | String | Non | Vehicule identifie (auto via plaque) |
-| amount | Float | Oui | Montant de l'amende |
-| description | String | Oui | Reference / description |
-| status | FineStatus | Oui | Statut (defaut: RECUE) |
-| infractionDate | DateTime | Non | Date de l'infraction |
-| registrationNumber | String | Non | Numero d'immatriculation |
-
-### Acces
-
-- **Manager / Gerant** uniquement
-- **AGENT n'a PAS acces** aux amendes (bloque au niveau frontend ET backend API)
+Chaque entité porte des champs d'audit automatiques : `createdByUserId`, `updatedByUserId`, `deletedByUserId`, `deletedReason`. Ces champs sont supprimés des réponses API par `removeAuditFields()`.
 
 ---
 
-## Application Mobile Agent
+## 24. Soft delete et conventions
 
-### Positionnement
+### 24.1 Entités avec soft delete
 
-L'application Agent est un **outil d'EXECUTION TERRAIN**.
+| Entité | Champs |
+|--------|--------|
+| Company | `deletedAt`, `deletedByUserId`, `deletedReason` |
+| Agency | `deletedAt`, `deletedByUserId`, `deletedReason` |
+| User | `deletedAt`, `deletedByUserId`, `deletedReason` |
+| Vehicle | `deletedAt`, `deletedByUserId`, `deletedReason` |
+| Client | `deletedAt`, `deletedByUserId`, `deletedReason` |
+| Booking | `deletedAt`, `deletedByUserId`, `deletedReason` |
+| Maintenance | `deletedAt`, `deletedByUserId`, `deletedReason` |
 
-**Important** : Elle n'est **PAS** un outil de pilotage.
+### 24.2 Entités avec hard delete
 
-### Planning Agent
+Fine, Incident, Document, Payment, PlanningEvent, GpsSnapshot, Invoice, Contract, JournalEntry, Notification, Charge.
 
-#### Vue Planning
+### 24.3 Filtrage
 
-Le planning des taches agents vit **UNIQUEMENT** dans l'app Agent.
+Toutes les requêtes Prisma sur les entités soft-delete incluent `addSoftDeleteFilter()` qui ajoute `{ deletedAt: null }` au where clause.
 
-#### Derivation
+### 24.4 Messages d'erreur
 
-- Le planning est **derive** des reservations existantes
-- **Aucune entite Task persistee en base**
-- Le planning est calcule a la volee depuis les bookings
-
-#### Logique des Taches (Derivee)
-
-| Statut Booking | Tache Generee | Description |
-|----------------|---------------|-------------|
-| `CONFIRMED` | **Livraison / Check-in** | Tache de livraison vehicule au client |
-| `IN_PROGRESS` | **Recuperation / Check-out** | Tache de recuperation vehicule du client |
-| `COMPLETED` | Aucune tache | Location terminee |
-| `CANCELLED` | Aucune tache | Location annulee |
-
-### Vue Agent
-
-#### Ce que l'Agent VOIT
-
-- Ses taches (derivees des bookings)
-- Ordonnees par date / heure
-- Informations necessaires a l'execution : vehicule, lieu, client
-
-#### Ce que l'Agent PEUT FAIRE
-
-- Executer une tache (check-in / check-out)
-- Confirmer une action
-- Prendre photos (vehicule, documents)
-- Faire signer (contrat, restitution)
-
-#### Ce que l'Agent NE VOIT PAS
-
-- Charges (module vehicule)
-- Amendes (module separe)
-- Flotte globale (gestion)
-- Autres agents
-- Planning global des vehicules
-- Donnees financieres
-- KPI / Analytics
-- Factures / Contrats
-- Journal / Maintenance
-
-### Offline
-
-#### Fonctionnement Offline
-
-Le fonctionnement offline existant est **CONSERVE**.
-
-#### Aucune Regression Toleree
-
-- Check-in complet offline
-- Check-out complet offline
-- Signatures (stockage local)
-- Photos (stockage local)
-- Formulaires (saisie complete offline)
-
-#### Synchronisation
-
-- Actions mises en queue SQLite locale
-- Synchronisation automatique quand connexion disponible
-- Upload fichiers differe
-- Indicateur visuel "En attente de synchronisation"
+Tous les messages d'erreur backend sont en **français**. Exemples :
+- "Email introuvable"
+- "Réservation introuvable"
+- "Vous ne pouvez pas modifier votre propre rôle"
+- "La société est suspendue. Veuillez contacter le support."
 
 ---
 
-## Securite et RBAC
+## 25. Application mobile agent
 
-### Protection a 3 Niveaux
+### 25.1 Positionnement
 
-La securite est implementee en **3 couches** :
+L'application mobile est destinée aux agents terrain. Elle permet :
+- Consultation du planning assigné
+- Check-in avec capture GPS, photos, signature
+- Check-out avec capture GPS, photos, signature
+- Signalement d'incidents
+- Capture GPS manuelle
 
-#### 1. Middleware Next.js (serveur)
+### 25.2 Stack
 
-Intercepte les requetes avant le rendu de page :
-- Verifie le role dans le token JWT
-- Redirige vers `/login` si non autorise
-- Routes specifiques bloquees pour AGENT :
-  - `/agency/invoices`
-  - `/agency/contracts`
-  - `/agency/journal`
-  - `/agency/fines`
-  - `/agency/maintenance`
-  - `/agency/kpi`
-  - `/agency/gps-kpi`
+React Native (Expo), TypeScript, TanStack Query, Expo Location, Expo Camera.
 
-#### 2. RouteGuard (client)
+### 25.3 GPS mobile
 
-Composant React qui protege chaque page :
-- Verifie le role cote client
-- Affiche un message d'erreur ou redirige si non autorise
-- Chaque page declare ses `allowedRoles`
-
-#### 3. Backend Guards (API)
-
-- **JwtAuthGuard** : Verifie l'authentification
-- **RolesGuard** : Verifie le role de l'utilisateur
-- **PermissionGuard** : Verifie les permissions granulaires
-
-#### Permissions AGENT au Niveau API
-
-```
-Modules INTERDITS : fines, maintenance, charges, analytics, journal, invoices, contracts, gps
-Lecture autorisee : clients, bookings, vehicles, planning
-Creation/modification : clients, bookings
-Suppression : RIEN (aucune suppression autorisee)
-Vehicules : lecture seule (pas de creation/modification)
-```
+Le service GPS mobile vérifie les coordonnées avec `!= null` (pas de check falsy pour 0). En cas d'échec GPS, un rapport "GPS missing" est envoyé au backend avec try/catch.
 
 ---
 
-## Evolutions Futures
+## 26. Glossaire
 
-### Contraintes
-
-Toutes les futures taches devront rester dans ce cadre :
-
-- Notifications push (Agent / Client)
-- App Client (consultation contrats, amendes)
-- Exploitation avancee des charges (rentabilite vehicule)
-- Optimisations UX / performance
-- Securite, RGPD, audit, logs
-
-### Interdictions
-
-Aucune evolution ne doit :
-
-- Remettre en cause la structure actuelle
-- Creer de redondance
-- Deplacer la logique metier hors du backend
-- Dupliquer des donnees
-- Creer des automatismes bloquants
-- Casser la backward compatibility
-- Utiliser des librairies externes payantes
-
----
-
-## Matrice des Responsabilites
-
-### Back-office Agence
-
-| Fonctionnalite | Responsabilite | MANAGER | AGENT |
-|----------------|---------------|:-------:|:-----:|
-| Planning global vehicules | Gestion | Oui | Lecture |
-| Creation location | Gestion | Oui | Oui |
-| Consultation locations | Lecture | Oui | Oui |
-| Gestion vehicules (CRUD) | Gestion | Oui | Lecture seule |
-| Gestion clients | Gestion | Oui | Oui |
-| Module Charges | Gestion | Oui | **Non** |
-| Module Amendes | Gestion | Oui | **Non** |
-| Maintenance | Gestion | Oui | **Non** |
-| Factures | Gestion | Oui | **Non** |
-| Contrats | Gestion | Oui | **Non** |
-| Journal | Lecture | Oui | **Non** |
-| KPI / GPS Eco | Lecture | Oui | **Non** |
-| Taches agents | - | Non | Non |
-
-### Application Mobile Agent
-
-| Fonctionnalite | Responsabilite | Acces |
-|----------------|---------------|-------|
-| Planning taches agents | Consultation | Agent |
-| Execution check-in | Gestion | Agent |
-| Execution check-out | Gestion | Agent |
-| Prise photos | Gestion | Agent |
-| Signatures | Gestion | Agent |
-| Consultation bookings | Lecture | Agent |
-| Charges | Pas d'acces | - |
-| Amendes | Pas d'acces | - |
-| Flotte globale | Pas d'acces | - |
-
-### Backend (API)
-
-| Fonctionnalite | Responsabilite |
-|----------------|---------------|
-| Source de verite | Unique source |
-| Logique metier | Toute la logique |
-| Generation automatique | Contrats, occupations |
-| Traitement amendes | Identification automatique |
-| Calcul taches | Derivation depuis bookings |
-| Validation | Toutes les validations |
-| Securite | Authentification, autorisation |
-| Alertes vehicule | Calcul age et alertes |
-
----
-
-## Glossaire et Definitions
-
-### Location (Booking)
-
-**Definition** : Entite centrale representant la reservation d'un vehicule par un client pour une periode donnee.
-
-**Caracteristiques** :
-- Genere automatiquement un contrat
-- Genere automatiquement une occupation vehicule
-- Genere automatiquement des actions terrain (check-in/check-out)
-
-**Statuts** : PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED
-
-### Contrat
-
-**Definition** : Document contractuel genere automatiquement a la creation d'une location.
-
-**Caracteristiques** :
-- 1 location = 1 contrat
-- Signature horodatee et tracable
-- Signature immediate (agence) ou differee (terrain)
-
-### Tache Agent
-
-**Definition** : Tache derivee d'une location, visible uniquement dans l'app Agent.
-
-**Caracteristiques** :
-- **Non persistee** en base de donnees
-- Calculee a la volee depuis les bookings
-- Types : "Livraison / Check-in" ou "Recuperation / Check-out"
-
-### Charges
-
-**Definition** : Module de gestion des charges liees aux vehicules.
-
-**Caracteristiques** :
-- Rattache au vehicule (vehicleId obligatoire, pas au client)
-- Categories : assurance, vignette, mensualite bancaire, maintenance preventive/corrective, carburant, exceptionnelle, autre
-- Acces : Manager / Gerant uniquement
-
-### Amendes
-
-**Definition** : Module de gestion des amendes recues par l'agence.
-
-**Caracteristiques** :
-- Module distinct des charges
-- Agence = intermediaire administratif
-- Identification automatique du client responsable
-- Statuts : RECUE → CLIENT_IDENTIFIE → TRANSMISE → CONTESTEE → CLOTUREE
-- Acces : Manager / Gerant uniquement
-
-### Heritage Dynamique (Gerant Solo)
-
-**Definition** : Mecanisme permettant au COMPANY_ADMIN de combler automatiquement les roles manquants dans sa company.
-
-**Caracteristiques** :
-- Basé sur la detection des utilisateurs existants
-- Seul → fait tout (Manager + Agent)
-- A des agents → reste Manager
-- A des managers → devient Agent
-- A les deux → mode entreprise normal
-- Transition automatique et instantanee
-
-### Planning Global Vehicules
-
-**Definition** : Vue d'ensemble de l'etat de tous les vehicules de l'agence.
-
-**Caracteristiques** :
-- Composant timeline custom (pas FullCalendar)
-- Etats : AVAILABLE, RESERVED, RENTED, IN_DELIVERY, IN_RECOVERY, IN_MAINTENANCE, OUT_OF_SERVICE
-- Filtres : agence, vehicule, marque, statut, type, recherche
-- Vues : jour, semaine, mois
-- Ne contient pas les taches detaillees des agents
-
----
-
-## Checklist de Conformite
-
-Avant toute implementation, verifier :
-
-- [ ] La regle respecte-t-elle "MALOC = source de verite" ?
-- [ ] La location reste-t-elle le pivot central ?
-- [ ] Y a-t-il duplication de donnees ?
-- [ ] La logique metier est-elle dans le backend ?
-- [ ] Y a-t-il des automatismes bloquants ?
-- [ ] L'evolution est-elle backward compatible ?
-- [ ] Les responsabilites sont-elles bien separees ?
-- [ ] Charges et Amendes restent-ils distincts ?
-- [ ] L'evolution est-elle compatible avec la future app client ?
-- [ ] Aucune librairie externe payante n'est utilisee ?
-- [ ] Les restrictions AGENT sont respectees (3 niveaux) ?
-- [ ] L'heritage dynamique COMPANY_ADMIN est-il pris en compte ?
-- [ ] Le bookingNumberMode (AUTO/MANUAL) est-il respecte ?
-- [ ] Le vehicule reste-t-il scope a 1 seule agence (pas de partage) ?
-- [ ] Le soft delete est-il utilise pour les entites sensibles ?
-- [ ] L'action est-elle tracee dans AuditLog et/ou BusinessEventLog ?
-- [ ] Les regles de depot (deposit) sont-elles respectees ?
-
----
-
-**Document approuve par** :
-- CTO
-- DSI
-- MOA
-- Tech Lead
-
-**Date d'approbation initiale** : 2024
-**Derniere mise a jour** : 28 Janvier 2026
-**Version** : 2.1.0
+| Terme | Définition |
+|-------|-----------|
+| **Tenant** | Entreprise cliente (Company) utilisant la plateforme |
+| **Agency** | Agence physique d'une entreprise |
+| **Booking** | Réservation / location d'un véhicule |
+| **Check-in** | Remise du véhicule au client (début de location) |
+| **Check-out** | Restitution du véhicule par le client (fin de location) |
+| **Deposit** | Caution versée par le client |
+| **ICE** | Identifiant Commun d'Entreprise (Maroc) |
+| **CIN** | Carte d'Identité Nationale |
+| **MAD** | Dirham marocain (devise par défaut) |
+| **CMI** | Centre Monétique Interbancaire (paiement en ligne Maroc) |
+| **Payload gelé** | Snapshot des données au moment de la création (facture, contrat) |
+| **Outbox** | Pattern de persistance des événements de domaine |
+| **Guard** | Middleware NestJS de vérification (auth, rôle, permission, module) |
+| **Soft delete** | Suppression logique (marquage `deletedAt`) |
+| **Hard delete** | Suppression physique de la base de données |
+| **Solo operator** | COMPANY_ADMIN qui est le seul utilisateur de sa Company |
+| **KPI** | Key Performance Indicator (indicateur clé de performance) |

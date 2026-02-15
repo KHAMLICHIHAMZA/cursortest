@@ -29,23 +29,39 @@ export interface KpiResult {
 
 /**
  * Helper: enforce that the user can access the given agencyId.
- * SUPER_ADMIN / COMPANY_ADMIN: can access any agency in their company.
- * AGENCY_MANAGER / AGENT: can only access their assigned agencies.
+ * SUPER_ADMIN: can access any agency.
+ * COMPANY_ADMIN: agency must belong to their company (verified via DB).
+ * AGENCY_MANAGER / AGENT: must be assigned to the agency.
  */
-function enforceAgencyAccess(user: any, agencyId?: string): void {
+async function enforceAgencyAccess(prisma: PrismaService, user: any, agencyId?: string): Promise<void> {
   if (!agencyId) return;
   if (user.role === 'SUPER_ADMIN') return;
-  if (user.role === 'COMPANY_ADMIN') return; // scoped to company at query level
+  if (user.role === 'COMPANY_ADMIN') {
+    const agency = await prisma.agency.findUnique({
+      where: { id: agencyId },
+      select: { companyId: true },
+    });
+    if (!agency || agency.companyId !== user.companyId) {
+      throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+    }
+    return;
+  }
   // AGENCY_MANAGER / AGENT: must belong to the agency
-  if (user.agencyIds && !user.agencyIds.includes(agencyId)) {
+  if (!user.agencyIds || !user.agencyIds.includes(agencyId)) {
     throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
   }
 }
 
 /**
  * Build a where clause scoped to the user's agencies.
+ * For AGENCY_MANAGER / AGENT with a specific agencyId filter, we validate
+ * membership via enforceAgencyAccess (requires prisma instance).
  */
-function buildAgencyScope(user: any, filters?: { agencyId?: string }): any {
+async function buildAgencyScope(
+  prisma: PrismaService,
+  user: any,
+  filters?: { agencyId?: string },
+): Promise<any> {
   if (user.role === 'SUPER_ADMIN') {
     return filters?.agencyId ? { agencyId: filters.agencyId } : {};
   }
@@ -57,7 +73,7 @@ function buildAgencyScope(user: any, filters?: { agencyId?: string }): any {
   }
   // AGENCY_MANAGER / AGENT
   if (filters?.agencyId) {
-    enforceAgencyAccess(user, filters.agencyId);
+    await enforceAgencyAccess(prisma, user, filters.agencyId);
     return { companyId: user.companyId, agencyId: filters.agencyId };
   }
   return {
@@ -71,7 +87,7 @@ export class ChargeService {
   constructor(private prisma: PrismaService) {}
 
   async create(user: any, dto: CreateChargeDto) {
-    enforceAgencyAccess(user, dto.agencyId);
+    await enforceAgencyAccess(this.prisma, user, dto.agencyId);
     return this.prisma.charge.create({
       data: {
         companyId: user.companyId,
@@ -96,7 +112,7 @@ export class ChargeService {
     startDate?: string;
     endDate?: string;
   }) {
-    const where: any = buildAgencyScope(user, filters);
+    const where: any = await buildAgencyScope(this.prisma, user, filters);
 
     if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
     if (filters?.category) where.category = filters.category;
@@ -120,7 +136,7 @@ export class ChargeService {
     if (!charge || charge.companyId !== user.companyId) {
       throw new NotFoundException('Charge introuvable');
     }
-    enforceAgencyAccess(user, charge.agencyId);
+    await enforceAgencyAccess(this.prisma, user, charge.agencyId);
     return charge;
   }
 
@@ -151,14 +167,14 @@ export class ChargeService {
     startDate: string;
     endDate: string;
   }): Promise<KpiResult> {
-    enforceAgencyAccess(user, options.agencyId);
+    await enforceAgencyAccess(this.prisma, user, options.agencyId);
 
     const companyId = user.companyId;
     const start = new Date(options.startDate);
     const end = new Date(options.endDate);
     const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
 
-    const agencyScope = buildAgencyScope(user, { agencyId: options.agencyId });
+    const agencyScope = await buildAgencyScope(this.prisma, user, { agencyId: options.agencyId });
 
     const whereBooking: any = {
       ...agencyScope,
@@ -247,7 +263,7 @@ export class ChargeService {
     startDate: string;
     endDate: string;
   }) {
-    enforceAgencyAccess(user, options.agencyId);
+    await enforceAgencyAccess(this.prisma, user, options.agencyId);
 
     const start = new Date(options.startDate);
     const end = new Date(options.endDate);

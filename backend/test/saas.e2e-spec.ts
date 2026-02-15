@@ -239,7 +239,7 @@ describe('SaaS E2E Tests', () => {
         .set('Authorization', `Bearer ${companyAdminToken}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toContain('suspended');
+      expect(response.body.message).toContain('suspendue');
     });
 
     it('should restore company when subscription is renewed', async () => {
@@ -407,7 +407,7 @@ describe('SaaS E2E Tests', () => {
         .set('Authorization', `Bearer ${companyAdminToken}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain('not included');
+      expect(response.body.message).toContain('pas inclus');
     });
   });
 

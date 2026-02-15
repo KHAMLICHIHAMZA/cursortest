@@ -8,6 +8,7 @@ import {
   Body,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JournalService, CreateManualNoteDto, UpdateManualNoteDto } from './journal.service';
@@ -52,6 +53,15 @@ export class JournalController {
     @Query('isManualNote') isManualNote: string,
     @CurrentUser() user: any,
   ) {
+    // Validate agencyId against user's allowed agencies
+    if (
+      agencyId &&
+      user.role !== 'SUPER_ADMIN' &&
+      user.role !== 'COMPANY_ADMIN' &&
+      !user.agencyIds?.includes(agencyId)
+    ) {
+      throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+    }
     return this.journalService.findAll({
       agencyId: agencyId || user.agencyIds?.[0],
       companyId: user.companyId,
@@ -69,8 +79,8 @@ export class JournalController {
   @Get(':id')
   @Permissions('journal:read')
   @ApiOperation({ summary: 'Get a journal entry by ID' })
-  async findOne(@Param('id') id: string) {
-    return this.journalService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.journalService.findOne(id, user);
   }
 
   @Post('notes')
@@ -79,12 +89,7 @@ export class JournalController {
   @Permissions('journal:create')
   @ApiOperation({ summary: 'Create a manual note (managers only)' })
   async createNote(@Body() dto: CreateManualNoteDto, @CurrentUser() user: any) {
-    return this.journalService.createManualNote(
-      dto,
-      user.userId,
-      user.role,
-      user.companyId,
-    );
+    return this.journalService.createManualNote(dto, user);
   }
 
   @Patch('notes/:id')
@@ -97,7 +102,7 @@ export class JournalController {
     @Body() dto: UpdateManualNoteDto,
     @CurrentUser() user: any,
   ) {
-    return this.journalService.updateManualNote(id, dto, user.userId, user.role);
+    return this.journalService.updateManualNote(id, dto, user);
   }
 
   @Delete('notes/:id')
@@ -106,6 +111,6 @@ export class JournalController {
   @Permissions('journal:delete')
   @ApiOperation({ summary: 'Delete a manual note (managers only)' })
   async deleteNote(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.journalService.deleteManualNote(id, user.userId, user.role);
+    return this.journalService.deleteManualNote(id, user);
   }
 }

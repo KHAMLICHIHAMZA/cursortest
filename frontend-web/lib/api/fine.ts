@@ -1,12 +1,27 @@
 import { apiClient } from './client';
 
+export type FineStatus = 'RECUE' | 'CLIENT_IDENTIFIE' | 'TRANSMISE' | 'CONTESTEE' | 'CLOTUREE';
+
+export const FINE_STATUS_LABELS: Record<FineStatus, string> = {
+  RECUE: 'Reçue',
+  CLIENT_IDENTIFIE: 'Client identifié',
+  TRANSMISE: 'Transmise',
+  CONTESTEE: 'Contestée',
+  CLOTUREE: 'Clôturée',
+};
+
 export interface Fine {
   id: string;
   agencyId: string;
-  bookingId: string;
+  bookingId?: string | null;
   amount: number;
   description: string;
-  isPaid?: boolean;
+  number?: string;
+  location?: string;
+  infractionDate?: string;
+  registrationNumber?: string;
+  status: FineStatus;
+  clientId?: string | null;
   createdAt: string;
   agency?: {
     id: string;
@@ -26,24 +41,29 @@ export interface Fine {
     };
     client?: {
       id: string;
-      firstName: string;
-      lastName: string;
+      name: string;
     };
   };
 }
 
 export interface CreateFineDto {
   agencyId: string;
-  bookingId: string;
+  bookingId?: string;
   amount: number;
   description: string;
+  number?: string;
+  location?: string;
+  infractionDate?: string;
+  registrationNumber?: string;
 }
 
 export interface UpdateFineDto {
   bookingId?: string;
   amount?: number;
   description?: string;
-  isPaid?: boolean;
+  status?: FineStatus;
+  number?: string;
+  location?: string;
 }
 
 export const fineApi = {

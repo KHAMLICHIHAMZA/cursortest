@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { gpsApi, GpsSnapshot } from '@/lib/api/gps';
 
@@ -46,10 +47,13 @@ export function GpsHistory({ vehicleId, vehicleLabel, onPointsLoaded, onClose }:
     (s) => !s.isGpsMissing && s.latitude !== 0 && s.longitude !== 0
   ) ?? [];
 
-  // Call onPointsLoaded when data changes
-  if (validPoints.length > 0 && onPointsLoaded) {
-    onPointsLoaded(validPoints);
-  }
+  // Use useEffect to avoid calling onPointsLoaded during render
+  useEffect(() => {
+    if (validPoints.length > 0 && onPointsLoaded) {
+      onPointsLoaded(validPoints);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshots]);
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-lg">

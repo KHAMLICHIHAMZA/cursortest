@@ -33,8 +33,7 @@ export interface Booking {
   };
   client?: {
     id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
     email?: string;
     phone?: string;
     licenseExpiryDate?: string;

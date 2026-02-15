@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService } from './api';
 
 export interface Contract {
   id: string;

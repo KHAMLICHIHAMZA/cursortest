@@ -25,7 +25,7 @@ export default function ClientsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  const { data: clients, isLoading } = useQuery({
+  const { data: clients, isLoading, isError, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientApi.getAll(),
     staleTime: 5 * 60 * 1000, // Cache 5 minutes
@@ -77,7 +77,14 @@ export default function ClientsPage() {
           </div>
 
 
-          {isLoading ? (
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-text-muted mb-4">Erreur lors du chargement des clients</p>
+              <Button variant="primary" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <LoadingState message="Chargement des clients..." />
           ) : filteredClients && filteredClients.length > 0 ? (
             <Card padding="none">

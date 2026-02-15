@@ -21,6 +21,7 @@ describe('ContractService', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    $transaction: jest.fn((args: any[]) => Promise.all(args)),
   };
 
   const mockAuditService = {

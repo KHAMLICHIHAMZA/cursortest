@@ -50,7 +50,9 @@ export class InvoiceController {
   @Get(':id/payload')
   @Permissions('invoices:read')
   @ApiOperation({ summary: 'V2: Get frozen invoice payload for PDF rendering' })
-  async getPayload(@Param('id') id: string) {
+  async getPayload(@Param('id') id: string, @CurrentUser() user: any) {
+    // Access check via findOne first (prevents IDOR)
+    await this.invoiceService.findOne(id, user);
     return this.invoiceService.getInvoicePayload(id);
   }
 

@@ -53,7 +53,7 @@ export default function LoginPage() {
       } else if (role === 'AGENCY_MANAGER' || role === 'AGENT') {
         router.push('/agency');
       } else {
-        router.push('/dashboard');
+        router.push('/');
       }
     } catch (err: any) {
       setError(

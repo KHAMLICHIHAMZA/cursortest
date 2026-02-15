@@ -23,6 +23,19 @@ export class UserService {
     return randomBytes(32).toString('hex');
   }
 
+  /**
+   * Strip sensitive fields (password, reset tokens) from user objects before returning to client.
+   */
+  private sanitizeUser<T extends Record<string, any>>(user: T): Omit<T, 'password' | 'resetToken' | 'resetTokenExpiry'> {
+    if (!user) return user;
+    const { password, resetToken, resetTokenExpiry, ...safe } = user;
+    return safe as any;
+  }
+
+  private sanitizeUsers<T extends Record<string, any>>(users: T[]): Array<Omit<T, 'password' | 'resetToken' | 'resetTokenExpiry'>> {
+    return users.map((u) => this.sanitizeUser(u));
+  }
+
   async findAll(user: any) {
     let users;
     if (user.role === 'SUPER_ADMIN') {
@@ -55,68 +68,40 @@ export class UserService {
       throw new ForbiddenException('Permissions insuffisantes : seuls SUPER_ADMIN et COMPANY_ADMIN peuvent lister les utilisateurs');
     }
 
-    // Remove audit fields from public responses
-    return this.auditService.removeAuditFieldsFromArray(users);
+    // Remove sensitive and audit fields from public responses
+    return this.sanitizeUsers(this.auditService.removeAuditFieldsFromArray(users));
   }
 
   async findOne(id: string, user: any) {
+    const includeRelations = {
+      company: true,
+      userAgencies: { include: { agency: true } },
+    };
+
     // Users can see their own profile
     if (id === user.userId || id === user.sub) {
-      return this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          company: true,
-          userAgencies: {
-            include: {
-              agency: true,
-            },
-          },
-        },
-      });
+      const self = await this.prisma.user.findUnique({ where: { id }, include: includeRelations });
+      return self ? this.sanitizeUser(self) : null;
     }
 
     // Check permissions for other users
     if (user.role === 'SUPER_ADMIN') {
-      return this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          company: true,
-          userAgencies: {
-            include: {
-              agency: true,
-            },
-          },
-        },
-      });
+      const found = await this.prisma.user.findUnique({ where: { id }, include: includeRelations });
+      return found ? this.sanitizeUser(found) : null;
     }
 
     if (user.role === 'COMPANY_ADMIN' && user.companyId) {
-      const targetUser = await this.prisma.user.findUnique({
-        where: { id },
-      });
-
+      const targetUser = await this.prisma.user.findUnique({ where: { id } });
       if (!targetUser || targetUser.companyId !== user.companyId) {
         throw new ForbiddenException('Accès refusé');
       }
 
-      const userWithRelations = await this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          company: true,
-          userAgencies: {
-            include: {
-              agency: true,
-            },
-          },
-        },
-      });
-
+      const userWithRelations = await this.prisma.user.findUnique({ where: { id }, include: includeRelations });
       if (!userWithRelations) {
         throw new NotFoundException('Utilisateur introuvable');
       }
 
-      // Remove audit fields from public responses
-      return this.auditService.removeAuditFields(userWithRelations);
+      return this.sanitizeUser(this.auditService.removeAuditFields(userWithRelations));
     }
 
     throw new ForbiddenException('Permissions insuffisantes');
@@ -275,6 +260,25 @@ export class UserService {
       throw new ForbiddenException('Impossible de mettre à jour un utilisateur d\'une autre société');
     }
 
+    // --- Self-modification protections ---
+    const currentUserId = user.id || user.userId || user.sub;
+    const isSelf = currentUserId === id;
+
+    if (isSelf) {
+      // Prevent self role change
+      if (updateUserDto.role !== undefined && updateUserDto.role !== targetUser.role) {
+        throw new ForbiddenException(
+          'Vous ne pouvez pas modifier votre propre rôle. Contactez un administrateur supérieur.',
+        );
+      }
+      // Prevent self deactivation
+      if (updateUserDto.isActive === false) {
+        throw new ForbiddenException(
+          'Vous ne pouvez pas désactiver votre propre compte.',
+        );
+      }
+    }
+
     // Store previous state for event log
     const previousState = { ...targetUser };
 
@@ -393,6 +397,12 @@ export class UserService {
   async remove(id: string, user: any, reason?: string) {
     if (user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Seul SUPER_ADMIN peut supprimer des utilisateurs');
+    }
+
+    // Prevent self-deletion
+    const currentUserId = user.id || user.userId || user.sub;
+    if (currentUserId === id) {
+      throw new ForbiddenException('Vous ne pouvez pas supprimer votre propre compte');
     }
 
     const targetUser = await this.prisma.user.findFirst({

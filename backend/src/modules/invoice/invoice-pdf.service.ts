@@ -82,11 +82,12 @@ export class InvoicePdfService {
 
         // Table header
         const tableTop = doc.y;
+        const currency = payload.amounts?.currency || 'MAD';
         doc.font('Helvetica-Bold').fontSize(9);
         doc.text('Description', 50, tableTop, { width: 250 });
         doc.text('Qte', 310, tableTop, { width: 50, align: 'center' });
-        doc.text('P.U. (MAD)', 370, tableTop, { width: 80, align: 'right' });
-        doc.text('Total (MAD)', 460, tableTop, { width: 85, align: 'right' });
+        doc.text(`P.U. (${currency})`, 370, tableTop, { width: 80, align: 'right' });
+        doc.text(`Total (${currency})`, 460, tableTop, { width: 85, align: 'right' });
         doc.moveDown(0.5);
         doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
         doc.moveDown(0.5);
@@ -120,24 +121,24 @@ export class InvoicePdfService {
         const totalsX = 370;
         doc.font('Helvetica').fontSize(9);
         doc.text('Sous-total:', totalsX, doc.y, { width: 80 });
-        doc.text(`${subtotal.toFixed(2)} MAD`, 460, doc.y - doc.currentLineHeight(), { width: 85, align: 'right' });
+        doc.text(`${subtotal.toFixed(2)} ${currency}`, 460, doc.y - doc.currentLineHeight(), { width: 85, align: 'right' });
         doc.moveDown(0.3);
 
         if (payload.amounts.lateFees > 0) {
           doc.text('Frais retard:', totalsX, doc.y, { width: 80 });
-          doc.text(`${payload.amounts.lateFees.toFixed(2)} MAD`, 460, doc.y - doc.currentLineHeight(), { width: 85, align: 'right' });
+          doc.text(`${payload.amounts.lateFees.toFixed(2)} ${currency}`, 460, doc.y - doc.currentLineHeight(), { width: 85, align: 'right' });
           doc.moveDown(0.3);
         }
 
         doc.font('Helvetica-Bold').fontSize(11);
         doc.text('Total TTC:', totalsX, doc.y, { width: 80 });
-        doc.text(`${payload.amounts.total.toFixed(2)} MAD`, 460, doc.y - doc.currentLineHeight(), { width: 85, align: 'right' });
+        doc.text(`${payload.amounts.total.toFixed(2)} ${currency}`, 460, doc.y - doc.currentLineHeight(), { width: 85, align: 'right' });
         doc.moveDown(2);
 
         // Deposit info
         if (payload.booking.depositAmount && payload.booking.depositAmount > 0) {
           doc.font('Helvetica').fontSize(9);
-          doc.text(`Caution: ${payload.booking.depositAmount.toFixed(2)} MAD (${payload.booking.depositStatusFinal || 'N/A'})`, 50);
+          doc.text(`Caution: ${payload.booking.depositAmount.toFixed(2)} ${currency} (${payload.booking.depositStatusFinal || 'N/A'})`, 50);
           doc.moveDown(0.5);
         }
 

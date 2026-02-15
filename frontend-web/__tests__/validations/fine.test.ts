@@ -77,7 +77,7 @@ describe('Fine validations', () => {
       const validData = {
         amount: 200,
         description: 'Amende mise à jour',
-        isPaid: true,
+        status: 'CLOTUREE',
       };
 
       const result = updateFineSchema.safeParse(validData);
@@ -86,7 +86,7 @@ describe('Fine validations', () => {
 
     it('should allow partial updates', () => {
       const partialData = {
-        isPaid: true,
+        status: 'TRANSMISE',
       };
 
       const result = updateFineSchema.safeParse(partialData);

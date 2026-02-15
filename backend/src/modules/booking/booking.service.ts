@@ -57,6 +57,26 @@ export class BookingService {
     return normalized;
   }
 
+  /**
+   * Verify user has access to the booking's agency.
+   * SUPER_ADMIN: always allowed.
+   * COMPANY_ADMIN: booking's agency must belong to their company.
+   * AGENT/MANAGER: must be assigned to the booking's agency.
+   */
+  private assertBookingAccess(booking: { agencyId: string; companyId?: string | null }, user: any): void {
+    if (user.role === 'SUPER_ADMIN') return;
+    if (user.role === 'COMPANY_ADMIN') {
+      if (booking.companyId && booking.companyId !== user.companyId) {
+        throw new ForbiddenException('Vous n\'avez pas accès à cette réservation');
+      }
+      return;
+    }
+    // AGENT / AGENCY_MANAGER
+    if (!user.agencyIds?.includes(booking.agencyId)) {
+      throw new ForbiddenException('Vous n\'avez pas accès à cette réservation');
+    }
+  }
+
   private async getNextAutoBookingNumber(companyId: string, now: Date): Promise<string> {
     const year = now.getFullYear();
     const seq = await (this.prisma as any).bookingNumberSequence.upsert({
@@ -69,8 +89,13 @@ export class BookingService {
     return `${year}${String(seq.lastValue).padStart(6, '0')}`;
   }
 
-  async create(createBookingDto: CreateBookingDto, userId: string) {
+  async create(createBookingDto: CreateBookingDto, userId: string, user?: any) {
     const { agencyId, vehicleId, clientId, startDate, endDate, totalPrice, status } = createBookingDto;
+
+    // Agency access validation
+    if (user && agencyId) {
+      this.assertBookingAccess({ agencyId }, user);
+    }
 
     if (!totalPrice || totalPrice <= 0) {
       throw new BadRequestException('Le prix total doit être supérieur à 0');
@@ -1183,6 +1208,9 @@ export class BookingService {
       throw new BadRequestException('Réservation introuvable');
     }
 
+    // Agency access check
+    this.assertBookingAccess(booking, user);
+
     // Remove audit fields from public responses
     return this.commonAuditService.removeAuditFields(booking);
   }
@@ -1195,6 +1223,9 @@ export class BookingService {
     if (!booking || booking.deletedAt) {
       throw new BadRequestException('Réservation introuvable');
     }
+
+    // Agency access check
+    this.assertBookingAccess(booking, user);
 
     // Store previous state for event log
     const previousState = { ...booking };

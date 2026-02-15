@@ -203,7 +203,8 @@ export class EmailNotificationService {
         html: config.html,
         attachments,
       });
-      this.logger.log(`Email sent: ${config.subject} -> ${config.to}`);
+      const redactedTo = config.to.replace(/(^.).*(@.*$)/, '$1***$2');
+      this.logger.log(`Email sent: ${config.subject} -> ${redactedTo}`);
       return true;
     } catch (error) {
       this.logger.error(`Email send failed: ${config.subject}`, error);

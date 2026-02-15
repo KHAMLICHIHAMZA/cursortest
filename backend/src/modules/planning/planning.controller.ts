@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Param, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PlanningService } from './planning.service';
 import { GetPlanningDto } from './dto/get-planning.dto';
@@ -322,7 +322,10 @@ export class PlanningController {
 
   @Post('check-availability')
   @ApiOperation({ summary: 'Check vehicle availability' })
-  async checkAvailability(@Body() dto: CheckAvailabilityDto) {
+  async checkAvailability(@Body() dto: CheckAvailabilityDto, @CurrentUser() user: any) {
+    // Verify the user can access this vehicle's agency
+    await this.assertVehicleAccess(dto.vehicleId, user);
+
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
 
@@ -349,7 +352,12 @@ export class PlanningController {
   async getNextAvailability(
     @Param('vehicleId') vehicleId: string,
     @Query('from') from?: string,
+    @CurrentUser() user?: any,
   ) {
+    if (user) {
+      await this.assertVehicleAccess(vehicleId, user);
+    }
+
     const fromDate = from ? new Date(from) : new Date();
     const nextAvailable = await this.planningService.getNextAvailability(vehicleId, fromDate);
 
@@ -360,7 +368,10 @@ export class PlanningController {
 
   @Post('preparation-time')
   @ApiOperation({ summary: 'Create preparation time event' })
-  async createPreparationTime(@Body() dto: CreatePreparationTimeDto) {
+  async createPreparationTime(@Body() dto: CreatePreparationTimeDto, @CurrentUser() user: any) {
+    // Verify agency access
+    await this.assertAgencyAccess(dto.agencyId, user);
+
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
 
@@ -373,5 +384,46 @@ export class PlanningController {
     );
 
     return { success: true };
+  }
+
+  /**
+   * Verify user has access to the vehicle's agency.
+   */
+  private async assertVehicleAccess(vehicleId: string, user: any): Promise<void> {
+    if (user.role === 'SUPER_ADMIN') return;
+    const vehicle = await this.planningService['prisma'].vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { agencyId: true, agency: { select: { companyId: true } } },
+    });
+    if (!vehicle) return;
+    if (user.role === 'COMPANY_ADMIN') {
+      if (vehicle.agency?.companyId !== user.companyId) {
+        throw new ForbiddenException('Accès refusé à ce véhicule');
+      }
+      return;
+    }
+    if (!user.agencyIds?.includes(vehicle.agencyId)) {
+      throw new ForbiddenException('Accès refusé à ce véhicule');
+    }
+  }
+
+  /**
+   * Verify user has access to the agency.
+   */
+  private async assertAgencyAccess(agencyId: string, user: any): Promise<void> {
+    if (!agencyId || user.role === 'SUPER_ADMIN') return;
+    if (user.role === 'COMPANY_ADMIN') {
+      const agency = await this.planningService['prisma'].agency.findUnique({
+        where: { id: agencyId },
+        select: { companyId: true },
+      });
+      if (!agency || agency.companyId !== user.companyId) {
+        throw new ForbiddenException('Accès refusé à cette agence');
+      }
+      return;
+    }
+    if (!user.agencyIds?.includes(agencyId)) {
+      throw new ForbiddenException('Accès refusé à cette agence');
+    }
   }
 }

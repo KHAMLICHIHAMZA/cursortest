@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chargeApi, Charge, ChargeCategory, CreateChargeDto, CATEGORY_LABELS, CATEGORY_OPTIONS } from '@/lib/api/charge';
 import { vehicleApi, Vehicle } from '@/lib/api/vehicle';
@@ -8,6 +8,8 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import { authApi } from '@/lib/api/auth';
+import { agencyApi } from '@/lib/api/agency';
+import { Select } from '@/components/ui/select';
 import Cookies from 'js-cookie';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -48,7 +50,28 @@ export default function ChargesPage() {
     enabled: !!Cookies.get('accessToken'),
   });
 
-  const agencyId = user?.agencyIds?.[0] || '';
+  const isCompanyAdmin = user?.role === 'COMPANY_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const defaultAgencyId = user?.agencyIds?.[0] || '';
+  const [selectedAgencyId, setSelectedAgencyId] = useState('');
+  const agencyId = selectedAgencyId || defaultAgencyId;
+
+  // Fetch agencies for COMPANY_ADMIN
+  const { data: agencies } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: () => agencyApi.getAll(),
+    enabled: isCompanyAdmin && !defaultAgencyId,
+  });
+
+  const companyAgencies = agencies?.filter(
+    (a: any) => !user?.companyId || a.companyId === user.companyId,
+  ) || [];
+
+  // Auto-select first agency for COMPANY_ADMIN with no agencyIds
+  useEffect(() => {
+    if (isCompanyAdmin && !defaultAgencyId && !selectedAgencyId && companyAgencies.length > 0) {
+      setSelectedAgencyId(companyAgencies[0].id);
+    }
+  }, [isCompanyAdmin, defaultAgencyId, selectedAgencyId, companyAgencies]);
 
   // Filters
   const [filterVehicle, setFilterVehicle] = useState('');
@@ -262,6 +285,20 @@ export default function ChargesPage() {
           {/* Filters */}
           <div className="rounded-xl border border-border bg-card p-4 shadow-lg">
             <div className="flex flex-wrap items-end gap-4">
+              {isCompanyAdmin && companyAgencies.length > 1 && (
+                <div className="flex-1 min-w-[180px] max-w-xs">
+                  <label className="block text-xs font-medium text-text mb-1">Agence</label>
+                  <select
+                    value={agencyId}
+                    onChange={(e) => setSelectedAgencyId(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm"
+                  >
+                    {companyAgencies.map((a: any) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex-1 min-w-[180px] max-w-xs">
                 <label className="block text-xs font-medium text-text mb-1">Vehicule</label>
                 <select

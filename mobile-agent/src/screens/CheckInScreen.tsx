@@ -493,7 +493,7 @@ export const CheckInScreen: React.FC = () => {
         <View style={styles.headerCard}>
           <Text style={styles.headerLabel}>{t('booking.number') || 'Réservation'}</Text>
           <Text style={styles.headerValue}>
-            #{(booking as any).bookingNumber || String(booking.id || bookingId).slice(-6).toUpperCase()}
+            #{booking.bookingNumber || String(booking.id || bookingId).slice(-6).toUpperCase()}
           </Text>
           {booking.client?.name && (
             <Text style={styles.headerSubValue}>{booking.client.name}</Text>

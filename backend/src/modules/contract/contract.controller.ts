@@ -53,22 +53,24 @@ export class ContractController {
   @Get(':id')
   @Permissions('contracts:read')
   @ApiOperation({ summary: 'Get a contract by ID' })
-  async findOne(@Param('id') id: string) {
-    return this.contractService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.contractService.findOne(id, user);
   }
 
   @Get(':id/payload')
   @Permissions('contracts:read')
   @ApiOperation({ summary: 'V2: Get frozen contract payload for PDF rendering' })
-  async getPayload(@Param('id') id: string) {
+  async getPayload(@Param('id') id: string, @CurrentUser() user: any) {
+    // Access check via findOne first
+    await this.contractService.findOne(id, user);
     return this.contractService.getContractPayload(id);
   }
 
   @Get('booking/:bookingId')
   @Permissions('contracts:read')
   @ApiOperation({ summary: 'Get current contract for a booking' })
-  async findByBooking(@Param('bookingId') bookingId: string) {
-    return this.contractService.findByBookingId(bookingId);
+  async findByBooking(@Param('bookingId') bookingId: string, @CurrentUser() user: any) {
+    return this.contractService.findByBookingId(bookingId, user);
   }
 
   @Post()
@@ -114,8 +116,8 @@ export class ContractController {
   @Get(':id/pdf')
   @Permissions('contracts:read')
   @ApiOperation({ summary: 'V2.1: Download contract as PDF' })
-  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
-    const contract = await this.contractService.findOne(id);
+  async downloadPdf(@Param('id') id: string, @CurrentUser() user: any, @Res() res: Response) {
+    const contract = await this.contractService.findOne(id, user);
     const payload = await this.contractService.getContractPayload(id);
     const pdfBuffer = await this.contractPdfService.generatePdf(
       payload as any,

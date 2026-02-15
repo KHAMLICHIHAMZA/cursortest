@@ -31,7 +31,7 @@ export default function BookingsPage() {
   const agencyId = selectedAgencyId || user?.agencyId || user?.userAgencies?.[0]?.agencyId;
   const { isModuleActive, isLoading: isLoadingModule } = useModuleAccess('BOOKINGS', agencyId);
 
-  const { data: bookings, isLoading, error } = useQuery({
+  const { data: bookings, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['bookings', selectedAgencyId],
     queryFn: () => bookingApi.getAll({ agencyId: selectedAgencyId || undefined }),
     enabled: isModuleActive, // Ne charger que si le module est activé
@@ -91,6 +91,22 @@ export default function BookingsPage() {
         </RouteGuard>
       );
     }
+  }
+
+  // Gérer les autres erreurs
+  if (isError) {
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <MainLayout>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-text-muted mb-4">Erreur lors du chargement des réservations</p>
+            <Button variant="primary" onClick={() => refetch()}>
+              Réessayer
+            </Button>
+          </div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   return (

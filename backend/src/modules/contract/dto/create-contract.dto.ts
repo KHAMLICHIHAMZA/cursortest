@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateContractDto {
@@ -17,8 +17,9 @@ export class SignContractDto {
   @IsString()
   signatureData: string;
 
-  @ApiProperty({ description: 'Signer type: client or agent' })
+  @ApiProperty({ description: 'Signer type: client or agent', enum: ['client', 'agent'] })
   @IsString()
+  @IsIn(['client', 'agent'], { message: 'signerType doit être "client" ou "agent"' })
   signerType: 'client' | 'agent';
 
   @ApiProperty({ description: 'Device info for audit' })

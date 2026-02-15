@@ -79,9 +79,16 @@ export class InvoiceService {
    * V2: Get Morocco time for invoice issuance
    */
   private getMoroccoTime(): Date {
-    // Get current UTC time and format for Morocco
-    // Note: Node.js handles timezone conversion; we store the exact moment
     return new Date();
+  }
+
+  /**
+   * V2: Get year in Morocco timezone (prevents year-boundary bugs)
+   */
+  private getMoroccoYear(date: Date): number {
+    return Number(
+      new Intl.DateTimeFormat('en-US', { timeZone: MOROCCO_TIMEZONE, year: 'numeric' }).format(date),
+    );
   }
 
   /**
@@ -250,9 +257,9 @@ export class InvoiceService {
       );
     }
 
-    // V2: Get Morocco time for issuance
+    // V2: Get Morocco time for issuance (year in Morocco timezone)
     const issuedAt = this.getMoroccoTime();
-    const year = issuedAt.getFullYear();
+    const year = this.getMoroccoYear(issuedAt);
 
     // V2: Générer le numéro de facture (séquence par Company + année)
     const { invoiceNumber, sequence } = await this.getNextInvoiceNumber(companyId, year);
@@ -394,7 +401,7 @@ export class InvoiceService {
     }
 
     const issuedAt = this.getMoroccoTime();
-    const year = issuedAt.getFullYear();
+    const year = this.getMoroccoYear(issuedAt);
     const { invoiceNumber, sequence } = await this.getNextInvoiceNumber(
       originalInvoice.companyId,
       year,

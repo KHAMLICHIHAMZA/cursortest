@@ -197,10 +197,12 @@ describe('GpsService', () => {
       const result = await service.findByBooking('booking-1');
 
       expect(result).toHaveLength(2);
-      expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith({
-        where: { bookingId: 'booking-1' },
-        orderBy: { createdAt: 'desc' },
-      });
+      expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { bookingId: 'booking-1' },
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
     });
   });
 
@@ -210,11 +212,13 @@ describe('GpsService', () => {
 
       await service.findByVehicle('vehicle-1');
 
-      expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith({
-        where: { vehicleId: 'vehicle-1' },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      });
+      expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { vehicleId: 'vehicle-1' },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }),
+      );
     });
   });
 

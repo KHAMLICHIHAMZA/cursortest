@@ -12,7 +12,7 @@ export function useOptimizedQuery<TData = unknown, TError = unknown>(
   const optimizedOptions = useMemo(
     () => ({
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime in v4)
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       ...options,

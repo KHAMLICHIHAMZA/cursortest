@@ -876,7 +876,7 @@ model Invoice {
   companyId    String
   agencyId     String
   bookingId    String
-  invoiceNumber String       @unique // V2: séquence par company + reset annuel
+  invoiceNumber String       // V2: séquence par company + reset annuel (unique via @@unique below)
   type         InvoiceType   @default(INVOICE)
   year         Int
   sequence     Int

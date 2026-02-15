@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService } from './api';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 
@@ -85,33 +85,44 @@ class GpsService {
       altitude?: number;
     },
   ): Promise<GpsSnapshot | { isMissing: true; reason: string }> {
-    // Try to get current position if not provided
-    let position = data.latitude && data.longitude
-      ? { latitude: data.latitude, longitude: data.longitude, accuracy: data.accuracy || null, altitude: data.altitude || null }
-      : await this.getCurrentPosition();
+    try {
+      // Try to get current position if not provided
+      // Use explicit null/undefined check (0 is a valid coordinate)
+      const hasCoords = data.latitude != null && data.longitude != null;
+      let position = hasCoords
+        ? { latitude: data.latitude!, longitude: data.longitude!, accuracy: data.accuracy || null, altitude: data.altitude || null }
+        : await this.getCurrentPosition();
 
-    if (!position) {
-      // Record GPS missing
-      const response = await apiService.post('/gps/missing', {
-        agencyId: data.agencyId,
-        bookingId: data.bookingId,
-        vehicleId: data.vehicleId,
-        reason: data.reason,
-        gpsMissingReason: 'permissionDenied',
-        mileage: data.mileage,
+      if (!position) {
+        // Record GPS missing
+        try {
+          await apiService.post('/gps/missing', {
+            agencyId: data.agencyId,
+            bookingId: data.bookingId,
+            vehicleId: data.vehicleId,
+            reason: data.reason,
+            gpsMissingReason: 'permissionDenied',
+            mileage: data.mileage,
+          });
+        } catch (err) {
+          console.error('Failed to report GPS missing:', err);
+        }
+        return { isMissing: true, reason: 'permissionDenied' };
+      }
+
+      const response = await apiService.post('/gps', {
+        ...data,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        accuracy: position.accuracy,
+        altitude: position.altitude,
+        deviceInfo: `${Platform.OS} ${Platform.Version}`,
       });
-      return { isMissing: true, reason: 'permissionDenied' };
+      return response.data;
+    } catch (error) {
+      console.error('GPS captureSnapshot failed:', error);
+      throw error;
     }
-
-    const response = await apiService.post('/gps', {
-      ...data,
-      latitude: position.latitude,
-      longitude: position.longitude,
-      accuracy: position.accuracy,
-      altitude: position.altitude,
-      deviceInfo: `${Platform.OS} ${Platform.Version}`,
-    });
-    return response.data;
   }
 
   /**

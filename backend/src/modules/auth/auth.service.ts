@@ -305,6 +305,17 @@ export class AuthService {
       throw new UnauthorizedException('Token de rafraîchissement invalide ou expiré. Veuillez vous reconnecter.');
     }
 
+    // Block refresh for impersonation tokens (short-lived by design)
+    try {
+      const decoded = this.jwtService.decode(refreshToken) as { impersonatedBy?: string } | null;
+      if (decoded?.impersonatedBy) {
+        throw new UnauthorizedException('Les sessions d\'impersonation ne peuvent pas être prolongées. Veuillez vous reconnecter.');
+      }
+    } catch (e) {
+      if (e instanceof UnauthorizedException) throw e;
+      // If decode fails, continue with normal flow
+    }
+
     // Vérifier que l'utilisateur est toujours actif
     const user = await this.prisma.user.findUnique({
       where: { id: storedToken.userId },

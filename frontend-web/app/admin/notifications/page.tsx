@@ -96,6 +96,11 @@ export default function AdminNotificationsPage() {
       return;
     }
 
+    if (targetType === 'company' && !selectedCompanyId) {
+      setError('Veuillez sélectionner une entreprise');
+      return;
+    }
+
     const payload: any = {
       title: title.trim(),
       message: message.trim(),
@@ -224,7 +229,7 @@ export default function AdminNotificationsPage() {
         <div className="flex justify-end">
           <Button
             onClick={handleSend}
-            disabled={broadcastMutation.isPending || !title.trim() || !message.trim()}
+            disabled={broadcastMutation.isPending || !title.trim() || !message.trim() || (targetType === 'company' && !selectedCompanyId)}
             className="flex items-center gap-2"
           >
             {broadcastMutation.isPending ? (

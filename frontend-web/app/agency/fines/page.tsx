@@ -150,8 +150,8 @@ export default function FinesPage() {
                       <TableCell>{fine.description}</TableCell>
                       <TableCell className="font-medium">{fine.amount} MAD</TableCell>
                       <TableCell>
-                        <Badge status={fine.isPaid ? 'success' : 'pending'}>
-                          {fine.isPaid ? 'Payée' : 'En attente'}
+                        <Badge status={fine.status === 'CLOTUREE' ? 'success' : fine.status === 'CONTESTEE' ? 'error' : 'pending'}>
+                          {fine.status === 'RECUE' ? 'Reçue' : fine.status === 'CLIENT_IDENTIFIE' ? 'Client identifié' : fine.status === 'TRANSMISE' ? 'Transmise' : fine.status === 'CONTESTEE' ? 'Contestée' : fine.status === 'CLOTUREE' ? 'Clôturée' : fine.status || 'Reçue'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-text-muted">

@@ -19,18 +19,35 @@ export class OutboxService {
   constructor(private readonly prisma: PrismaService) {}
 
   async enqueue(input: OutboxEnqueueInput) {
-    const created = await this.prisma.outboxEvent.create({
-      data: {
-        aggregateType: input.aggregateType,
-        aggregateId: input.aggregateId,
-        eventType: input.eventType,
-        payload: input.payload as any,
-        deduplicationKey: input.deduplicationKey,
-        status: OutboxEventStatus.PENDING,
-      },
-      select: { id: true },
-    });
-    return created.id;
+    try {
+      const created = await this.prisma.outboxEvent.create({
+        data: {
+          aggregateType: input.aggregateType,
+          aggregateId: input.aggregateId,
+          eventType: input.eventType,
+          payload: input.payload as any,
+          deduplicationKey: input.deduplicationKey,
+          status: OutboxEventStatus.PENDING,
+        },
+        select: { id: true },
+      });
+      return created.id;
+    } catch (error: any) {
+      // P2002 = unique constraint violation (deduplication key)
+      // Return existing event ID for idempotence
+      if (
+        input.deduplicationKey &&
+        error?.code === 'P2002' &&
+        error?.meta?.target?.includes('deduplicationKey')
+      ) {
+        const existing = await this.prisma.outboxEvent.findFirst({
+          where: { deduplicationKey: input.deduplicationKey },
+          select: { id: true },
+        });
+        if (existing) return existing.id;
+      }
+      throw error;
+    }
   }
 
   async markProcessed(id: string) {

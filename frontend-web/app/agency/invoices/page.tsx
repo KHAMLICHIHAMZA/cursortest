@@ -28,7 +28,7 @@ interface Invoice {
 export default function InvoicesPage() {
   const [search, setSearch] = useState('');
 
-  const { data: rawInvoices, isLoading } = useQuery<Invoice[]>({
+  const { data: rawInvoices, isLoading, isError } = useQuery<Invoice[]>({
     queryKey: ['invoices'],
     queryFn: async () => {
       const res = await apiClient.get('/invoices');
@@ -128,6 +128,16 @@ export default function InvoicesPage() {
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
+  }
+
+  if (isError) {
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+        <MainLayout>
+          <div className="text-center py-8 text-red-500">Erreur lors du chargement des factures</div>
         </MainLayout>
       </RouteGuard>
     );

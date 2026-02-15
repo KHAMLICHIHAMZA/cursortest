@@ -44,10 +44,18 @@ const CATEGORY_LABELS: Record<string, string> = {
   OTHER: 'Autre',
 };
 
+/** Format a date to YYYY-MM-DD in the local timezone (avoids UTC shift at midnight) */
+function toDateInputValue(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export default function AgencyKpiPage() {
   const now = new Date();
-  const [startDate, setStartDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
-  const [endDate, setEndDate] = useState(now.toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(toDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1)));
+  const [endDate, setEndDate] = useState(toDateInputValue(now));
 
   const { data: kpi, isLoading: kpiLoading } = useQuery<KpiResult>({
     queryKey: ['kpi', startDate, endDate],

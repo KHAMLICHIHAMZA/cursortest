@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import Cookies from 'js-cookie';
+
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 
@@ -66,19 +66,19 @@ export default function JournalPage() {
   });
   const entries = rawEntries ?? [];
 
+  // Get current user profile for agencyId
+  const { data: currentUser } = useQuery<{ agencyIds?: string[] }>({
+    queryKey: ['auth-me'],
+    queryFn: async () => {
+      const res = await apiClient.get('/auth/me');
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const createNoteMutation = useMutation({
     mutationFn: async (data: { title: string; content: string }) => {
-      // Récupérer l'agencyId depuis le token ou le localStorage
-      const token = Cookies.get('accessToken');
-      let agencyId = '';
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          agencyId = payload.agencyIds?.[0] || '';
-        } catch {
-          // ignore
-        }
-      }
+      const agencyId = currentUser?.agencyIds?.[0] || '';
       return apiClient.post('/journal/notes', {
         agencyId,
         title: data.title,

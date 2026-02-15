@@ -42,7 +42,7 @@ export default function VehiclesPage() {
   const userRole = currentUser?.role;
   const canManageVehicles = userRole !== 'AGENT'; // Spec: AGENT ne peut pas gérer la flotte
 
-  const { data: vehicles, isLoading, error } = useQuery({
+  const { data: vehicles, isLoading, isError, refetch } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => vehicleApi.getAll(),
     enabled: isModuleActive, // Ne charger que si le module est activé
@@ -91,7 +91,14 @@ export default function VehiclesPage() {
             )}
           </div>
 
-          {isLoading ? (
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-text-muted mb-4">Erreur lors du chargement des véhicules</p>
+              <Button variant="primary" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <LoadingState message="Chargement des véhicules..." />
           ) : filteredVehicles && filteredVehicles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
