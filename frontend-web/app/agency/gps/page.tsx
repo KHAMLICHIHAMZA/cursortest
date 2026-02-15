@@ -258,25 +258,14 @@ export default function GpsPage() {
               {selectedVehicleId && (
                 <div className="flex gap-2 pb-0.5">
                   <button
-                    onClick={() => {
-                      // Zoom to latest position of this vehicle
-                      const latest = allSnapshots.find(
-                        (s) => s.vehicleId === selectedVehicleId && !s.isGpsMissing && s.latitude !== 0
-                      );
-                      if (latest) {
-                        setUserLocation(null); // clear user loc
-                        handleSelectVehicle(selectedVehicleId);
-                      } else {
-                        toast.error('Aucune position GPS pour ce vehicule');
-                      }
-                    }}
+                    onClick={() => setShowTrackerPanel(true)}
                     className="px-3 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-                    title="Zoomer sur la derniere position"
+                    title="Localiser le vehicule"
                   >
                     Localiser
                   </button>
                   <button
-                    onClick={openTrackerPanel}
+                    onClick={() => setShowTrackerPanel(true)}
                     className="px-3 py-2 text-sm font-medium rounded-lg border border-border text-text hover:bg-background transition-colors"
                     title="Gerer le tracker GPS"
                   >
@@ -463,63 +452,60 @@ export default function GpsPage() {
           </div>
         </div>
 
-        {/* Tracker Panel Modal */}
-        {showTrackerPanel && selectedVehicle && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="w-full max-w-md bg-card rounded-xl border border-border shadow-xl p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-text">
-                  Tracker GPS - {(selectedVehicle as any).brand} {(selectedVehicle as any).model}
-                </h3>
-                <button onClick={() => setShowTrackerPanel(false)} className="text-text-muted hover:text-text text-xl">&times;</button>
-              </div>
-              <p className="text-sm text-text-muted">
-                Associez un mini tracker GPS (type AirTag) a ce vehicule.
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-text mb-1">Identifiant / N de serie</label>
-                  <input
-                    type="text"
-                    value={trackerIdInput}
-                    onChange={(e) => setTrackerIdInput(e.target.value)}
-                    placeholder="Ex: TRK-2024-001"
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
-                  />
+        {/* Tracker Panel Modal — En cours de développement */}
+        {showTrackerPanel && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl p-6">
+              <div className="flex flex-col items-center text-center gap-5">
+                <div className="w-16 h-16 rounded-full bg-amber-400/10 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="6" width="20" height="8" rx="1" />
+                    <path d="M17 14v7" />
+                    <path d="M7 14v7" />
+                    <path d="M17 3v3" />
+                    <path d="M7 3v3" />
+                    <path d="M10 14 2.3 6.3" />
+                    <path d="m14 6 7.7 7.7" />
+                    <path d="m8 6 8 8" />
+                  </svg>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text mb-1">Description</label>
-                  <input
-                    type="text"
-                    value={trackerLabelInput}
-                    onChange={(e) => setTrackerLabelInput(e.target.value)}
-                    placeholder="Ex: Mini GPS noir coffre"
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
-                  />
+                  <h3 className="text-lg font-semibold text-text">
+                    Fonctionnalité en cours de développement
+                  </h3>
+                  <p className="text-sm text-text-muted mt-3 leading-relaxed">
+                    L&apos;association des <strong className="text-text">boîtiers GPS physiques</strong> aux véhicules sera disponible prochainement.
+                  </p>
+                  <p className="text-sm text-text-muted mt-2 leading-relaxed">
+                    Cette fonctionnalité permettra de connecter vos trackers GPS (mini GPS, AirTag, etc.) pour suivre vos véhicules en temps réel.
+                  </p>
                 </div>
-              </div>
-              <div className="flex gap-3 justify-end">
-                {((selectedVehicle as any).gpsTrackerId) && (
-                  <button
-                    onClick={unlinkTracker}
-                    disabled={savingTracker}
-                    className="px-4 py-2 text-sm rounded-lg border border-red-400 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    Dissocier
-                  </button>
-                )}
+                <div className="w-full rounded-lg bg-background border border-border p-4 text-left space-y-2">
+                  <p className="text-xs font-semibold text-text uppercase tracking-wide">À venir</p>
+                  <ul className="text-sm text-text-muted space-y-1.5">
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-0.5">•</span>
+                      Association tracker ↔ véhicule
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-0.5">•</span>
+                      Suivi en temps réel sur la carte
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-0.5">•</span>
+                      Historique des trajets
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-0.5">•</span>
+                      Alertes de géofencing
+                    </li>
+                  </ul>
+                </div>
                 <button
                   onClick={() => setShowTrackerPanel(false)}
-                  className="px-4 py-2 text-sm rounded-lg border border-border text-text hover:bg-background transition-colors"
+                  className="mt-1 px-8 py-2.5 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
                 >
-                  Annuler
-                </button>
-                <button
-                  onClick={saveTracker}
-                  disabled={savingTracker || !trackerIdInput.trim()}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {savingTracker ? 'Enregistrement...' : 'Enregistrer'}
+                  Compris
                 </button>
               </div>
             </div>

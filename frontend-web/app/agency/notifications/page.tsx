@@ -25,6 +25,7 @@ const TYPE_COLORS: Record<string, string> = {
   CHECK_OUT_REMINDER: 'bg-orange-500',
   INCIDENT_REPORTED: 'bg-red-400',
   SYSTEM_ALERT: 'bg-gray-500',
+  ADMIN_ANNOUNCEMENT: 'bg-blue-500',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -34,6 +35,7 @@ const TYPE_LABELS: Record<string, string> = {
   CHECK_OUT_REMINDER: 'Check-out',
   INCIDENT_REPORTED: 'Incident',
   SYSTEM_ALERT: 'Système',
+  ADMIN_ANNOUNCEMENT: 'Annonce',
 };
 
 export default function NotificationsPage() {

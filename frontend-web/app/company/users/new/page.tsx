@@ -139,8 +139,7 @@ export default function NewCompanyUserPage() {
               required
             >
               <option value="AGENT">Agent</option>
-              <option value="AGENCY_MANAGER">Gestionnaire d'agence</option>
-              <option value="COMPANY_ADMIN">Administrateur d'entreprise</option>
+              <option value="AGENCY_MANAGER">Gestionnaire d&apos;agence</option>
             </Select>
           </div>
 
