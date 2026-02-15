@@ -25,7 +25,7 @@ export default function ClientsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  const { data: clients, isLoading } = useQuery({
+  const { data: clients, isLoading, isError, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientApi.getAll(),
     staleTime: 5 * 60 * 1000, // Cache 5 minutes
@@ -48,8 +48,7 @@ export default function ClientsPage() {
     const searchLower = debouncedSearchTerm.toLowerCase();
     return clients.filter(
       (client) =>
-        client.firstName.toLowerCase().includes(searchLower) ||
-        client.lastName.toLowerCase().includes(searchLower) ||
+        client.name?.toLowerCase().includes(searchLower) ||
         client.email?.toLowerCase().includes(searchLower) ||
         client.phone?.toLowerCase().includes(searchLower) ||
         client.licenseNumber?.toLowerCase().includes(searchLower) ||
@@ -78,7 +77,14 @@ export default function ClientsPage() {
           </div>
 
 
-          {isLoading ? (
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-text-muted mb-4">Erreur lors du chargement des clients</p>
+              <Button variant="primary" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <LoadingState message="Chargement des clients..." />
           ) : filteredClients && filteredClients.length > 0 ? (
             <Card padding="none">
@@ -104,7 +110,7 @@ export default function ClientsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-text">
-                              {client.firstName} {client.lastName}
+                              {client.name}
                             </p>
                             {client.address && (
                               <p className="text-xs text-text-muted">

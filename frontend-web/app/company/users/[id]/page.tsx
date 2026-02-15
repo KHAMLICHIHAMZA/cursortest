@@ -147,6 +147,9 @@ export default function EditCompanyUserPage() {
     );
   }
 
+  // Self-edit detection: prevent modifying own role, permissions or active status
+  const isSelf = currentUser?.id === id;
+
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
@@ -179,11 +182,17 @@ export default function EditCompanyUserPage() {
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
               required
+              disabled={isSelf}
             >
               <option value="AGENT">Agent</option>
-              <option value="AGENCY_MANAGER">Gestionnaire d'agence</option>
-              <option value="COMPANY_ADMIN">Administrateur d'entreprise</option>
+              <option value="AGENCY_MANAGER">Gestionnaire d&apos;agence</option>
+              <option value="COMPANY_ADMIN">Administrateur d&apos;entreprise</option>
             </Select>
+            {isSelf && (
+              <p className="text-xs text-text-muted mt-1">
+                Vous ne pouvez pas modifier votre propre rôle.
+              </p>
+            )}
           </div>
 
           {companyAgencies.length > 0 && (
@@ -191,7 +200,12 @@ export default function EditCompanyUserPage() {
               <label className="block text-sm font-medium text-text mb-2">
                 Agences et permissions (multi-sélection)
               </label>
-              <div className="space-y-3 max-h-64 overflow-y-auto border border-border rounded-lg p-4 bg-background">
+              {isSelf && (
+                <p className="text-xs text-text-muted mb-2">
+                  Vous ne pouvez pas modifier vos propres agences et permissions.
+                </p>
+              )}
+              <div className={`space-y-3 max-h-64 overflow-y-auto border border-border rounded-lg p-4 bg-background ${isSelf ? 'opacity-50 pointer-events-none' : ''}`}>
                 {companyAgencies.map((agency) => {
                   const isSelected = formData.agencyIds?.includes(agency.id);
                   const permission = formData.agencyPermissions?.find((ap) => ap.agencyId === agency.id)?.permission || 'FULL';
@@ -202,6 +216,7 @@ export default function EditCompanyUserPage() {
                         checked={isSelected}
                         onChange={() => toggleAgency(agency.id)}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary mt-1"
+                        disabled={isSelf}
                       />
                       <div className="flex-1">
                         <span className="text-text font-medium">{agency.name}</span>
@@ -212,6 +227,7 @@ export default function EditCompanyUserPage() {
                               value={permission}
                               onChange={(e) => updateAgencyPermission(agency.id, e.target.value as 'READ' | 'WRITE' | 'FULL')}
                               className="text-sm"
+                              disabled={isSelf}
                             >
                               <option value="READ">Lecture seule</option>
                               <option value="WRITE">Lecture et écriture</option>
@@ -228,15 +244,21 @@ export default function EditCompanyUserPage() {
           )}
 
           <div>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className={`flex items-center gap-2 ${isSelf ? 'opacity-50' : 'cursor-pointer'}`}>
               <input
                 type="checkbox"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                 className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                disabled={isSelf}
               />
               <span className="text-sm font-medium text-text">Utilisateur actif</span>
             </label>
+            {isSelf && (
+              <p className="text-xs text-text-muted mt-1">
+                Vous ne pouvez pas désactiver votre propre compte.
+              </p>
+            )}
           </div>
 
           {errors.submit && (

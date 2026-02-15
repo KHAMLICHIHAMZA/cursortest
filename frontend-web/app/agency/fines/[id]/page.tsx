@@ -49,7 +49,7 @@ export default function EditFinePage() {
       bookingId: '',
       amount: 0,
       description: '',
-      isPaid: false,
+      status: 'RECUE',
     },
   });
 
@@ -61,7 +61,7 @@ export default function EditFinePage() {
         bookingId: fine.bookingId || '',
         amount: fine.amount || 0,
         description: fine.description || '',
-        isPaid: fine.isPaid || false,
+        status: fine.status || 'RECUE',
       });
     }
   }, [fine, reset]);
@@ -92,7 +92,7 @@ export default function EditFinePage() {
 
   if (isLoading) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <LoadingState message="Chargement de l'amende..." />
         </MainLayout>
@@ -102,7 +102,7 @@ export default function EditFinePage() {
 
   if (!fine) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <ErrorState
             title="Amende non trouvée"
@@ -115,7 +115,7 @@ export default function EditFinePage() {
   }
 
   return (
-    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         <FormCard
           title="Modifier l'amende"
@@ -153,8 +153,7 @@ export default function EditFinePage() {
                 <option value="">Sélectionner une réservation</option>
                 {bookings?.map((booking) => (
                   <option key={booking.id} value={booking.id}>
-                    {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.firstName}{' '}
-                    {booking.client?.lastName} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
+                    {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.name || 'Client'} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
                   </option>
                 ))}
               </Select>
@@ -187,14 +186,19 @@ export default function EditFinePage() {
             </div>
 
             <div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  {...register('isPaid')}
-                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-text">Payée</span>
+              <label htmlFor="status" className="block text-sm font-medium text-text mb-2">
+                Statut
               </label>
+              <select
+                {...register('status')}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-text"
+              >
+                <option value="RECUE">Reçue</option>
+                <option value="CLIENT_IDENTIFIE">Client identifié</option>
+                <option value="TRANSMISE">Transmise</option>
+                <option value="CONTESTEE">Contestée</option>
+                <option value="CLOTUREE">Clôturée</option>
+              </select>
             </div>
         </FormCard>
       </MainLayout>

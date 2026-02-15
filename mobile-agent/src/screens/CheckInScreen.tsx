@@ -488,6 +488,19 @@ export const CheckInScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header: Booking number (V2) */}
+      {booking && (
+        <View style={styles.headerCard}>
+          <Text style={styles.headerLabel}>{t('booking.number') || 'Réservation'}</Text>
+          <Text style={styles.headerValue}>
+            #{booking.bookingNumber || String(booking.id || bookingId).slice(-6).toUpperCase()}
+          </Text>
+          {booking.client?.name && (
+            <Text style={styles.headerSubValue}>{booking.client.name}</Text>
+          )}
+        </View>
+      )}
+
       <Text style={styles.sectionTitle}>{t('checkIn.vehicleBefore')}</Text>
 
       <Input
@@ -673,6 +686,31 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  headerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  headerLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  headerValue: {
+    fontSize: 20,
+    color: '#111827',
+    fontWeight: '800',
+  },
+  headerSubValue: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 18,

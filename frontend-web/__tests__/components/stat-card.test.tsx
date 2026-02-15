@@ -59,7 +59,7 @@ describe('StatCard component', () => {
     expect(card).toBeInTheDocument();
 
     if (card) {
-      card.click();
+      (card as HTMLElement).click();
       expect(handleClick).toHaveBeenCalledTimes(1);
     }
   });

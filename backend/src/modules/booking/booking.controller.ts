@@ -38,7 +38,7 @@ export class BookingController {
   @Permissions('bookings:create')
   @ApiOperation({ summary: 'Create a new booking' })
   async create(@Body() createBookingDto: CreateBookingDto, @CurrentUser() user: any) {
-    return this.bookingService.create(createBookingDto, user.userId);
+    return this.bookingService.create(createBookingDto, user.userId, user);
   }
 
   @Get()

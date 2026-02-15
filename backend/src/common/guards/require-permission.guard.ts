@@ -75,7 +75,7 @@ export class RequirePermissionGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException('Utilisateur non authentifié');
     }
 
     // SUPER_ADMIN et COMPANY_ADMIN bypass
@@ -90,7 +90,7 @@ export class RequirePermissionGuard implements CanActivate {
       request.query?.agencyId;
 
     if (!agencyId) {
-      throw new BadRequestException('Agency ID is required for permission check');
+      throw new BadRequestException('L\'identifiant de l\'agence est requis pour la vérification des permissions');
     }
 
     // Vérifier que l'utilisateur a accès à cette agence
@@ -105,7 +105,7 @@ export class RequirePermissionGuard implements CanActivate {
     });
 
     if (!userAgency) {
-      throw new ForbiddenException('You do not have access to this agency');
+      throw new ForbiddenException('Vous n\'avez pas accès à cette agence. Vérifiez votre rattachement.');
     }
 
     // Vérifier la hiérarchie des permissions
@@ -113,7 +113,7 @@ export class RequirePermissionGuard implements CanActivate {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        `Insufficient permissions. Required: ${requiredPermission}, Your permission: ${userAgency.permission}`,
+        `Permissions insuffisantes. Requis : ${requiredPermission}, Votre permission : ${userAgency.permission}`,
       );
     }
 

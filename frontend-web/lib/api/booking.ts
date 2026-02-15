@@ -10,6 +10,7 @@ export interface Booking {
   totalAmount?: number;
   totalPrice?: number; // Alias for totalAmount
   status: string;
+  bookingNumber?: string;
   // Champs caution (R3)
   depositRequired?: boolean;
   depositAmount?: number;
@@ -32,8 +33,7 @@ export interface Booking {
   };
   client?: {
     id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
     email?: string;
     phone?: string;
     licenseExpiryDate?: string;

@@ -10,15 +10,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Users, Plus, Edit, Trash2, Search, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Key, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { apiClient } from '@/lib/api/client';
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -48,6 +52,47 @@ export default function UsersPage() {
     },
     onError: () => {
       toast.error('Erreur lors de l\'envoi de l\'email');
+    },
+  });
+
+  const impersonateMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiClient.post(`/auth/impersonate/${userId}`);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      // Sauvegarder les tokens admin actuels pour pouvoir revenir
+      const currentAccessToken = Cookies.get('accessToken');
+      const currentRefreshToken = Cookies.get('refreshToken');
+      if (currentAccessToken) {
+        localStorage.setItem('admin_accessToken', currentAccessToken);
+      }
+      if (currentRefreshToken) {
+        localStorage.setItem('admin_refreshToken', currentRefreshToken);
+      }
+      localStorage.setItem('impersonating', 'true');
+      localStorage.setItem('impersonatedUser', JSON.stringify(data.user));
+
+      // Remplacer par les tokens de l'utilisateur cible
+      Cookies.set('accessToken', data.access_token, { expires: 1 });
+      Cookies.set('refreshToken', data.refresh_token, { expires: 1 });
+
+      toast.success(`Connecte en tant que ${data.user.email}`);
+
+      // Rediriger selon le role
+      const role = data.user.role;
+      if (role === 'COMPANY_ADMIN') {
+        router.push('/company');
+      } else if (role === 'AGENCY_MANAGER' || role === 'AGENT') {
+        router.push('/agency');
+      } else {
+        router.push('/admin');
+      }
+      // Force page reload pour reinitialiser le state
+      setTimeout(() => window.location.reload(), 100);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Erreur lors de l\'impersonation');
     },
   });
 
@@ -140,6 +185,15 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => impersonateMutation.mutate(user.id)}
+                            title="Se connecter en tant que cet utilisateur"
+                            disabled={impersonateMutation.isPending}
+                          >
+                            <LogIn className="w-4 h-4 text-blue-500" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

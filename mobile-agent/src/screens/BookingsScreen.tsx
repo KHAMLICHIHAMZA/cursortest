@@ -154,9 +154,10 @@ export const BookingsScreen: React.FC = () => {
       if (vehicleFilterId && booking.vehicleId !== vehicleFilterId) return false;
       if (!q) return true;
       const clientName = (booking as any).client?.name || '';
+      const bookingNumber = (booking as any).bookingNumber || '';
       const vehicle = (booking as any).vehicle || {};
       const vehicleStr = `${vehicle.registrationNumber || ''} ${vehicle.brand || ''} ${vehicle.model || ''}`.trim();
-      const haystack = `${booking.id} ${clientName} ${vehicleStr}`.toLowerCase();
+      const haystack = `${booking.id} ${bookingNumber} ${clientName} ${vehicleStr}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [completedBookings, vehicleFilterId, search]);
@@ -185,8 +186,9 @@ export const BookingsScreen: React.FC = () => {
       if (vehicleFilterId && mission.vehicle?.id !== vehicleFilterId) return false;
       if (!q) return true;
       const clientName = mission.client?.name || '';
+      const bookingNumber = (mission.booking as any)?.bookingNumber || '';
       const vehicleStr = `${mission.vehicle?.registrationNumber || ''} ${mission.vehicle?.brand || ''} ${mission.vehicle?.model || ''}`.trim();
-      const haystack = `${mission.bookingId} ${clientName} ${vehicleStr} ${mission.location || ''}`.toLowerCase();
+      const haystack = `${mission.bookingId} ${bookingNumber} ${clientName} ${vehicleStr} ${mission.location || ''}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [viewFilteredMissions, taskTypeFilter, vehicleFilterId, search]);
@@ -261,6 +263,14 @@ export const BookingsScreen: React.FC = () => {
           <View style={styles.missionInfoRow}>
             <Text style={styles.missionInfoLabel}>👤 Client:</Text>
             <Text style={styles.missionInfoValue}>{mission.client.name}</Text>
+          </View>
+        )}
+
+        {/* BookingNumber */}
+        {(mission.booking as any)?.bookingNumber && (
+          <View style={styles.missionInfoRow}>
+            <Text style={styles.missionInfoLabel}>#</Text>
+            <Text style={styles.missionInfoValue}>{(mission.booking as any).bookingNumber}</Text>
           </View>
         )}
 

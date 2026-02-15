@@ -175,7 +175,7 @@ export class CmiService {
     // Vérifier le hash
     if (receivedHash !== expectedHash) {
       this.logger.error('Invalid CMI hash signature', { receivedHash, expectedHash });
-      throw new BadRequestException('Invalid hash signature');
+      throw new BadRequestException('Signature de hachage invalide');
     }
 
     const responseCode = data.Response || data.response || '';

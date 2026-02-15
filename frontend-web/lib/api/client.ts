@@ -30,13 +30,21 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error?.response?.data?.message && Array.isArray(error.response.data.message)) {
+    // Skip message parsing for blob responses (PDF downloads etc.)
+    const isBlob = error?.config?.responseType === 'blob';
+    if (!isBlob && error?.response?.data?.message && Array.isArray(error.response.data.message)) {
       error.response.data.message = error.response.data.message.join(' • ');
     }
     const originalRequest = error.config;
 
     // Si erreur 401 et pas déjà retenté
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Ne PAS tenter de refresh pour les endpoints d'auth (login, register, forgot-password)
+    const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
+                           originalRequest.url?.includes('/auth/register') ||
+                           originalRequest.url?.includes('/auth/forgot-password') ||
+                           originalRequest.url?.includes('/auth/reset-password');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       console.log('401 error detected, attempting token refresh...');

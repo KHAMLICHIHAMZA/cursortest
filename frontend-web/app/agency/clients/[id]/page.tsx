@@ -109,9 +109,12 @@ export default function EditClientPage() {
   // Charger les données du client une fois disponibles
   useEffect(() => {
     if (client) {
+      const nameParts = (client.name || '').split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
       reset({
-        firstName: client.firstName || '',
-        lastName: client.lastName || '',
+        firstName: firstName,
+        lastName: lastName,
         email: client.email || '',
         phone: client.phone || '',
         dateOfBirth: client.dateOfBirth || '',

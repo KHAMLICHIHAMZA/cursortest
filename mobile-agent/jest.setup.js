@@ -78,29 +78,45 @@ jest.mock('./src/i18n', () => ({
 
 // Mock React Navigation
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
+  useNavigation: jest.fn(() => ({
     navigate: jest.fn(),
     goBack: jest.fn(),
-  }),
-  useRoute: () => ({
+  })),
+  useRoute: jest.fn(() => ({
     params: {},
-  }),
+  })),
   NavigationContainer: ({ children }) => children,
 }));
 
 // Mock TanStack Query
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(() => ({
-    data: null,
+    data: [],
     isLoading: false,
     error: null,
+    refetch: jest.fn(),
+    isRefetching: false,
   })),
-  useMutation: jest.fn(() => ({
-    mutate: jest.fn(),
-    mutateAsync: jest.fn(),
-    isLoading: false,
-    error: null,
-  })),
+  useMutation: jest.fn((options = {}) => {
+    const mutate = (variables) => {
+      Promise.resolve()
+        .then(() => options.mutationFn?.(variables))
+        .then((data) => options.onSuccess?.(data))
+        .catch((err) => options.onError?.(err));
+    };
+    const mutateAsync = async (variables) => {
+      const data = await options.mutationFn?.(variables);
+      options.onSuccess?.(data);
+      return data;
+    };
+    return {
+      mutate,
+      mutateAsync,
+      isLoading: false,
+      isPending: false,
+      error: null,
+    };
+  }),
   useQueryClient: jest.fn(() => ({
     invalidateQueries: jest.fn(),
   })),

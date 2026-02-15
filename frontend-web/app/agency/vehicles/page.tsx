@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Car, Plus, Edit, Trash2 } from 'lucide-react';
+import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -18,6 +18,7 @@ import { getImageUrl } from '@/lib/utils/image-url';
 import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
+import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
 
 export default function VehiclesPage() {
@@ -32,7 +33,16 @@ export default function VehiclesPage() {
   const agencyId = user?.agencyId || user?.userAgencies?.[0]?.agencyId;
   const { isModuleActive, isLoading: isLoadingModule } = useModuleAccess('VEHICLES', agencyId);
 
-  const { data: vehicles, isLoading, error } = useQuery({
+  // Récupérer le rôle pour masquer les actions selon les specs
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => authApi.getMe(),
+    retry: false,
+  });
+  const userRole = currentUser?.role;
+  const canManageVehicles = userRole !== 'AGENT'; // Spec: AGENT ne peut pas gérer la flotte
+
+  const { data: vehicles, isLoading, isError, refetch } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => vehicleApi.getAll(),
     enabled: isModuleActive, // Ne charger que si le module est activé
@@ -71,15 +81,24 @@ export default function VehiclesPage() {
               <h1 className="text-3xl font-bold text-text mb-2">Véhicules</h1>
               <p className="text-text-muted">Gérer la flotte de véhicules</p>
             </div>
-            <Link href="/agency/vehicles/new">
-              <Button variant="primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau véhicule
-              </Button>
-            </Link>
+            {canManageVehicles && (
+              <Link href="/agency/vehicles/new">
+                <Button variant="primary">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau véhicule
+                </Button>
+              </Link>
+            )}
           </div>
 
-          {isLoading ? (
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-text-muted mb-4">Erreur lors du chargement des véhicules</p>
+              <Button variant="primary" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <LoadingState message="Chargement des véhicules..." />
           ) : filteredVehicles && filteredVehicles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

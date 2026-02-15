@@ -21,6 +21,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
+import { useState, useEffect, useMemo } from 'react';
 
 export default function NewBookingPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function NewBookingPage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateBookingFormData>({
     resolver: zodResolver(createBookingSchema),
@@ -70,6 +72,30 @@ export default function NewBookingPage() {
     queryFn: () => clientApi.getAll(agencyId),
     enabled: !!agencyId,
   });
+
+  // Auto-calcul du prix total = tarif journalier × nombre de jours
+  const vehicleId = watch('vehicleId');
+  const startDate = watch('startDate');
+  const endDate = watch('endDate');
+
+  const selectedVehicle = useMemo(
+    () => vehicles?.find((v) => v.id === vehicleId),
+    [vehicles, vehicleId]
+  );
+
+  useEffect(() => {
+    if (!selectedVehicle?.dailyRate || !startDate || !endDate) return;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffMs = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) {
+      const total = Math.round(selectedVehicle.dailyRate * diffDays * 100) / 100;
+      setValue('totalAmount', total);
+    }
+  }, [selectedVehicle, startDate, endDate, setValue]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateBookingFormData) => {
@@ -149,8 +175,7 @@ export default function NewBookingPage() {
                 <option value="">Sélectionner un véhicule</option>
                 {vehicles?.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.brand} {vehicle.model} - {vehicle.registrationNumber} (
-                    {vehicle.status === 'AVAILABLE' ? 'Disponible' : vehicle.status})
+                    {vehicle.brand} {vehicle.model} - {vehicle.registrationNumber} ({vehicle.status === 'AVAILABLE' ? 'Disponible' : vehicle.status}){vehicle.dailyRate ? ` — ${vehicle.dailyRate} MAD/jour` : ''}
                   </option>
                 ))}
               </Select>
@@ -169,7 +194,7 @@ export default function NewBookingPage() {
                 <option value="">Sélectionner un client</option>
                 {clients?.map((client) => (
                   <option key={client.id} value={client.id}>
-                    {client.firstName} {client.lastName} - {client.email}
+                    {client.name} - {client.email}
                   </option>
                 ))}
               </Select>
@@ -213,6 +238,17 @@ export default function NewBookingPage() {
                 min="0"
                 {...register('totalAmount', { valueAsNumber: true })}
               />
+              {selectedVehicle?.dailyRate && startDate && endDate && (() => {
+                const diffDays = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+                if (diffDays > 0) {
+                  return (
+                    <p className="text-xs text-text-muted mt-1">
+                      Calcul : {selectedVehicle.dailyRate} MAD/jour × {diffDays} jour{diffDays > 1 ? 's' : ''} = {Math.round(selectedVehicle.dailyRate * diffDays * 100) / 100} MAD
+                    </p>
+                  );
+                }
+                return null;
+              })()}
               {errors.totalAmount && <p className="text-red-500 text-sm mt-1">{errors.totalAmount.message}</p>}
             </div>
 

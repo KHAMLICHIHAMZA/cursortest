@@ -10,7 +10,9 @@ jest.mock('../api', () => ({
   },
   apiService: {
     setToken: jest.fn(),
+    setRefreshToken: jest.fn(),
     getToken: jest.fn(),
+    getRefreshToken: jest.fn(),
   },
 }));
 jest.mock('expo-secure-store');

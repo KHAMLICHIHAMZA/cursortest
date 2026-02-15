@@ -54,10 +54,11 @@ describe('useOptimizedQuery hook', () => {
       expect(result.current.isSuccess).toBe(true);
     }, { timeout: 3000 });
 
-    // Check that the query has the optimized options
+    // Check that the query has the optimized options (use type assertion for v5 QueryOptions)
     const query = queryClient.getQueryCache().find({ queryKey: ['test'] });
-    expect(query?.options.staleTime).toBe(5 * 60 * 1000); // 5 minutes
-    expect(query?.options.cacheTime).toBe(10 * 60 * 1000); // 10 minutes
+    const opts = query?.options as { staleTime?: number; gcTime?: number };
+    expect(opts?.staleTime).toBe(5 * 60 * 1000); // 5 minutes
+    expect(opts?.gcTime).toBe(10 * 60 * 1000); // 10 minutes (gcTime in v5)
   });
 
   it('should handle errors', async () => {
@@ -94,7 +95,8 @@ describe('useOptimizedQuery hook', () => {
     }, { timeout: 3000 });
 
     const query = queryClient.getQueryCache().find({ queryKey: ['test-override'] });
-    expect(query?.options.staleTime).toBe(10 * 60 * 1000); // Should be overridden
+    const opts = query?.options as { staleTime?: number };
+    expect(opts?.staleTime).toBe(10 * 60 * 1000); // Should be overridden
   });
 });
 

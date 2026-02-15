@@ -31,19 +31,22 @@ export default function BookingsPage() {
   const agencyId = selectedAgencyId || user?.agencyId || user?.userAgencies?.[0]?.agencyId;
   const { isModuleActive, isLoading: isLoadingModule } = useModuleAccess('BOOKINGS', agencyId);
 
-  const { data: bookings, isLoading, error } = useQuery({
+  const { data: bookings, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['bookings', selectedAgencyId],
     queryFn: () => bookingApi.getAll({ agencyId: selectedAgencyId || undefined }),
     enabled: isModuleActive, // Ne charger que si le module est activé
   });
 
-  const filteredBookings = bookings?.filter(
-    (booking) =>
-      booking.vehicle?.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.vehicle?.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.client?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.client?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredBookings = bookings?.filter((booking) => {
+    const q = searchTerm.toLowerCase();
+    const bookingNumber = String(booking.bookingNumber || booking.id.slice(-6)).toLowerCase();
+    return (
+      bookingNumber.includes(q) ||
+      booking.vehicle?.brand?.toLowerCase().includes(q) ||
+      booking.vehicle?.model?.toLowerCase().includes(q) ||
+      booking.client?.name?.toLowerCase().includes(q)
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
@@ -90,6 +93,22 @@ export default function BookingsPage() {
     }
   }
 
+  // Gérer les autres erreurs
+  if (isError) {
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <MainLayout>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-text-muted mb-4">Erreur lors du chargement des réservations</p>
+            <Button variant="primary" onClick={() => refetch()}>
+              Réessayer
+            </Button>
+          </div>
+        </MainLayout>
+      </RouteGuard>
+    );
+  }
+
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
@@ -123,6 +142,7 @@ export default function BookingsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>N° Réservation</TableHead>
                     <TableHead>Véhicule</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Dates</TableHead>
@@ -137,6 +157,11 @@ export default function BookingsPage() {
                     return (
                       <TableRow key={booking.id}>
                         <TableCell>
+                          <p className="font-medium text-text">
+                            #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
+                          </p>
+                        </TableCell>
+                        <TableCell>
                           <div>
                             <p className="font-medium text-text">
                               {booking.vehicle?.brand} {booking.vehicle?.model}
@@ -148,7 +173,7 @@ export default function BookingsPage() {
                         </TableCell>
                         <TableCell>
                           <p className="text-text">
-                            {booking.client?.firstName} {booking.client?.lastName}
+                            {booking.client?.name || '—'}
                           </p>
                         </TableCell>
                         <TableCell>

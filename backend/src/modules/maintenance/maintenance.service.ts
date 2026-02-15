@@ -81,12 +81,12 @@ export class MaintenanceService {
     });
 
     if (!maintenance) {
-      throw new NotFoundException('Maintenance not found');
+      throw new NotFoundException('Maintenance introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(maintenance.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour consulter cette maintenance');
     }
 
     // Remove audit fields from public responses
@@ -97,12 +97,12 @@ export class MaintenanceService {
     const { agencyId, vehicleId, description, plannedAt, cost, status, documentUrl } = createMaintenanceDto;
 
     if (!agencyId || !vehicleId || !description) {
-      throw new BadRequestException('Missing required fields');
+      throw new BadRequestException('Champs requis manquants : l\'identifiant agence, le véhicule et la description sont obligatoires');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
     // Check if vehicle exists and belongs to agency
@@ -111,7 +111,7 @@ export class MaintenanceService {
     });
 
     if (!vehicle || vehicle.agencyId !== agencyId) {
-      throw new BadRequestException('Vehicle not found or does not belong to this agency');
+      throw new BadRequestException('Véhicule introuvable ou n\'appartient pas à cette agence');
     }
 
     // Vérifier qu'il n'y a pas de location en cours pour ce véhicule
@@ -224,12 +224,12 @@ export class MaintenanceService {
     });
 
     if (!maintenance) {
-      throw new NotFoundException('Maintenance not found');
+      throw new NotFoundException('Maintenance introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(maintenance.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour modifier cette maintenance');
     }
 
     // Store previous state for event log
@@ -320,12 +320,12 @@ export class MaintenanceService {
     });
 
     if (!maintenance) {
-      throw new NotFoundException('Maintenance not found');
+      throw new NotFoundException('Maintenance introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(maintenance.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour supprimer cette maintenance');
     }
 
     // Store previous state for event log
@@ -347,6 +347,6 @@ export class MaintenanceService {
       });
     }
 
-    return { message: 'Maintenance deleted successfully' };
+    return { message: 'Maintenance supprimée avec succès' };
   }
 }

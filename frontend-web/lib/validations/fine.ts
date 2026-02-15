@@ -11,7 +11,7 @@ export const updateFineSchema = z.object({
   bookingId: z.string().optional(),
   amount: z.number().min(0.01, 'Le montant doit être supérieur à 0').optional(),
   description: z.string().min(1, 'La description est requise').optional(),
-  isPaid: z.boolean().optional(),
+  status: z.enum(['RECUE', 'CLIENT_IDENTIFIE', 'TRANSMISE', 'CONTESTEE', 'CLOTUREE']).optional(),
 });
 
 export type CreateFineFormData = z.infer<typeof createFineSchema>;

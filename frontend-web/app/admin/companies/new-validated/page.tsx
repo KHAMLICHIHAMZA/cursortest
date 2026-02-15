@@ -25,6 +25,9 @@ export default function NewCompanyPageValidated() {
     resolver: zodResolver(createCompanySchema),
     defaultValues: {
       name: '',
+      raisonSociale: '',
+      identifiantLegal: '',
+      formeJuridique: 'AUTRE',
       phone: '',
       address: '',
       adminEmail: '',
@@ -72,6 +75,54 @@ export default function NewCompanyPageValidated() {
                 placeholder="Ex: Location Auto Maroc"
               />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="raisonSociale" className="block text-sm font-medium text-text mb-2">
+                Raison sociale *
+              </label>
+              <Input
+                id="raisonSociale"
+                {...register('raisonSociale')}
+                placeholder="Ex: Location Auto Maroc SARL"
+              />
+              {errors.raisonSociale && <p className="text-red-500 text-sm mt-1">{errors.raisonSociale.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="identifiantLegal" className="block text-sm font-medium text-text mb-2">
+                Identifiant légal (ICE) *
+              </label>
+              <Input
+                id="identifiantLegal"
+                {...register('identifiantLegal')}
+                placeholder="Ex: 001234567000089"
+              />
+              {errors.identifiantLegal && (
+                <p className="text-red-500 text-sm mt-1">{errors.identifiantLegal.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="formeJuridique" className="block text-sm font-medium text-text mb-2">
+                Forme juridique *
+              </label>
+              <select
+                id="formeJuridique"
+                {...register('formeJuridique')}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+              >
+                <option value="SARL">SARL</option>
+                <option value="SAS">SAS</option>
+                <option value="SA">SA</option>
+                <option value="EI">EI</option>
+                <option value="AUTO_ENTREPRENEUR">Auto-entrepreneur</option>
+                <option value="ASSOCIATION">Association</option>
+                <option value="AUTRE">Autre</option>
+              </select>
+              {errors.formeJuridique && (
+                <p className="text-red-500 text-sm mt-1">{errors.formeJuridique.message}</p>
+              )}
             </div>
 
             <div>

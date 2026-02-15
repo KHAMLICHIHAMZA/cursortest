@@ -79,7 +79,7 @@ export default function MaintenancePage() {
   // Afficher le message si le module n'est pas activé
   if (!isLoadingModule && !isModuleActive) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <ModuleNotIncluded 
             moduleName="MAINTENANCE"
@@ -95,7 +95,7 @@ export default function MaintenancePage() {
     const isModuleError = (error as any)?.isModuleError;
     if (isModuleError) {
       return (
-        <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
           <MainLayout>
             <ModuleNotIncluded 
               moduleName="MAINTENANCE"
@@ -108,7 +108,7 @@ export default function MaintenancePage() {
   }
 
   return (
-    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">

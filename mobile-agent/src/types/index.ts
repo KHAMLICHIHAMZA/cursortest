@@ -26,6 +26,8 @@ export interface Damage {
 export interface Booking {
   id: string;
   agencyId: string;
+  companyId?: string;
+  bookingNumber?: string;
   clientId: string;
   vehicleId: string;
   startDate: string;

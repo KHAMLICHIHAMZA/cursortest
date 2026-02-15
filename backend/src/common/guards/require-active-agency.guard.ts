@@ -37,7 +37,7 @@ export class RequireActiveAgencyGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException('Utilisateur non authentifié');
     }
 
     // SUPER_ADMIN bypass
@@ -74,13 +74,13 @@ export class RequireActiveAgencyGuard implements CanActivate {
     });
 
     if (!agency || agency.deletedAt) {
-      throw new BadRequestException('Agency not found');
+      throw new BadRequestException('Agence introuvable');
     }
 
     // Vérifier que l'agence appartient à la Company de l'utilisateur (sauf SUPER_ADMIN)
     if (user.role !== 'SUPER_ADMIN' && user.companyId) {
       if (agency.companyId !== user.companyId) {
-        throw new ForbiddenException('Agency does not belong to your company');
+        throw new ForbiddenException('Cette agence n\'appartient pas à votre société');
       }
     }
 
@@ -88,8 +88,8 @@ export class RequireActiveAgencyGuard implements CanActivate {
     if (agency.status !== AgencyStatus.ACTIVE) {
       const reason =
         agency.status === AgencyStatus.SUSPENDED
-          ? 'Agency is suspended. Please contact support.'
-          : 'Agency is not active';
+          ? 'L\'agence est suspendue. Veuillez contacter le support.'
+          : 'L\'agence n\'est pas active';
       throw new ForbiddenException(reason);
     }
 

@@ -28,6 +28,8 @@ export default function CompanyUsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState<User | null>(null);
 
   const { data: user } = useAuthQuery({
     queryKey: ['me'],
@@ -64,6 +66,8 @@ export default function CompanyUsersPage() {
     mutationFn: (id: string) => userApi.resetPassword(id),
     onSuccess: () => {
       toast.success('Email de réinitialisation envoyé');
+      setResetConfirmOpen(false);
+      setUserToReset(null);
     },
     onError: () => {
       toast.error("Erreur lors de l'envoi de l'email");
@@ -161,7 +165,10 @@ export default function CompanyUsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => resetPasswordMutation.mutate(userItem.id)}
+                            onClick={() => {
+                              setUserToReset(userItem);
+                              setResetConfirmOpen(true);
+                            }}
                             title="Réinitialiser le mot de passe"
                           >
                             <Key className="w-4 h-4" />
@@ -171,16 +178,24 @@ export default function CompanyUsersPage() {
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setUserToDelete(userItem);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
+                          {userItem.id === user?.id ? (
+                            <span title="Vous ne pouvez pas supprimer votre propre compte">
+                              <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setUserToDelete(userItem);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -225,6 +240,23 @@ export default function CompanyUsersPage() {
             onCancel={() => {
               setDeleteDialogOpen(false);
               setUserToDelete(null);
+            }}
+          />
+
+          <ConfirmDialog
+            isOpen={resetConfirmOpen}
+            title="Réinitialiser le mot de passe"
+            message={`Envoyer un email de réinitialisation à ${userToReset?.name ?? userToReset?.email} ?`}
+            confirmText="Envoyer"
+            cancelText="Annuler"
+            onConfirm={() => {
+              if (userToReset) {
+                resetPasswordMutation.mutate(userToReset.id);
+              }
+            }}
+            onCancel={() => {
+              setResetConfirmOpen(false);
+              setUserToReset(null);
             }}
           />
         </div>

@@ -166,12 +166,13 @@ describe('Business Rules E2E Tests - Automatiques', () => {
     agentToken = agentLogin.body.access_token;
 
     // Créer Vehicle
+    const regNumber = `TEST-${Date.now()}`;
     const vehicle = await prisma.vehicle.create({
       data: {
         brand: 'Test Brand',
         model: 'Test Model',
         year: 2024,
-        registrationNumber: 'TEST-123',
+        registrationNumber: regNumber,
         dailyRate: 500,
         depositAmount: 5000,
         agencyId: agencyId,
@@ -263,6 +264,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR001',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01'),
@@ -311,6 +314,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR002',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01T08:00:00'),
@@ -357,6 +362,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR003',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01'),
@@ -394,6 +401,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR004',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01'),
@@ -432,6 +441,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR005',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01T08:00:00'),
@@ -471,6 +482,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR006',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01'),
@@ -515,6 +528,8 @@ describe('Business Rules E2E Tests - Automatiques', () => {
       const booking = await prisma.booking.create({
         data: {
           agencyId,
+          companyId,
+          bookingNumber: 'BR007',
           vehicleId,
           clientId,
           startDate: new Date('2025-02-01'),

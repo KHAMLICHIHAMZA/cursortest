@@ -82,7 +82,7 @@ export default function NewFinePage() {
   // Afficher le message si le module n'est pas activé
   if (!isLoadingModule && !isModuleActive) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <ModuleNotIncluded 
             moduleName="FINES"
@@ -94,7 +94,7 @@ export default function NewFinePage() {
   }
 
   return (
-    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         {!isModuleActive && (
           <div className="mb-6">
@@ -142,8 +142,7 @@ export default function NewFinePage() {
               <option value="">Sélectionner une réservation</option>
               {bookings?.map((booking) => (
                 <option key={booking.id} value={booking.id}>
-                  {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.firstName}{' '}
-                  {booking.client?.lastName} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
+                  {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.name || 'Client'} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
                 </option>
               ))}
             </Select>

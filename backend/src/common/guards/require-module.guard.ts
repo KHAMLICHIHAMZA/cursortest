@@ -66,7 +66,7 @@ export class RequireModuleGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException('Utilisateur non authentifié');
     }
 
     // SUPER_ADMIN bypass
@@ -76,7 +76,7 @@ export class RequireModuleGuard implements CanActivate {
 
     // Si pas de companyId, pas de vérification possible
     if (!user.companyId) {
-      throw new ForbiddenException('User is not associated with a company');
+      throw new ForbiddenException('L\'utilisateur n\'est pas associé à une société');
     }
 
     // Vérifier que le module est payé au niveau Company
@@ -91,7 +91,7 @@ export class RequireModuleGuard implements CanActivate {
 
     if (!companyModule || !companyModule.isActive) {
       throw new ForbiddenException(
-        `Module ${requiredModule} is not included in your subscription. Please contact support to upgrade your plan.`,
+        `Le module ${requiredModule} n'est pas inclus dans votre abonnement. Veuillez contacter le support.`,
       );
     }
 
@@ -118,7 +118,7 @@ export class RequireModuleGuard implements CanActivate {
       });
 
       if (!agency || agency.companyId !== user.companyId) {
-        throw new ForbiddenException('Agency not found or does not belong to your company');
+        throw new ForbiddenException('Agence introuvable ou n\'appartient pas à votre société');
       }
 
       // Vérifier le module au niveau Agency
@@ -134,7 +134,7 @@ export class RequireModuleGuard implements CanActivate {
       // Si un record existe et est désactivé, bloquer
       if (agencyModule && !agencyModule.isActive) {
         throw new ForbiddenException(
-          `Module ${requiredModule} is disabled for this agency. Please contact your company admin.`,
+          `Le module ${requiredModule} est désactivé pour cette agence. Veuillez contacter l'administrateur.`,
         );
       }
       // Si pas de record, le module hérite de Company (déjà vérifié ci-dessus)

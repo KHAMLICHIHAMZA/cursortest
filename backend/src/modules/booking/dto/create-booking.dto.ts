@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsNumber, IsOptional, IsEnum, IsBoolean, ValidateIf } from 'class-validator';
+import { IsString, IsDateString, IsNumber, IsOptional, IsEnum, IsBoolean, ValidateIf, Matches, MaxLength, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BookingStatus, DepositDecisionSource } from '@prisma/client';
 
@@ -31,6 +31,23 @@ export class CreateBookingDto {
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus;
+
+  // ============================================
+  // V2: BookingNumber (MANUAL uniquement)
+  // ============================================
+  @ApiPropertyOptional({
+    description:
+      'Numéro de réservation (V2). Requis si la company est en mode MANUAL. Format: alphanumérique.',
+    maxLength: 32,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  @Matches(/^[A-Za-z0-9]+$/, {
+    message: 'Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces',
+  })
+  bookingNumber?: string;
 
   // ============================================
   // CAUTION - Définie à la réservation

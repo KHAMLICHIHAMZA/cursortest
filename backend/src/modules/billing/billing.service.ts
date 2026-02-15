@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -38,7 +39,7 @@ export class BillingService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable');
     }
 
     // Calculer la date d'échéance (30 jours après la date de début ou renouvellement)
@@ -97,12 +98,12 @@ export class BillingService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Paiement introuvable');
     }
 
     // Vérifier le montant
     if (amount < payment.amount) {
-      throw new BadRequestException('Payment amount is less than required amount');
+      throw new BadRequestException('Le montant du paiement est inférieur au montant requis');
     }
 
     // Mettre à jour le paiement
@@ -154,7 +155,7 @@ export class BillingService {
   async getCompanyInvoices(companyId: string, user: any) {
     // Vérifier les permissions
     if (user.role !== 'SUPER_ADMIN' && user.companyId !== companyId) {
-      throw new BadRequestException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous ne pouvez consulter que les factures de votre propre société');
     }
 
     return this.prisma.paymentSaas.findMany({

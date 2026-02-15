@@ -25,10 +25,10 @@ import { Booking, AgentTask, TaskType } from '../types';
  * @param includeCompleted Si true, inclut les bookings COMPLETED en mode consultation
  * @returns Liste des tâches dérivées, ordonnées par date/heure
  */
-export function getAgentTasks(bookings: Booking[], includeCompleted: boolean = false): AgentTask[] {
+export function getAgentTasks(bookings: Booking[] | null | undefined, includeCompleted: boolean = false): AgentTask[] {
   const tasks: AgentTask[] = [];
 
-  for (const booking of bookings) {
+  for (const booking of bookings || []) {
     // Booking CONFIRMED → Tâche "Livraison / Check-in"
     if (booking.status === 'CONFIRMED') {
       tasks.push({

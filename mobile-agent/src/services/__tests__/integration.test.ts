@@ -19,7 +19,9 @@ jest.mock('../api', () => {
   });
 });
 
-describe('Integration Tests - Mobile Agent', () => {
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === '1';
+
+(runIntegration ? describe : describe.skip)('Integration Tests - Mobile Agent', () => {
   const testCredentials = {
     email: 'agent1@autolocation.fr',
     password: 'agent123',

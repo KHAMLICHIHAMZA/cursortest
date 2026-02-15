@@ -9,6 +9,7 @@ import { sendWelcomeEmail } from '../../services/email.service';
 import { BusinessEventType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 
 @Injectable()
 export class CompanyService {
@@ -68,7 +69,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Remove audit fields from public responses
@@ -78,7 +79,7 @@ export class CompanyService {
   async findMyCompany(user: any) {
     const companyId = user?.companyId;
     if (!companyId) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     const company = await this.prisma.company.findFirst({
@@ -86,10 +87,55 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     return this.auditService.removeAuditFields(company);
+  }
+
+  async updateMyCompanySettings(user: any, dto: UpdateCompanySettingsDto) {
+    const companyId = user?.companyId;
+    if (!companyId) {
+      throw new NotFoundException('Société introuvable');
+    }
+
+    const company = await this.prisma.company.findFirst({
+      where: this.softDeleteService.addSoftDeleteFilter({ id: companyId }),
+    });
+
+    if (!company) {
+      throw new NotFoundException('Société introuvable');
+    }
+
+    const previousState = { ...company };
+
+    const updateData: any = {};
+    if (dto.bookingNumberMode !== undefined) updateData.bookingNumberMode = dto.bookingNumberMode;
+
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      updateData,
+      user?.id || user?.userId || user?.sub,
+    );
+
+    const updatedCompany = await this.prisma.company.update({
+      where: { id: companyId },
+      data: dataWithAudit,
+    });
+
+    this.businessEventLogService
+      .logEvent(
+        null,
+        'Company',
+        updatedCompany.id,
+        BusinessEventType.COMPANY_UPDATED,
+        previousState,
+        updatedCompany,
+        user?.id || user?.userId || user?.sub,
+        updatedCompany.id,
+      )
+      .catch((err) => console.error('Error logging company settings update event:', err));
+
+    return this.auditService.removeAuditFields(updatedCompany);
   }
 
   async create(createCompanyDto: CreateCompanyDto, user: any) {
@@ -99,6 +145,7 @@ export class CompanyService {
       identifiantLegal,
       formeJuridique,
       maxAgencies,
+      bookingNumberMode,
       phone,
       address,
       adminEmail,
@@ -106,39 +153,41 @@ export class CompanyService {
     } = createCompanyDto;
 
     if (!name) {
-      throw new BadRequestException('Name is required');
+      throw new BadRequestException('Le nom est requis');
     }
 
     if (!raisonSociale || !identifiantLegal || !formeJuridique) {
-      throw new BadRequestException('Legal fields are required');
+      throw new BadRequestException('Les champs légaux sont requis');
     }
 
     const slug = this.generateSlug(name);
 
-    // Check if slug already exists
-    const existingCompany = await this.prisma.company.findUnique({
-      where: { slug },
+    // Check if slug already exists (exclure les companies supprimées)
+    const existingCompany = await this.prisma.company.findFirst({
+      where: { slug, deletedAt: null },
     });
 
     if (existingCompany) {
-      throw new BadRequestException('Company with this name already exists');
+      throw new BadRequestException('Une société avec ce nom existe déjà');
     }
 
+    // Check identifiant légal (exclure les companies supprimées)
     const existingLegalId = await this.prisma.company.findFirst({
-      where: { identifiantLegal },
+      where: { identifiantLegal, deletedAt: null },
     });
 
     if (existingLegalId) {
-      throw new BadRequestException('Legal identifier already exists');
+      throw new BadRequestException('L\'identifiant légal existe déjà');
     }
 
     if (adminEmail) {
-      const existingAdmin = await this.prisma.user.findUnique({
-        where: { email: adminEmail },
+      // Check admin email (exclure les users supprimés)
+      const existingAdmin = await this.prisma.user.findFirst({
+        where: { email: adminEmail, deletedAt: null },
       });
 
       if (existingAdmin) {
-        throw new BadRequestException('Admin email already exists');
+        throw new BadRequestException('L\'email administrateur existe déjà');
       }
     }
 
@@ -151,6 +200,7 @@ export class CompanyService {
         identifiantLegal,
         formeJuridique,
         maxAgencies,
+        bookingNumberMode,
         phone,
         address,
         isActive: true,
@@ -223,7 +273,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Store previous state for event log
@@ -238,6 +288,7 @@ export class CompanyService {
     if (updateCompanyDto.identifiantLegal !== undefined) updateData.identifiantLegal = updateCompanyDto.identifiantLegal;
     if (updateCompanyDto.formeJuridique !== undefined) updateData.formeJuridique = updateCompanyDto.formeJuridique;
     if (updateCompanyDto.maxAgencies !== undefined) updateData.maxAgencies = updateCompanyDto.maxAgencies;
+    if (updateCompanyDto.bookingNumberMode !== undefined) updateData.bookingNumberMode = updateCompanyDto.bookingNumberMode;
 
     // Regenerate slug if name changed
     if (updateCompanyDto.name && updateCompanyDto.name !== company.name) {
@@ -284,7 +335,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Store previous state for event log
@@ -312,6 +363,6 @@ export class CompanyService {
       )
       .catch((err) => console.error('Error logging company deletion event:', err));
 
-    return { message: 'Company deleted successfully' };
+    return { message: 'Société supprimée avec succès' };
   }
 }

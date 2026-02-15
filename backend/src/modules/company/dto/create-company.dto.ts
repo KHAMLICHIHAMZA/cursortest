@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEmail, IsEnum, IsInt, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CompanyLegalForm } from '@prisma/client';
+import { BookingNumberMode, CompanyLegalForm } from '@prisma/client';
 
 export class CreateCompanyDto {
   @ApiProperty()
@@ -24,6 +24,11 @@ export class CreateCompanyDto {
   @IsInt()
   @Min(0)
   maxAgencies?: number;
+
+  @ApiPropertyOptional({ enum: BookingNumberMode, description: 'Mode BookingNumber (V2)' })
+  @IsOptional()
+  @IsEnum(BookingNumberMode)
+  bookingNumberMode?: BookingNumberMode;
 
   @ApiPropertyOptional()
   @IsOptional()

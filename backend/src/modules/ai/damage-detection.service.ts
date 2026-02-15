@@ -74,7 +74,7 @@ export class DamageDetectionService {
       } else if (this.visionProvider === 'google') {
         return await this.detectDamageWithGoogle(imageUrl, vehicleId, bookingId);
       } else {
-        throw new Error('Vision provider not configured');
+        throw new Error('Fournisseur de reconnaissance d\'image non configuré. Vérifiez les variables d\'environnement OPENAI_API_KEY ou GOOGLE_VISION_API_KEY.');
       }
     } catch (error: any) {
       this.logger.error('Damage detection error:', error);
@@ -131,20 +131,20 @@ export class DamageDetectionService {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(`Erreur API OpenAI : ${errorData.error?.message || 'Erreur inconnue'}`);
     }
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content;
     
     if (!content) {
-      throw new Error('No content in OpenAI response');
+      throw new Error('Aucun contenu dans la réponse OpenAI');
     }
 
     // Parser la réponse JSON
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('No JSON found in response');
+      throw new Error('Aucun JSON trouvé dans la réponse de l\'API');
     }
 
     const analysis = JSON.parse(jsonMatch[0]);
@@ -193,7 +193,7 @@ export class DamageDetectionService {
       // Télécharger l'image depuis l'URL
       const imageResponse = await fetch(imageUrl);
       if (!imageResponse.ok) {
-        throw new Error(`Failed to download image: ${imageResponse.statusText}`);
+        throw new Error(`Échec du téléchargement de l'image : ${imageResponse.statusText}`);
       }
       
       const imageBuffer = await imageResponse.arrayBuffer();
@@ -229,14 +229,14 @@ export class DamageDetectionService {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Google Vision API error: ${errorData.error?.message || response.statusText}`);
+        throw new Error(`Erreur API Google Vision : ${errorData.error?.message || response.statusText}`);
       }
       
       const data = await response.json();
       const responses = data.responses?.[0];
       
       if (!responses) {
-        throw new Error('No response from Google Vision API');
+        throw new Error('Aucune réponse de l\'API Google Vision');
       }
       
       // Analyser les résultats pour détecter des dommages

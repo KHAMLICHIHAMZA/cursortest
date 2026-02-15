@@ -11,10 +11,18 @@ import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { OverrideLateFeeDto } from './dto/override-late-fee.dto';
 import { BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
+import { OutboxService } from '../../common/services/outbox.service';
+import { ContractService } from '../contract/contract.service';
 
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
+  private static readonly BOOKING_NUMBER_MAX_LEN = 32;
+  // Local runtime constants (avoid relying on Prisma enum exports in tooling)
+  private static readonly BookingNumberMode = {
+    AUTO: 'AUTO',
+    MANUAL: 'MANUAL',
+  } as const;
 
   constructor(
     private prisma: PrismaService,
@@ -23,13 +31,74 @@ export class BookingService {
     private commonAuditService: CommonAuditService,
     private businessEventLogService: BusinessEventLogService,
     private invoiceService: InvoiceService,
+    private outboxService: OutboxService,
+    private contractService: ContractService,
   ) {}
 
-  async create(createBookingDto: CreateBookingDto, userId: string) {
+  private normalizeBookingNumber(input: string): string {
+    return String(input || '').trim().toUpperCase();
+  }
+
+  private normalizeAndValidateManualBookingNumber(input: unknown): string {
+    const normalized = this.normalizeBookingNumber(String(input ?? ''));
+    if (!normalized) {
+      throw new BadRequestException('Le numéro de réservation est requis');
+    }
+    if (normalized.length > BookingService.BOOKING_NUMBER_MAX_LEN) {
+      throw new BadRequestException(
+        `Le numéro de réservation doit être <= ${BookingService.BOOKING_NUMBER_MAX_LEN} caractères`,
+      );
+    }
+    if (!/^[A-Z0-9]+$/.test(normalized)) {
+      throw new BadRequestException(
+        'Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces',
+      );
+    }
+    return normalized;
+  }
+
+  /**
+   * Verify user has access to the booking's agency.
+   * SUPER_ADMIN: always allowed.
+   * COMPANY_ADMIN: booking's agency must belong to their company.
+   * AGENT/MANAGER: must be assigned to the booking's agency.
+   */
+  private assertBookingAccess(booking: { agencyId: string; companyId?: string | null }, user: any): void {
+    if (user.role === 'SUPER_ADMIN') return;
+    if (user.role === 'COMPANY_ADMIN') {
+      if (booking.companyId && booking.companyId !== user.companyId) {
+        throw new ForbiddenException('Vous n\'avez pas accès à cette réservation');
+      }
+      return;
+    }
+    // AGENT / AGENCY_MANAGER
+    if (!user.agencyIds?.includes(booking.agencyId)) {
+      throw new ForbiddenException('Vous n\'avez pas accès à cette réservation');
+    }
+  }
+
+  private async getNextAutoBookingNumber(companyId: string, now: Date): Promise<string> {
+    const year = now.getFullYear();
+    const seq = await (this.prisma as any).bookingNumberSequence.upsert({
+      where: { companyId_year: { companyId, year } },
+      create: { companyId, year, lastValue: 1 },
+      update: { lastValue: { increment: 1 } },
+      select: { lastValue: true },
+    });
+    // Format: YYYY + 6 digits (reset annuel, alphanum)
+    return `${year}${String(seq.lastValue).padStart(6, '0')}`;
+  }
+
+  async create(createBookingDto: CreateBookingDto, userId: string, user?: any) {
     const { agencyId, vehicleId, clientId, startDate, endDate, totalPrice, status } = createBookingDto;
 
+    // Agency access validation
+    if (user && agencyId) {
+      this.assertBookingAccess({ agencyId }, user);
+    }
+
     if (!totalPrice || totalPrice <= 0) {
-      throw new BadRequestException('Total price must be greater than 0');
+      throw new BadRequestException('Le prix total doit être supérieur à 0');
     }
 
     const start = new Date(startDate);
@@ -45,7 +114,7 @@ export class BookingService {
     });
 
     if (!vehicle) {
-      throw new BadRequestException('Vehicle not found or does not belong to this agency');
+      throw new BadRequestException('Véhicule introuvable ou n\'appartient pas à cette agence');
     }
 
     // Vérifier que le client existe et appartient à l'agence
@@ -58,7 +127,7 @@ export class BookingService {
     });
 
     if (!client) {
-      throw new BadRequestException('Client not found or does not belong to this agency');
+      throw new BadRequestException('Client introuvable ou n\'appartient pas à cette agence');
     }
 
     // Vérifier le type de permis du client
@@ -109,7 +178,7 @@ export class BookingService {
     if (!isAvailable) {
       const conflicts = await this.planningService.detectConflicts(vehicleId, start, end);
       throw new ConflictException({
-        message: 'Vehicle is not available for this period',
+        message: 'Le véhicule n\'est pas disponible pour cette période',
         conflicts,
       });
     }
@@ -120,13 +189,51 @@ export class BookingService {
     // Règle: Toute réservation chevauchant la période de préparation est BLOQUÉE
     const agency = await this.prisma.agency.findUnique({
       where: { id: agencyId },
+      include: { company: true },
     });
 
     if (!agency) {
-      throw new BadRequestException('Agency not found');
+      throw new BadRequestException('Agence introuvable');
     }
 
     const preparationTimeMinutes = agency.preparationTimeMinutes || 60; // Default 1h
+
+    const companyId = agency.companyId;
+    const bookingNumberMode: 'AUTO' | 'MANUAL' =
+      ((agency as any).company?.bookingNumberMode as any) || BookingService.BookingNumberMode.AUTO;
+
+    // ============================================
+    // V2: BOOKING NUMBER (unique par company)
+    // ============================================
+    let bookingNumberToUse: string;
+    if (bookingNumberMode === BookingService.BookingNumberMode.MANUAL) {
+      const raw = createBookingDto.bookingNumber;
+      if (!raw) {
+        throw new BadRequestException(
+          'Le numéro de réservation est requis lorsque le mode est MANUEL',
+        );
+      }
+      bookingNumberToUse = this.normalizeAndValidateManualBookingNumber(raw);
+
+      const existing = await this.prisma.booking.findFirst({
+        where: {
+          companyId,
+          bookingNumber: bookingNumberToUse,
+          deletedAt: null,
+        } as any,
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('Ce numéro de réservation existe déjà pour cette société');
+      }
+    } else {
+      if (createBookingDto.bookingNumber) {
+        throw new BadRequestException(
+          'Le numéro de réservation ne peut pas être défini lorsque le mode est AUTOMATIQUE',
+        );
+      }
+      bookingNumberToUse = await this.getNextAutoBookingNumber(companyId, new Date());
+    }
 
     // Pour chaque booking actif, calculer la fin réelle avec préparation
     const activeBookings = await this.prisma.booking.findMany({
@@ -216,13 +323,19 @@ export class BookingService {
     const booking = await this.prisma.booking.create({
       data: {
         agencyId,
+        companyId,
+        bookingNumber: bookingNumberToUse,
         vehicleId,
         clientId,
         startDate: start,
         endDate: end,
         totalPrice: parseFloat(totalPrice.toString()),
         status: status || 'DRAFT',
-      },
+        // Caution fields
+        depositRequired: createBookingDto.depositRequired ?? false,
+        depositAmount: createBookingDto.depositAmount ? parseFloat(createBookingDto.depositAmount.toString()) : null,
+        depositDecisionSource: createBookingDto.depositDecisionSource ?? null,
+      } as any,
       include: {
         agency: {
           include: {
@@ -246,10 +359,10 @@ export class BookingService {
         `${vehicle.brand} ${vehicle.model}`,
       );
 
-      // Mettre à jour le statut du véhicule
+      // Mettre à jour le statut du véhicule selon spec
       await this.prisma.vehicle.update({
         where: { id: vehicleId },
-        data: { status: 'RENTED' },
+        data: { status: booking.status === 'CONFIRMED' ? 'RESERVED' : 'RENTED' },
       });
     }
 
@@ -268,6 +381,43 @@ export class BookingService {
         // Error already logged in service
       });
 
+    // V2 Domain Events (outbox backbone)
+    await this.outboxService.enqueue({
+      aggregateType: 'Booking',
+      aggregateId: booking.id,
+      eventType: 'BookingCreated',
+      payload: {
+        bookingId: booking.id,
+        companyId,
+        agencyId,
+        bookingNumber: (booking as any).bookingNumber,
+      },
+      deduplicationKey: `BookingCreated:${booking.id}`,
+    });
+    await this.outboxService.enqueue({
+      aggregateType: 'Booking',
+      aggregateId: booking.id,
+      eventType: 'BookingNumberAssigned',
+      payload: {
+        bookingId: booking.id,
+        companyId,
+        bookingNumber: (booking as any).bookingNumber,
+        mode: bookingNumberMode,
+      },
+      deduplicationKey: `BookingNumberAssigned:${booking.id}`,
+    });
+
+    // Spec: 1 booking = 1 contrat, généré automatiquement
+    try {
+      await this.contractService.createContract(
+        { bookingId: booking.id, templateId: undefined },
+        userId,
+      );
+    } catch (error) {
+      // Non-blocking: log error but don't fail booking creation
+      this.logger.warn(`Échec création contrat auto pour booking ${booking.id}: ${error.message}`);
+    }
+
     // Remove audit fields from response
     return this.commonAuditService.removeAuditFields(booking);
   }
@@ -279,13 +429,13 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
 
     // Vérifier que le booking est en statut CONFIRMED
     if (booking.status !== 'CONFIRMED') {
       throw new BadRequestException(
-        `Booking must be CONFIRMED to check in. Current status: ${booking.status}`,
+        `La réservation doit être CONFIRMÉE pour effectuer le check-in. Statut actuel : ${booking.status}`,
       );
     }
 
@@ -505,19 +655,19 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
 
     // Vérifier que le booking est en statut IN_PROGRESS (ACTIVE)
     if (booking.status !== 'IN_PROGRESS' && booking.status !== 'LATE') {
       throw new BadRequestException(
-        `Booking must be IN_PROGRESS or LATE to check out. Current status: ${booking.status}`,
+        `La réservation doit être EN COURS ou EN RETARD pour effectuer le check-out. Statut actuel : ${booking.status}`,
       );
     }
 
     // Valider l'encaissement espèces si cashCollected est true
     if (checkOutDto.cashCollected === true && (!checkOutDto.cashAmount || checkOutDto.cashAmount <= 0)) {
-      throw new BadRequestException('Cash amount is required and must be greater than 0 if cash is collected');
+      throw new BadRequestException('Le montant en espèces est requis et doit être supérieur à 0 si des espèces sont collectées');
     }
 
     // Récupérer les données de check-in pour vérifier odometerStart
@@ -541,7 +691,7 @@ export class BookingService {
     // Vérifier que odometerEnd >= odometerStart
     if (checkOutDto.odometerEnd < odometerStart) {
       throw new BadRequestException(
-        `Odometer end (${checkOutDto.odometerEnd}) must be greater than or equal to odometer start (${odometerStart})`,
+        `Le kilométrage de fin (${checkOutDto.odometerEnd}) doit être supérieur ou égal au kilométrage de début (${odometerStart})`,
       );
     }
 
@@ -754,16 +904,29 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
 
-    const { startDate, endDate, status, totalPrice } = updateBookingDto;
+    const { startDate, endDate, status, totalPrice, bookingNumber } = updateBookingDto as any;
+
+    // V2: bookingNumber is locked once an invoice exists (InvoiceIssued)
+    if (bookingNumber !== undefined) {
+      const existingInvoice = await this.prisma.invoice.findFirst({
+        where: { bookingId: id },
+        select: { id: true },
+      });
+      if (existingInvoice) {
+        throw new ForbiddenException(
+          'Le numéro de réservation est verrouillé car une facture a été émise',
+        );
+      }
+    }
 
     // Validate status transition
     if (status && status !== booking.status) {
       if (!this.isValidStatusTransition(booking.status, status)) {
         throw new BadRequestException(
-          `Invalid status transition from ${booking.status} to ${status}`,
+          `Transition de statut invalide de ${booking.status} à ${status}`,
         );
       }
     }
@@ -782,7 +945,7 @@ export class BookingService {
 
       if (conflicts.length > 0) {
         throw new ConflictException({
-          message: 'Vehicle is not available for this period',
+          message: 'Le véhicule n\'est pas disponible pour cette période',
           conflicts,
         });
       }
@@ -796,6 +959,22 @@ export class BookingService {
     if (endDate) updateData.endDate = new Date(endDate);
     if (status) updateData.status = status;
     if (totalPrice !== undefined) updateData.totalPrice = parseFloat(totalPrice.toString());
+    if (bookingNumber !== undefined) {
+      const normalized = this.normalizeAndValidateManualBookingNumber(bookingNumber);
+      const existing = await this.prisma.booking.findFirst({
+        where: {
+          companyId: (booking as any).companyId,
+          bookingNumber: normalized,
+          deletedAt: null,
+          NOT: { id },
+        } as any,
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException('Ce numéro de réservation existe déjà pour cette société');
+      }
+      updateData.bookingNumber = normalized;
+    }
 
     // Add audit fields
     const dataWithAudit = this.commonAuditService.addUpdateAuditFields(updateData, userId);
@@ -813,6 +992,25 @@ export class BookingService {
         client: true,
       },
     });
+
+    // V2: domain event for bookingNumber change
+    if (
+      bookingNumber !== undefined &&
+      (updatedBooking as any).bookingNumber !== (booking as any).bookingNumber
+    ) {
+      await this.outboxService.enqueue({
+        aggregateType: 'Booking',
+        aggregateId: updatedBooking.id,
+        eventType: 'BookingNumberEdited',
+        payload: {
+          bookingId: updatedBooking.id,
+          companyId: (updatedBooking as any).companyId,
+          previousBookingNumber: (booking as any).bookingNumber,
+          bookingNumber: (updatedBooking as any).bookingNumber,
+        },
+        deduplicationKey: `BookingNumberEdited:${updatedBooking.id}:${(updatedBooking as any).bookingNumber}`,
+      });
+    }
 
     // Mettre à jour l'événement de planning
     await this.planningService.deleteBookingEvents(booking.id);
@@ -905,12 +1103,19 @@ export class BookingService {
       deletedAt: null,
     };
 
+    const bookingNumberFilterRaw = filters?.bookingNumber;
+    const bookingNumberFilter =
+      bookingNumberFilterRaw != null && String(bookingNumberFilterRaw).trim() !== ''
+        ? this.normalizeBookingNumber(String(bookingNumberFilterRaw))
+        : null;
+
     // Filter by role
     if (user.role === 'SUPER_ADMIN') {
       if (filters?.agencyId) where.agencyId = filters.agencyId;
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
+      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
     } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
       where.agency = { companyId: user.companyId };
       if (filters?.agencyId) {
@@ -926,6 +1131,7 @@ export class BookingService {
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
+      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
     } else if (user.agencyIds && user.agencyIds.length > 0) {
       where.agencyId = { in: user.agencyIds };
       if (filters?.agencyId && user.agencyIds.includes(filters.agencyId)) {
@@ -936,6 +1142,7 @@ export class BookingService {
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
+      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
     } else {
       return [];
     }
@@ -998,8 +1205,11 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
+
+    // Agency access check
+    this.assertBookingAccess(booking, user);
 
     // Remove audit fields from public responses
     return this.commonAuditService.removeAuditFields(booking);
@@ -1011,8 +1221,11 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
+
+    // Agency access check
+    this.assertBookingAccess(booking, user);
 
     // Store previous state for event log
     const previousState = { ...booking };
@@ -1035,7 +1248,7 @@ export class BookingService {
       data: { status: 'AVAILABLE' },
     });
 
-    return { message: 'Booking deleted successfully' };
+    return { message: 'Réservation supprimée avec succès' };
   }
 
   /**
@@ -1054,7 +1267,7 @@ export class BookingService {
     });
 
     if (!booking) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
 
     // ============================================
@@ -1142,7 +1355,7 @@ export class BookingService {
     });
 
     if (!booking) {
-      throw new BadRequestException('Booking not found');
+      throw new BadRequestException('Réservation introuvable');
     }
 
     // Vérifier que l'utilisateur est Agency Manager ou SUPER_ADMIN
@@ -1152,7 +1365,7 @@ export class BookingService {
     });
 
     if (!user || (user.role !== 'AGENCY_MANAGER' && user.role !== 'SUPER_ADMIN')) {
-      throw new ForbiddenException('Only AGENCY_MANAGER or SUPER_ADMIN can override late fees');
+      throw new ForbiddenException('Seuls les gestionnaires d\'agence ou SUPER_ADMIN peuvent modifier les frais de retard');
     }
 
     // Vérifier que le booking est en statut RETURNED

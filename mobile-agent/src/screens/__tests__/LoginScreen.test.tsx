@@ -5,7 +5,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/auth.service';
 
 jest.mock('../../contexts/AuthContext');
-jest.mock('../../services/auth.service');
+jest.mock('../../services/auth.service', () => {
+  const actual = jest.requireActual('../../services/auth.service');
+  return {
+    __esModule: true,
+    ...actual,
+    authService: {
+      ...actual.authService,
+      login: jest.fn(),
+    },
+  };
+});
 
 describe('LoginScreen', () => {
   const mockLogin = jest.fn();
@@ -27,11 +37,12 @@ describe('LoginScreen', () => {
   });
 
   it('should validate email format', async () => {
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />);
+    const { getByPlaceholderText, getAllByText } = render(<LoginScreen />);
     
     fireEvent.changeText(getByPlaceholderText('auth.email'), 'invalid-email');
     fireEvent.changeText(getByPlaceholderText('auth.password'), 'password123');
-    fireEvent.press(getByText('auth.login'));
+    const loginButtons = getAllByText('auth.login');
+    fireEvent.press(loginButtons[loginButtons.length - 1]);
 
     await waitFor(() => {
       // Should show validation error
@@ -40,11 +51,12 @@ describe('LoginScreen', () => {
   });
 
   it('should validate password length', async () => {
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />);
+    const { getByPlaceholderText, getAllByText } = render(<LoginScreen />);
     
     fireEvent.changeText(getByPlaceholderText('auth.email'), 'test@example.com');
     fireEvent.changeText(getByPlaceholderText('auth.password'), 'short');
-    fireEvent.press(getByText('auth.login'));
+    const loginButtons = getAllByText('auth.login');
+    fireEvent.press(loginButtons[loginButtons.length - 1]);
 
     await waitFor(() => {
       expect(authService.login).not.toHaveBeenCalled();
@@ -62,11 +74,12 @@ describe('LoginScreen', () => {
 
     (authService.login as jest.Mock).mockResolvedValue(mockResponse);
 
-    const { getByPlaceholderText, getByText } = render(<LoginScreen />);
+    const { getByPlaceholderText, getAllByText } = render(<LoginScreen />);
     
     fireEvent.changeText(getByPlaceholderText('auth.email'), 'test@example.com');
     fireEvent.changeText(getByPlaceholderText('auth.password'), 'password123');
-    fireEvent.press(getByText('auth.login'));
+    const loginButtons = getAllByText('auth.login');
+    fireEvent.press(loginButtons[loginButtons.length - 1]);
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith({

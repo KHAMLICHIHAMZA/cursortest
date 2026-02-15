@@ -50,7 +50,7 @@ export class NotificationService {
         if (!preference) {
           // Pas de préférences = pas de consentement explicite = refuser marketing (RGPD)
           throw new BadRequestException(
-            'Marketing notifications require explicit opt-in consent. Please configure notification preferences first (RGPD compliance).'
+            'Les notifications marketing nécessitent un consentement explicite. Veuillez configurer les préférences de notification (conformité RGPD).'
           );
         }
         // Note: Pour une implémentation plus stricte, ajouter un champ marketingOptIn 
@@ -58,7 +58,7 @@ export class NotificationService {
       } else {
         // Sans companyId, on refuse par défaut pour la conformité RGPD
         throw new BadRequestException(
-          'Marketing notifications require company identification for opt-in verification (RGPD compliance).'
+          'Les notifications marketing nécessitent l\'identification de la société pour la vérification du consentement (conformité RGPD).'
         );
       }
     }

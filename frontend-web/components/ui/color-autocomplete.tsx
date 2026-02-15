@@ -118,16 +118,22 @@ export function ColorAutocomplete({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const justSelectedRef = useRef(false);
 
   const debouncedQuery = useDebounce(query, 200);
 
   // Filtrer les couleurs selon la recherche
   useEffect(() => {
+    // Ne pas réouvrir le dropdown juste après une sélection
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
     if (debouncedQuery.length >= 1) {
       const filtered = COMMON_COLORS.filter((color) =>
         color.toLowerCase().includes(debouncedQuery.toLowerCase())
       );
-      setSuggestions(filtered.slice(0, 10)); // Limiter à 10 résultats
+      setSuggestions(filtered.slice(0, 10));
       setShowDropdown(true);
     } else {
       setSuggestions([]);
@@ -155,9 +161,11 @@ export function ColorAutocomplete({
   }, []);
 
   const handleSelect = (color: string) => {
+    justSelectedRef.current = true;
     setQuery(color);
     onChange(color);
     setShowDropdown(false);
+    setSuggestions([]);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
