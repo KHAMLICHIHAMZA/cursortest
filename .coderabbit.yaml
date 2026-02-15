@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: fr-FR
+reviews:
+  high_level_summary: true
+  review_status: true
+  auto_review:
+    enabled: true
+    base_branches:
+      - main
+      - v2-preprod
+    max_files: 500
+  path_instructions:
+    - path: "backend/**"
+      instructions: "NestJS backend with Prisma ORM. Check for proper guards, DTOs validation, error handling in French, and Prisma best practices."
+    - path: "frontend-web/**"
+      instructions: "Next.js 14 App Router with React 18, TanStack Query, Tailwind CSS. Check for proper SSR handling, auth guards, accessibility, and French UI text."
+  tools:
+    biome:
+      enabled: false
+    eslint:
+      enabled: true
+chat:
+  auto_reply: true

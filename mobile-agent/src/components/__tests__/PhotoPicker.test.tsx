@@ -32,7 +32,8 @@ describe('PhotoPicker Component', () => {
     const { getByText } = render(
       <PhotoPicker photos={[]} onPhotosChange={jest.fn()} minPhotos={2} />
     );
-    expect(getByText(/Minimum 2 photos required/i)).toBeTruthy();
+    // i18n is mocked to return translation keys
+    expect(getByText('common.minPhotos')).toBeTruthy();
   });
 
   it('should call onPhotosChange when photo is added', async () => {
@@ -46,7 +47,7 @@ describe('PhotoPicker Component', () => {
       <PhotoPicker photos={[]} onPhotosChange={onPhotosChange} />
     );
 
-    fireEvent.press(getByText(/Gallery/i));
+    fireEvent.press(getByText('🖼️ common.gallery'));
     
     // Wait for async operation
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -56,15 +57,15 @@ describe('PhotoPicker Component', () => {
 
   it('should remove photo when remove button is pressed', () => {
     const onPhotosChange = jest.fn();
-    const { getByText } = render(
+    const { getAllByText } = render(
       <PhotoPicker
         photos={['file://photo1.jpg', 'file://photo2.jpg']}
         onPhotosChange={onPhotosChange}
       />
     );
 
-    const removeButtons = getByText('×');
-    fireEvent.press(removeButtons);
+    const removeButtons = getAllByText('×');
+    fireEvent.press(removeButtons[0]);
     
     expect(onPhotosChange).toHaveBeenCalled();
   });

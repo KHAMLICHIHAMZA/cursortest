@@ -1,846 +1,466 @@
-MalocAuto — Documentation Fonctionnelle \& Technique (Master Spec)
+MalocAuto — Documentation Fonctionnelle & Technique (Master Spec)
 
-
-
-Version : 1.0 — Stable
-
+Version : 2.1 — Stable
+Derniere mise a jour : 28 Janvier 2026
 Auteur : Hamza KHAMLICHI
+Destinee a : Developpeurs Cursor
 
-Destinée à : Développeurs Cursor
+---
 
+## 1. Vision du Produit
 
+MalocAuto est un SaaS B2B destine aux entreprises de location de voitures afin de gerer :
 
-🧩 1. Vision du Produit
+- Leur flotte automobile
+- Leurs agences
+- Leurs utilisateurs
+- Leurs clients
+- Leurs contrats de location (auto-generes)
+- Leurs amendes (avec auto-identification)
+- Leur maintenance
+- Leurs charges vehicules
+- Un planning professionnel des vehicules (composant custom timeline)
+- Des roles et permissions complexes (multi-tenant + multi-agences)
+- Un heritage dynamique de roles pour le gerant solo
 
+Le systeme est concu pour permettre a une entreprise cliente d'avoir une ou plusieurs agences, chacune pouvant fonctionner independamment tout en partageant certaines ressources (utilisateurs, vehicules...).
 
+---
 
-MalocAuto est un SaaS B2B destiné aux entreprises de location de voitures afin de gérer :
+## 2. Architecture generale
 
+### Architecture SaaS Multi-Tenant (Entreprise / Agences)
 
+**SUPER_ADMIN (SaaS)**
+- Gere les entreprises clientes (Companies)
+- Gere la facturation et les modules
+- Gere l'etat des comptes (active/desactive)
 
-Leur flotte automobile
+**COMPANY_ADMIN**
+- Admin d'une entreprise cliente
+- Peut creer/agencer ses agences
+- Peut creer des utilisateurs et leur attribuer des agences
+- **Heritage dynamique** : comble les roles manquants (voir section 4bis)
 
+**AGENCY_MANAGER**
+- Gere une seule ou plusieurs agences
+- Gere les vehicules, locations, amendes, maintenance, contrats, factures, journal, KPI
+- Gere les agents de son agence
 
+**AGENT**
+- Profil operationnel (terrain)
+- Peut creer des locations et gerer des clients
+- Consultation vehicules (lecture seule)
+- **Acces restreint** : pas d'amendes, charges, maintenance, factures, contrats, journal, KPI
 
-Leurs agences
+> Un utilisateur peut etre rattache a plusieurs agences.
 
+---
 
+## 3. Modele de donnees (Prisma Schema)
 
-Leurs utilisateurs
-
-
-
-Leurs clients
-
-
-
-Leurs contrats de location
-
-
-
-Leurs amendes
-
-
-
-Leur maintenance
-
-
-
-Un planning professionnel des véhicules
-
-
-
-Des rôles et permissions complexes (multi-tenant + multi-agences)
-
-
-
-Le système est conçu pour permettre à une entreprise cliente d'avoir une ou plusieurs agences, chacune pouvant fonctionner indépendamment tout en partageant certaines ressources (utilisateurs, véhicules…).
-
-
-
-🧱 2. Architecture générale
-
-🔹 Architecture SaaS Multi-Tenant (Entreprise / Agences)
-
-
-
-SUPER\_ADMIN (SaaS)
-
-
-
-Gère les entreprises clientes (Companies)
-
-
-
-Gère la facturation et les modules
-
-
-
-Gère l’état des comptes (activé/désactivé)
-
-
-
-COMPANY\_ADMIN
-
-
-
-Admin d'une entreprise cliente
-
-
-
-Peut créer/agencer ses agences
-
-
-
-Peut créer des utilisateurs et leur attribuer des agences
-
-
-
-AGENCY\_MANAGER
-
-
-
-Gère une seule ou plusieurs agences
-
-
-
-Gère les véhicules, locations, amendes, maintenance
-
-
-
-Gère les agents de son agence
-
-
-
-AGENT
-
-
-
-Profil opérationnel
-
-
-
-Peut créer des locations, gérer des clients
-
-
-
-Accès limité
-
-
-
-⚠️ Un utilisateur peut être rattaché à plusieurs agences.
-
-
-
-🗄️ 3. Modèle de données (Prisma Schema attendu)
-
-📌 Company
-
-
+### Company
 
 Une entreprise cliente du SaaS.
 
-
-
+```
 Company {
-
-&nbsp; id
-
-&nbsp; name
-
-&nbsp; slug
-
-&nbsp; phone?
-
-&nbsp; address?
-
-&nbsp; isActive (bool)
-
-&nbsp; createdAt
-
-&nbsp; updatedAt
-
-&nbsp; agencies\[]
-
-&nbsp; users\[]
-
+  id, name, slug, raisonSociale, identifiantLegal, formeJuridique
+  phone?, address?, isActive, status, currency, maxAgencies
+  bookingNumberMode, logoUrl, secondaryColor, faviconUrl
+  suspendedAt?, suspendedReason?
+  deletedAt?, createdByUserId?, updatedByUserId?, deletedByUserId?, deletedReason?
+  createdAt, updatedAt
+  agencies[], users[]
 }
+```
 
-
-
-📌 Agency
-
-
+### Agency
 
 Une entreprise peut avoir plusieurs agences.
 
-
-
+```
 Agency {
-
-&nbsp; id
-
-&nbsp; name
-
-&nbsp; companyId (FK Company)
-
-&nbsp; phone?
-
-&nbsp; address?
-
-&nbsp; createdAt
-
-&nbsp; updatedAt
-
-&nbsp; vehicles\[]
-
-&nbsp; bookings\[]
-
-&nbsp; fines\[]
-
-&nbsp; maintenance\[]
-
-&nbsp; userAgencies\[]
-
+  id, name, companyId (FK Company)
+  phone?, address?, status, timezone?, capacity?
+  suspendedAt?, suspendedReason?
+  createdAt, updatedAt
+  vehicles[], bookings[], fines[], maintenance[], userAgencies[]
 }
+```
 
+### User
 
+Un utilisateur du systeme.
 
-📌 User
-
-
-
-Un utilisateur du système.
-
-
-
+```
 User {
-
-&nbsp; id
-
-&nbsp; email
-
-&nbsp; password
-
-&nbsp; name
-
-&nbsp; role
-
-&nbsp; companyId? (FK Company)
-
-&nbsp; isActive
-
-&nbsp; createdAt
-
-&nbsp; updatedAt
-
-&nbsp; userAgencies\[]
-
+  id, email, password, name
+  role (SUPER_ADMIN | COMPANY_ADMIN | AGENCY_MANAGER | AGENT)
+  companyId? (FK Company), isActive
+  twoFactorSecret?, twoFactorEnabled
+  createdAt, updatedAt
+  userAgencies[]
 }
+```
 
+### UserAgency (N-N)
 
+Un utilisateur peut appartenir a 1 ou plusieurs agences.
 
-📌 UserAgency (N-N)
-
-
-
-Un utilisateur peut appartenir à 1 ou plusieurs agences.
-
-
-
+```
 UserAgency {
-
-&nbsp; id
-
-&nbsp; userId (FK User)
-
-&nbsp; agencyId (FK Agency)
-
-&nbsp; @@unique(\[userId, agencyId])
-
+  id, userId (FK User), agencyId (FK Agency)
+  permissions[] (UserAgencyPermission)
+  @@unique([userId, agencyId])
 }
+```
 
+### Vehicle
 
-
-📌 Vehicle
-
+```
 Vehicle {
-
-&nbsp; id
-
-&nbsp; agencyId
-
-&nbsp; registrationNumber
-
-&nbsp; brand
-
-&nbsp; model
-
-&nbsp; year
-
-&nbsp; mileage
-
-&nbsp; fuel?
-
-&nbsp; gearbox?
-
-&nbsp; dailyRate
-
-&nbsp; depositAmount
-
-&nbsp; status
-
-&nbsp; createdAt
-
-&nbsp; updatedAt
-
-&nbsp; bookings\[]
-
-&nbsp; maintenance\[]
-
+  id, agencyId, registrationNumber, brand, model, year, color?
+  mileage, fuel?, gearbox?, dailyRate, depositAmount
+  status (VehicleStatus), imageUrl?
+  createdAt, updatedAt
+  bookings[], maintenance[], charges[]
 }
 
+enum VehicleStatus {
+  AVAILABLE, RENTED, IN_MAINTENANCE, OUT_OF_SERVICE,
+  RESERVED, IN_DELIVERY, IN_RECOVERY
+}
+```
 
+### Client
 
-📌 Client
-
+```
 Client {
-
-&nbsp; id
-
-&nbsp; agencyId
-
-&nbsp; name
-
-&nbsp; email?
-
-&nbsp; phone?
-
-&nbsp; note?
-
-&nbsp; bookings\[]
-
+  id, agencyId, firstName, lastName, email?, phone?, address?
+  licenseNumber?, licenseExpiry?, idNumber?, idType?
+  dateOfBirth?, nationality?, note?, isActive
+  createdAt, updatedAt
+  bookings[]
 }
+```
 
+### Booking
 
-
-📌 Booking
-
+```
 Booking {
-
-&nbsp; id
-
-&nbsp; agencyId
-
-&nbsp; vehicleId
-
-&nbsp; clientId
-
-&nbsp; startDate
-
-&nbsp; endDate
-
-&nbsp; totalPrice
-
-&nbsp; status
-
-&nbsp; createdAt
-
-&nbsp; updatedAt
-
-&nbsp; fines\[]
-
+  id, bookingNumber, agencyId, vehicleId, clientId
+  startDate, endDate, totalPrice, dailyRate
+  status (BookingStatus), pickupLocation?, returnLocation?
+  depositRequired, depositAmount, depositDecisionSource?
+  notes?, createdByUserId?, updatedByUserId?
+  createdAt, updatedAt
+  fines[], contract?
 }
 
+enum BookingStatus {
+  PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED
+}
+```
 
+### Contract
 
-📌 Fine
+```
+Contract {
+  id, bookingId (FK Booking), contractNumber
+  signedAt?, signedByName?, signatureData?
+  terms?, createdAt, updatedAt
+}
+```
 
+> **Auto-generation** : Un contrat est cree automatiquement a la creation d'un booking.
+
+### Fine (Amendes)
+
+```
 Fine {
-
-&nbsp; id
-
-&nbsp; agencyId
-
-&nbsp; bookingId
-
-&nbsp; amount
-
-&nbsp; description
-
-&nbsp; createdAt
-
+  id, agencyId, bookingId? (optionnel), vehicleId?
+  clientId?, secondaryDriverId?
+  amount, description
+  status (FineStatus), infractionDate?, registrationNumber?
+  createdAt
 }
 
+enum FineStatus {
+  RECUE, CLIENT_IDENTIFIE, TRANSMISE, CONTESTEE, CLOTUREE
+}
+```
 
+> **Auto-identification** : A la creation, le systeme identifie automatiquement le vehicule, la location active, et le client responsable via le numero d'immatriculation et la date d'infraction.
 
-📌 Maintenance
+### Charge
 
+```
+Charge {
+  id, agencyId, vehicleId (OBLIGATOIRE)
+  amount, description, category (ChargeCategory)
+  date, createdAt
+}
+
+enum ChargeCategory {
+  INSURANCE, VIGNETTE, BANK_INSTALLMENT,
+  PREVENTIVE_MAINTENANCE, CORRECTIVE_MAINTENANCE,
+  FUEL, EXCEPTIONAL, OTHER
+}
+```
+
+### Maintenance
+
+```
 Maintenance {
-
-&nbsp; id
-
-&nbsp; agencyId
-
-&nbsp; vehicleId
-
-&nbsp; description
-
-&nbsp; plannedAt?
-
-&nbsp; cost?
-
-&nbsp; status
-
-&nbsp; createdAt
-
+  id, agencyId, vehicleId
+  description, plannedAt?, completedAt?, cost?
+  status (MaintenanceStatus)
+  createdAt
 }
+```
 
+---
 
+## 4. Gestion des roles & permissions
 
-📌 PasswordResetToken
+| Action | SUPER_ADMIN | COMPANY_ADMIN | AGENCY_MANAGER | AGENT |
+|--------|:-----------:|:-------------:|:--------------:|:-----:|
+| Creer entreprise | Oui | - | - | - |
+| Creer agence | - | Oui | - | - |
+| Creer utilisateurs | - | Oui | Partiel | - |
+| Gerer flotte (CRUD) | - | Partiel | Oui | Lecture seule |
+| Gerer locations | - | Partiel | Oui | Oui |
+| Gerer clients | - | Partiel | Oui | Oui |
+| Gerer amendes | - | Partiel | Oui | **Non** |
+| Gerer charges | - | Partiel | Oui | **Non** |
+| Gerer maintenance | - | Partiel | Oui | **Non** |
+| Factures / Contrats | - | Partiel | Oui | **Non** |
+| Journal / KPI | - | Partiel | Oui | **Non** |
+| Acceder planning | - | Partiel | Oui | Oui |
 
+> **Partiel** pour COMPANY_ADMIN = heritage dynamique (voir ci-dessous)
 
+---
 
-Permet l’email de première connexion + mot de passe oublié.
+## 4bis. Heritage Dynamique COMPANY_ADMIN (Gerant Solo)
 
+Le COMPANY_ADMIN comble dynamiquement les roles manquants dans sa company :
 
+| Situation | Role herite | Menus agence |
+|-----------|-------------|--------------|
+| Aucun autre utilisateur (solo) | Manager + Agent | Tous les menus agence |
+| A des agents, pas de manager | Manager | Menus manager uniquement |
+| A des managers, pas d'agent | Agent | Menus agent uniquement |
+| A manager + agent | Aucun | Pas de menus agence |
 
-🔐 4. Gestion des rôles \& permissions
+Le passage est automatique et instantane au chargement de page.
 
-Action	SUPER\_ADMIN	COMPANY\_ADMIN	AGENCY\_MANAGER	AGENT
+---
 
-Créer entreprise	✅	❌	❌	❌
+## 4ter. Regles Metier Transversales (Figees)
 
-Créer agence	❌	✅	❌	❌
+### Numero de Booking (bookingNumberMode)
 
-Créer utilisateurs	❌	✅	⚠️ (dans ses agences)	❌
+- Company a un mode : `AUTO` (defaut) ou `MANUAL`
+- AUTO : format `AAAA` + 6 chiffres, sequence atomique, reset annuel
+- MANUAL : obligatoire, alphanum, max 32 chars, normalise uppercase
+- Unicite : `@@unique([companyId, bookingNumber])` (niveau Company)
+- Verrouillage apres emission facture
+- Recherche/filtre disponible dans planning + listings
 
-Gérer flotte	❌	⚠️ (si accès)	✅	❌
+### Modele Vehicule-Agence
 
-Gérer locations	❌	⚠️	✅	✅
+- **Decision figee : 1 vehicule = 1 agence** (Option A simple)
+- `Vehicle.agencyId` est obligatoire
+- Pas de table VehicleAgency ni de partage cross-agence
+- Transfert possible via update de agencyId (tracabilite BusinessEventLog)
+- Visibilite multi-agence = permissions utilisateur (pas propriete vehicule)
 
-Gérer amendes	❌	⚠️	✅	⚠️
+### Perimetres Planning
 
-Gérer maintenance	❌	⚠️	✅	❌
+- `/company/planning` : COMPANY_ADMIN voit TOUTES ses agences (filtre optionnel)
+- `/agency/planning` : MANAGER/AGENT voient UNIQUEMENT leurs agences (UserAgency)
+- Backend calcule `accessibleAgencyIds` selon le role
 
-Accéder planning	❌	⚠️	✅	⚠️
+### Depot (Deposit)
 
+- `depositRequired` (bool), `depositAmount` (decimal), `depositDecisionSource` (COMPANY | AGENCY)
+- Si depositRequired=true → amount + source obligatoires
+- Check-in bloque si depot requis et pas collecte
+- AGENT ne peut pas modifier le depot
 
+### Soft Delete
 
-⚠️ = accès partiel selon les agences associées
+- AVEC deletedAt : Company, Agency, User, Vehicle, Client, Booking, Maintenance
+- Hard delete : Fine*, Charge* (*migration soft delete prevue), JournalEntry, tokens
+- Filtre standard : `deletedAt: null` dans toutes les requetes
 
+### Audit (Double Systeme)
 
+- `AuditLog` : actions techniques (LOGIN, CREATE, UPDATE, DELETE, BOOKING_STATUS_CHANGE) + IP/UserAgent
+- `BusinessEventLog` : evenements metier (30+ types) avec previousState/newState en JSON
+- Couverture : connexion, CRUD, changements statut, signatures, modules
 
-🧭 5. Fonctionnalités principales
+### Detection Booking pour Amendes
 
-🔹 Backoffice SaaS (SUPER\_ADMIN)
+- Match : `startDate <= infractionDate <= endDate` (bornes inclusives)
+- Filtre statut : CONFIRMED, IN_PROGRESS, COMPLETED (exclut CANCELLED/PENDING)
+- Multiples matchs : prend le plus recent (orderBy startDate DESC)
+- Pas de match : statut reste RECUE, bookingId=null
 
+### Permissions "Partiel" COMPANY_ADMIN
 
+- Champ calcule : `effectiveAgencyRole = BOTH | AGENCY_MANAGER | AGENT | null`
+- Mapping menus sidebar + mapping API backend
+- Voir section 4bis Heritage Dynamique
 
-Liste des entreprises clientes
+---
 
+## 5. Fonctionnalites principales
 
+### Backoffice SaaS (SUPER_ADMIN)
 
-Activation/désactivation d’un client
+- Liste des entreprises clientes
+- Activation/desactivation d'un client
+- Envoi automatique d'email lors de la creation d'une entreprise
+- Gestion des modules (options premium)
+- Dashboard SaaS, Sante comptes
 
+### Espace Entreprise (COMPANY_ADMIN)
 
+- Creation & gestion des agences
+- Creation des utilisateurs (manager / agent)
+- Attribution multi-agences
+- Planning entreprise
+- Analytics (si module actif)
+- Heritage dynamique des menus agence (si gerant solo)
 
-Envoi automatique d’email lors de la création d’une entreprise
+### Espace Agence (Manager & Agents)
 
+- Voir la flotte (CRUD pour manager, lecture pour agent)
+- Creer et gerer les contrats (manager)
+- Creer et gerer les clients (manager + agent)
+- Creer et gerer les locations (manager + agent)
+- Enregistrer les amendes avec auto-identification (manager)
+- Gerer les charges vehicules (manager)
+- Voir et creer des interventions maintenance (manager)
+- Visualiser le planning des vehicules (tous)
+- KPI, GPS Eco, Journal, Factures (manager)
 
+---
 
-Gestion des modules (futures options premium)
+## 6. Planning des vehicules
 
+### Composant
 
+**Composant custom timeline** (`PlanningBoard.tsx`) — PAS FullCalendar (payant).
 
-Dashboard SaaS
+### Affichage
 
+- Chaque ligne = un vehicule
+- Chaque evenement = une location, maintenance, preparation, ou autre
 
+### Couleurs
 
-🔹 Espace Entreprise (COMPANY\_ADMIN)
+| Type | Couleur |
+|------|---------|
+| Location | Bleu |
+| Maintenance | Rouge |
+| Preparation | Vert |
+| Autre | Gris |
 
+### Vues
 
+- Jour (creneaux 30 min, 6h-22h)
+- Semaine (7 jours)
+- Mois (jours du mois)
 
-Création \& gestion des agences
+### Filtres
 
+- Par agence (dropdown)
+- Par vehicule (dropdown)
+- Par marque (dropdown dynamique)
+- Par statut vehicule (dropdown dynamique)
+- Par type evenement (boutons toggle : Booking, Maintenance, Prepa, Autres)
+- Recherche textuelle (numero booking, client, plaque, modele)
+- Bouton Reinitialiser (visible si filtres actifs)
 
+---
 
-Création des utilisateurs (manager / agent)
+## 7. Ligne directrice Design
 
+**Style general** : Moderne, sombre chic, minimaliste (comme Stripe Dashboard)
 
+**Couleurs** :
+- #1D1F23 (fond principal)
+- #2C2F36 (cartes)
+- #3E7BFA (primaire bleu electrique)
+- #E5E7EB (texte secondaire)
 
-Attribution multi-agences
+**Navigation** :
+- Barre laterale fixe (256px)
+- Header avec informations utilisateur
+- Boutons arrondis, icones Lucide
 
+---
 
+## 8. Stack Technique
 
-Gestion de la flotte globale
+### Backend
+- NestJS (Node.js)
+- Prisma ORM
+- PostgreSQL
+- JWT Auth + Bcrypt hashing
+- Nodemailer (emails)
+- Guards : JwtAuthGuard, RolesGuard, PermissionGuard
 
+### Frontend Web (principal)
+- Next.js 14 (App Router)
+- TailwindCSS
+- React Query (TanStack)
+- Axios
+- Composant PlanningBoard custom (pas FullCalendar)
 
+### Frontend Admin / Agency (secondaires)
+- React + Vite
+- TailwindCSS
+- React Query, Axios
 
-🔹 Espace Agence (Manager \& Agents)
+### Mobile Agent
+- Expo / React Native
+- SQLite (offline)
+- Mode offline complet
 
+---
 
+## 9. Securite (RBAC 3 niveaux)
 
-Voir la flotte
+1. **Middleware Next.js** : Protection serveur des routes
+2. **RouteGuard** : Protection client par page
+3. **Backend Guards** : JwtAuthGuard + RolesGuard + PermissionGuard
 
+**AGENT restrictions API** :
+- Modules interdits : fines, maintenance, charges, analytics, journal, invoices, contracts, gps
+- Lecture : clients, bookings, vehicles, planning
+- CRUD : clients, bookings
+- Aucune suppression
 
+---
 
-Créer et gérer les contrats
+## 10. Tests
 
+Types prevus :
+- Tests API (e2e)
+- Tests de permission (RBAC)
+- Tests d'integration Prisma
+- Tests regles metier
 
+---
 
-Créer et gérer les clients
+## FIN DU DOCUMENT
 
+Ce document represente l'integralite de la vision fonctionnelle et technique du projet MalocAuto.
+Il doit etre considere comme la source officielle pour la generation du code dans Cursor.
 
-
-Enregistrer les amendes
-
-
-
-Voir et créer des interventions maintenance
-
-
-
-Visualiser le planning des véhicules
-
-
-
-📆 6. Planning des véhicules
-
-
-
-Utiliser : FullCalendar + Timeline View
-
-
-
-Chaque ligne = un véhicule
-
-Chaque événement = une location ou un blocage maintenance.
-
-
-
-Statuts de couleur :
-
-
-
-🟢 Disponible
-
-
-
-🔵 Réservé (booking en cours)
-
-
-
-🟠 Réservé (à venir)
-
-
-
-🔴 En maintenance
-
-
-
-⚫ Non disponible
-
-
-
-Filtrage possible :
-
-
-
-par agence
-
-
-
-par marque / modèle
-
-
-
-par statut véhicule
-
-
-
-par période
-
-
-
-par manager
-
-
-
-🎨 7. Ligne directrice Design
-
-Style général :
-
-
-
-Moderne, sombre chic
-
-
-
-Minimaliste (comme Stripe Dashboard)
-
-
-
-Couleurs sobres :
-
-
-
-\#1D1F23 (fond principal)
-
-
-
-\#2C2F36 (cartes)
-
-
-
-\#3E7BFA (primaire bleu électrique)
-
-
-
-\#E5E7EB (texte secondaire)
-
-
-
-Navigation :
-
-
-
-Barre latérale fixe
-
-
-
-Header avec informations utilisateur
-
-
-
-Boutons arrondis
-
-
-
-Icônes Lucide
-
-
-
-Frontend Admin :
-
-
-
-Formulaires simples, cartes uniformes, affichage clair multi-entreprises.
-
-
-
-Frontend Agence :
-
-
-
-Focalisé sur l’opérationnel, rapide et fluide.
-
-
-
-🏗️ 8. Stack Technique Obligatoire
-
-Backend
-
-
-
-Node.js
-
-
-
-Express
-
-
-
-Prisma ORM
-
-
-
-PostgreSQL
-
-
-
-JWT Auth
-
-
-
-Bcrypt hashing
-
-
-
-Nodemailer (email création entreprise)
-
-
-
-Frontend Admin / Agence
-
-
-
-React + Vite
-
-
-
-TailwindCSS
-
-
-
-React Query
-
-
-
-Axios
-
-
-
-FullCalendar
-
-
-
-🧪 9. Tests
-
-
-
-Types prévus :
-
-
-
-Tests API
-
-
-
-Tests de permission
-
-
-
-Tests d’intégration Prisma
-
-
-
-🚀 10. Livrables attendus par Cursor
-
-
-
-En suivant ce document, Cursor doit générer :
-
-
-
-Backend complet
-
-
-
-Prisma schema
-
-
-
-Routes Express (auth, companies, agencies, users, vehicles, bookings, fines, maintenance)
-
-
-
-Auth middleware
-
-
-
-Email service
-
-
-
-Seed script
-
-
-
-Server app
-
-
-
-Admin Frontend complet
-
-
-
-Login Admin
-
-
-
-Dashboard SaaS
-
-
-
-Gestion des entreprises
-
-
-
-Gestion des agences
-
-
-
-Gestion des utilisateurs multi-agences
-
-
-
-Planning global entreprise
-
-
-
-Agence Frontend complet
-
-
-
-Login
-
-
-
-Dashboard agence
-
-
-
-Gestion flotte
-
-
-
-Gestion clients \& locations
-
-
-
-Planning agence FullCalendar
-
-
-
-📌 11. Roadmap MVP
-
-
-
-Backend architecture + modèle de données
-
-
-
-Auth + rôles + multi-agences
-
-
-
-CRUD véhicules, locations, clients
-
-
-
-Planning FullCalendar
-
-
-
-Dashboard
-
-
-
-Email création entreprise
-
-
-
-Interfaces Admin \& Agence
-
-
-
-✔️ FIN DU DOCUMENT
-
-
-
-Ce document représente l’intégralité de la vision fonctionnelle et technique du projet MalocAuto.
-
-Il doit être considéré comme la source officielle pour la génération du code dans Cursor.
-
+Version 2.1 — Mise a jour le 28 Janvier 2026

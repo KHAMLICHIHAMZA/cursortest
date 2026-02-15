@@ -62,8 +62,8 @@ export const BookingDetailsScreen: React.FC = () => {
     );
   }
 
-  // Generate a readable booking number (last 6 digits of ID)
-  const bookingNumber = booking.id.slice(-6).toUpperCase();
+  // V2: BookingNumber (backend source of truth). Fallback to last 6 chars of ID.
+  const bookingNumber = booking.bookingNumber || booking.id.slice(-6).toUpperCase();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

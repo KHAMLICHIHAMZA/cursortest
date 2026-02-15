@@ -1,90 +1,140 @@
-# 🚀 Guide de Lancement Rapide - MalocAuto SaaS
+# Guide de Lancement Rapide - MalocAuto V2
 
-## ⚡ Démarrage en 5 Minutes
+## Démarrage en 5 minutes
 
-### 1️⃣ Prérequis
-- Node.js 18+ 
+### 1. Prérequis
+
+- Node.js 18+
 - PostgreSQL 14+
 - npm 9+
 
-### 2️⃣ Installation
+### 2. Installation
 
 ```bash
 # Backend
 cd backend
 npm install
-# Windows PowerShell:
-Copy-Item -Path ".env.example" -Destination ".env"
-# Linux/Mac:
-# cp .env.example .env
-# ⚠️ Éditer .env avec vos paramètres PostgreSQL
+cp .env.example .env
+# Éditer .env : configurer DATABASE_URL avec vos paramètres PostgreSQL
 
-# Frontend  
+# Frontend Web
 cd ../frontend-web
 npm install
-# Créer .env.local avec: NEXT_PUBLIC_API_URL=http://localhost:3000/api
+
+# Proxy + concurrently (racine)
+cd ..
+npm install
 ```
 
-### 3️⃣ Base de Données
+### 3. Base de données
 
 ```bash
-# Créer la base
-psql -U postgres
-CREATE DATABASE malocauto;
-\q
-
-# Migrations et Seed
 cd backend
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
+
+# Créer la base (si pas encore fait)
+psql -U postgres -c "CREATE DATABASE malocauto;"
+
+# Migrations et seed
+npx prisma migrate dev
+npx prisma db seed
 ```
 
-### 4️⃣ Lancement
+### 4. Lancement
 
-**Terminal 1** (Backend) :
+**Méthode recommandée — Tout-en-un :**
+
 ```bash
-cd backend
+# À la racine du projet
 npm run dev
 ```
 
-**Terminal 2** (Frontend) :
+Lance automatiquement :
+- Backend API (port 3000)
+- Frontend Web (port 3001)
+- Proxy (port 8080)
+
+**Une seule adresse :** http://localhost:8080
+
+**Méthode manuelle — Terminaux séparés :**
+
 ```bash
-cd frontend-web
-npm run dev
+# Terminal 1
+cd backend && npm run dev
+
+# Terminal 2
+cd frontend-web && npm run dev -- -p 3001
+
+# Terminal 3 (optionnel)
+cd proxy && npm run dev
 ```
 
-### 5️⃣ Accès
+### 5. Connexion
 
-- 🌐 **Frontend** : http://localhost:3001
-- 📚 **API Docs** : http://localhost:3000/api/docs
-- 🗄️ **Prisma Studio** : `npm run prisma:studio` (dans backend/)
+Ouvrir http://localhost:8080 et se connecter :
 
-### 6️⃣ Connexion
+| Rôle | Email | Mot de passe | Espace |
+|------|-------|--------------|--------|
+| Super Admin | `admin@malocauto.com` | `admin123` | `/admin` |
+| Company Admin | `admin@autolocation.fr` | `admin123` | `/company` |
+| Agency Manager | `manager1@autolocation.fr` | `manager123` | `/agency` |
+| Agent | `agent1@autolocation.fr` | `agent123` | `/agency` |
 
-- **Email** : `admin@malocauto.com`
-- **Mot de passe** : `admin123`
+### 6. URLs utiles
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:8080 | Application web (proxy) |
+| http://localhost:8080/api/docs | Documentation Swagger |
+| http://localhost:3000/api/docs | Swagger (accès direct) |
+
+Pour Prisma Studio (exploration base de données) :
+
+```bash
+cd backend
+npx prisma studio
+```
 
 ---
 
-## 📖 Documentation Complète
-
-Pour plus de détails, voir **[TUTORIEL_LANCEMENT_SAAS.md](./TUTORIEL_LANCEMENT_SAAS.md)**
-
----
-
-## 🔧 Dépannage Rapide
+## Dépannage rapide
 
 ### Erreur de connexion DB
-→ Vérifier `DATABASE_URL` dans `backend/.env`
+
+Vérifier `DATABASE_URL` dans `backend/.env`
 
 ### Port déjà utilisé
-→ Changer `PORT` dans `.env` ou tuer le processus
+
+```powershell
+# Voir les ports utilisés
+Get-NetTCPConnection | Where-Object {$_.LocalPort -in @(3000, 3001, 8080)} | Select-Object LocalPort, OwningProcess
+```
 
 ### Erreur de migration
-→ `npx prisma migrate reset` (⚠️ supprime les données)
+
+```bash
+cd backend
+npx prisma migrate reset   # Recrée tout (supprime les données)
+npx prisma db seed          # Recharge les données de test
+```
+
+### Le proxy ne démarre pas
+
+```bash
+cd proxy
+npm install    # Installer les dépendances du proxy
+npm run dev
+```
 
 ---
 
-**Bon développement ! 🎉**
+## Documentation complète
 
+- [README principal](./README.md)
+- [Détails des applications](./APPLICATIONS_DETAILS.md)
+- [Tests V2](./TESTS_V2_ET_UNIFICATION.md)
+- [Spécifications](./docs/specs.md)
+
+---
+
+**Dernière mise à jour :** 2026-01-28  
+**Version :** 2.0.0

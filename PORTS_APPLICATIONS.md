@@ -1,207 +1,92 @@
-# 📋 Ports des Applications - Mode Développement
+# Ports des Applications - MalocAuto V2
 
-**Date :** 2025-01-26  
-**Environnement :** Développement
-
----
-
-## 🚀 Ports Configurés
-
-| Application | Port | URL | Configuration |
-|------------|------|-----|---------------|
-| **Backend API** | **3000** | http://localhost:3000 | NestJS (défaut) |
-| **Frontend Web** | **3001** | http://localhost:3001 | Next.js (à spécifier) |
-| **Frontend Agency** | **8080** | http://localhost:8080 | Vite (configuré) |
-| **Frontend Admin** | **5173** | http://localhost:5173 | Vite (configuré) |
-| **Mobile Agent** | **8081** | http://localhost:8081 | Expo (défaut) |
+**Date :** 2026-01-28  
+**Version :** 2.0.0 (Architecture unifiée)
 
 ---
 
-## 📝 Détails par Application
+## Ports en développement
 
-### 1. Backend API - Port 3000
+| Application | Port | URL | Commande |
+|-------------|------|-----|----------|
+| **Proxy (point d'entrée unique)** | **8080** | http://localhost:8080 | `npm run dev` (racine) |
+| Backend API (NestJS) | 3000 | http://localhost:3000 | `cd backend && npm run dev` |
+| Frontend Web (Next.js) | 3001 | http://localhost:3001 | `cd frontend-web && npm run dev -- -p 3001` |
+| Mobile Agent (Expo) | 8081 | http://localhost:8081 | `cd mobile-agent && npm start` |
 
-**Répertoire :** `backend/`  
-**Framework :** NestJS  
-**Port :** 3000 (défaut NestJS)
-
-**Commande de démarrage :**
-```bash
-cd backend
-npm run dev
-```
-
-**URLs :**
-- API : http://localhost:3000
-- API Docs (Swagger) : http://localhost:3000/api/docs
-- Health Check : http://localhost:3000/health
-
-**Configuration :**
-- Port défini dans `backend/src/main.ts` (généralement 3000 par défaut)
-- Peut être modifié via variable d'environnement `PORT`
+> **Note :** Le proxy sur le port **8080** est le point d'entrée recommandé pour le navigateur.
 
 ---
 
-### 2. Frontend Web (Agency) - Port 3001
+## Routes via le proxy (port 8080)
 
-**Répertoire :** `frontend-web/`  
-**Framework :** Next.js  
-**Port :** 3001 (à spécifier car Next.js utilise 3000 par défaut)
-
-**Commande de démarrage :**
-```bash
-cd frontend-web
-npm run dev -- -p 3001
-```
-
-**URL :** http://localhost:3001
-
-**Configuration :**
-- Next.js utilise le port 3000 par défaut
-- **IMPORTANT :** Spécifier `-p 3001` pour éviter le conflit avec le backend
-- Peut être configuré via variable d'environnement `PORT=3001`
-
-**Note :** Le script `npm run dev` dans `package.json` ne spécifie pas de port, donc il faut l'ajouter manuellement ou modifier le script.
+| URL | Application | Rôles autorisés |
+|-----|-------------|-----------------|
+| http://localhost:8080/login | Page de connexion | Tous |
+| http://localhost:8080/admin/* | Interface Super Admin | SUPER_ADMIN |
+| http://localhost:8080/company/* | Interface Company Admin | COMPANY_ADMIN |
+| http://localhost:8080/agency/* | Interface Agency | AGENCY_MANAGER, AGENT |
+| http://localhost:8080/api/* | Backend API REST | Authentifié (JWT) |
+| http://localhost:8080/api/docs | Documentation Swagger | Public |
 
 ---
 
-### 3. Frontend Agency - Port 8080
+## Lancement
 
-**Répertoire :** `frontend-agency/`  
-**Framework :** Vite + React  
-**Port :** 8080 (configuré)
-
-**Commande de démarrage :**
-```bash
-cd frontend-agency
-npm run dev
-```
-
-**URL :** http://localhost:8080
-
-**Configuration :**
-- Port défini dans `frontend-agency/package.json` :
-  ```json
-  "dev": "vite --port 8080"
-  ```
-
----
-
-### 4. Frontend Admin - Port 5173
-
-**Répertoire :** `frontend-admin/`  
-**Framework :** Vite + React  
-**Port :** 5173 (configuré)
-
-**Commande de démarrage :**
-```bash
-cd frontend-admin
-npm run dev
-```
-
-**URL :** http://localhost:5173
-
-**Configuration :**
-- Port défini dans `frontend-admin/vite.config.ts` :
-  ```typescript
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-    },
-  }
-  ```
-
----
-
-### 5. Mobile Agent - Port 8081
-
-**Répertoire :** `mobile-agent/`  
-**Framework :** Expo  
-**Port :** 8081 (défaut Expo)
-
-**Commande de démarrage :**
-```bash
-cd mobile-agent
-npm start
-```
-
-**URL :** http://localhost:8081
-
-**Configuration :**
-- Expo utilise le port 8081 par défaut pour le serveur de développement
-- Le QR code est accessible sur cette URL
-- Peut être modifié via variable d'environnement `EXPO_PORT=8081`
-
----
-
-## 🔧 Scripts de Démarrage
-
-### Démarrer toutes les applications
-
-Utiliser le script PowerShell :
-```bash
-powershell -ExecutionPolicy Bypass -File scripts/demarrer-toutes-applications.ps1
-```
-
-### Démarrer uniquement les frontends
+### Tout-en-un (recommandé)
 
 ```bash
-powershell -ExecutionPolicy Bypass -File scripts/relancer-frontends.ps1
+npm install    # À la racine, installe aussi les dépendances du proxy
+npm run dev    # Lance backend + frontend-web + proxy en parallèle
 ```
 
-### Arrêter toutes les applications
+Ouvre http://localhost:8080 dans le navigateur.
+
+### Individuellement
 
 ```bash
-powershell -ExecutionPolicy Bypass -File scripts/arreter-applications.ps1
+# Terminal 1 — Backend
+cd backend && npm run dev
+
+# Terminal 2 — Frontend Web
+cd frontend-web && npm run dev -- -p 3001
+
+# Terminal 3 — Proxy (optionnel si accès direct aux ports)
+cd proxy && npm run dev
+
+# Terminal 4 — Mobile Agent (si besoin)
+cd mobile-agent && npm start
 ```
 
 ---
 
-## ⚠️ Notes Importantes
+## Vérification des ports
 
-1. **Conflit de ports :**
-   - Next.js (Frontend Web) utilise 3000 par défaut
-   - Le backend utilise aussi 3000
-   - **Solution :** Spécifier `-p 3001` pour Next.js
+### PowerShell
 
-2. **Ordre de démarrage recommandé :**
-   1. Backend API (port 3000)
-   2. Frontend Web (port 3001)
-   3. Frontend Agency (port 8080)
-   4. Frontend Admin (port 5173)
-   5. Mobile Agent (port 8081)
+```powershell
+Get-NetTCPConnection | Where-Object {$_.LocalPort -in @(3000, 3001, 8080, 8081)} | Select-Object LocalPort, State
+```
 
-3. **Vérification des ports :**
-   ```powershell
-   Get-NetTCPConnection | Where-Object {$_.LocalPort -in @(3000, 3001, 8080, 5173, 8081)} | Select-Object LocalPort, State
-   ```
+### Linux / macOS
 
----
-
-## 📝 Modifications Recommandées
-
-### Frontend Web - Ajouter le port dans package.json
-
-Pour éviter de spécifier le port à chaque fois, modifier `frontend-web/package.json` :
-
-```json
-{
-  "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3001"
-  }
-}
+```bash
+lsof -i :3000,3001,8080,8081
 ```
 
 ---
 
-**Dernière mise à jour :** 2025-01-26
+## Applications supprimées (V2)
 
+Les anciennes applications Vite ont été supprimées et migrées dans `frontend-web` :
 
+| Application supprimée | Ancien port | Nouvelles routes |
+|----------------------|-------------|------------------|
+| `frontend-admin/` | 5173 | `/admin/*` dans frontend-web |
+| `frontend-agency/` | 8080 | `/agency/*` dans frontend-web |
 
+Le port 5173 n'est plus utilisé.
 
+---
 
+**Dernière mise à jour :** 2026-01-28

@@ -12,8 +12,8 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^expo/src/winter$': '<rootDir>/src/__mocks__/expo-winter.ts',
   },
-  testEnvironment: 'node',
   globals: {
     __DEV__: true,
   },
