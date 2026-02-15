@@ -57,7 +57,9 @@ export default function EditVehiclePage() {
       registrationNumber: '',
       year: undefined,
       color: '',
+      mileage: undefined,
       dailyRate: undefined,
+      depositAmount: undefined,
       status: 'AVAILABLE',
       imageUrl: undefined,
       horsepower: undefined,
@@ -75,12 +77,22 @@ export default function EditVehiclePage() {
         registrationNumber: vehicle.registrationNumber || '',
         year: vehicle.year,
         color: vehicle.color || '',
+        mileage: (vehicle as any).mileage,
         dailyRate: vehicle.dailyRate,
+        depositAmount: (vehicle as any).depositAmount,
         status: vehicle.status || 'AVAILABLE',
         imageUrl: vehicle.imageUrl,
         horsepower: vehicle.horsepower,
         fuel: vehicle.fuel || '',
         gearbox: vehicle.gearbox || '',
+        purchasePrice: (vehicle as any).purchasePrice ?? undefined,
+        acquisitionDate: (vehicle as any).acquisitionDate ? new Date((vehicle as any).acquisitionDate).toISOString().split('T')[0] : undefined,
+        amortizationYears: (vehicle as any).amortizationYears ?? undefined,
+        financingType: (vehicle as any).financingType ?? undefined,
+        downPayment: (vehicle as any).downPayment ?? undefined,
+        monthlyPayment: (vehicle as any).monthlyPayment ?? undefined,
+        financingDurationMonths: (vehicle as any).financingDurationMonths ?? undefined,
+        creditStartDate: (vehicle as any).creditStartDate ? new Date((vehicle as any).creditStartDate).toISOString().split('T')[0] : undefined,
       });
       
       // Initialiser l'image existante
@@ -93,6 +105,28 @@ export default function EditVehiclePage() {
       }
     }
   }, [vehicle, reset]);
+
+  // Auto-calculate purchasePrice and amortizationYears from financing fields
+  const financingType = watch('financingType');
+  const monthlyPaymentVal = watch('monthlyPayment');
+  const financingDurationVal = watch('financingDurationMonths');
+  const downPaymentVal = watch('downPayment');
+
+  useEffect(() => {
+    if (financingType === 'CREDIT' || financingType === 'MIXED') {
+      const monthly = monthlyPaymentVal || 0;
+      const months = financingDurationVal || 0;
+      const down = financingType === 'MIXED' ? (downPaymentVal || 0) : 0;
+      const computed = down + (monthly * months);
+      if (computed > 0) {
+        setValue('purchasePrice', Math.round(computed * 100) / 100);
+      }
+      if (months > 0) {
+        const years = Math.ceil(months / 12);
+        setValue('amortizationYears', years);
+      }
+    }
+  }, [financingType, monthlyPaymentVal, financingDurationVal, downPaymentVal, setValue]);
 
   const uploadImageMutation = useMutation({
     mutationFn: (file: File) => vehicleApi.uploadImage(file),
@@ -228,15 +262,16 @@ export default function EditVehiclePage() {
     
     try {
       // S'assurer que l'imageUrl est inclus si uploadée, sinon garder l'existante
-      const submitData = {
+      const submitData: any = {
         ...data,
         imageUrl: uploadedImageUrl !== null ? uploadedImageUrl : (vehicle?.imageUrl || undefined),
       };
       
-      // Nettoyer les valeurs vides
-      if (submitData.imageUrl === '') {
-        submitData.imageUrl = undefined;
-      }
+      // Nettoyer les valeurs vides avant envoi API
+      if (submitData.imageUrl === '') submitData.imageUrl = undefined;
+      if (submitData.financingType === '') submitData.financingType = undefined;
+      if (submitData.creditStartDate === '') submitData.creditStartDate = undefined;
+      if (submitData.acquisitionDate === '') submitData.acquisitionDate = undefined;
       
       console.log('=== SUBMITTING DATA (EDIT) ===');
       console.log('Submit data:', JSON.stringify(submitData, null, 2));
@@ -403,6 +438,37 @@ export default function EditVehiclePage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label htmlFor="mileage" className="block text-sm font-medium text-text mb-2">
+                  Kilometrage
+                </label>
+                <Input
+                  id="mileage"
+                  type="number"
+                  min="0"
+                  {...register('mileage', { valueAsNumber: true })}
+                  placeholder="0"
+                />
+                {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage.message}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="depositAmount" className="block text-sm font-medium text-text mb-2">
+                  Montant caution (MAD)
+                </label>
+                <Input
+                  id="depositAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register('depositAmount', { valueAsNumber: true })}
+                  placeholder="5000"
+                />
+                {errors.depositAmount && <p className="text-red-500 text-sm mt-1">{errors.depositAmount.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <label htmlFor="fuel" className="block text-sm font-medium text-text mb-2">
                   Carburant
                 </label>
@@ -447,6 +513,157 @@ export default function EditVehiclePage() {
             {uploadImageMutation.isError && (
               <p className="text-sm text-red-500">Erreur lors de l'upload. Veuillez réessayer.</p>
             )}
+
+            {/* Informations financières */}
+            <div className="border-t border-border pt-6 mt-6">
+              <h3 className="text-lg font-semibold text-text mb-4">Informations financières</h3>
+
+              {/* 1. Mode de financement (en premier) */}
+              <div>
+                <label htmlFor="financingType" className="block text-sm font-medium text-text mb-2">
+                  Mode de financement
+                </label>
+                <Select
+                  id="financingType"
+                  {...register('financingType')}
+                >
+                  <option value="">Non renseigné</option>
+                  <option value="CASH">Comptant (payé intégralement)</option>
+                  <option value="CREDIT">Crédit total</option>
+                  <option value="MIXED">Mixte (apport + crédit)</option>
+                </Select>
+              </div>
+
+              {/* 2. Champs crédit (si CREDIT ou MIXED) */}
+              {(financingType === 'MIXED' || financingType === 'CREDIT') && (
+                <div className="mt-4 space-y-4 p-4 bg-background rounded-lg border border-border">
+                  {financingType === 'MIXED' && (
+                    <div>
+                      <label htmlFor="downPayment" className="block text-sm font-medium text-text mb-2">
+                        Apport initial (MAD)
+                      </label>
+                      <Input
+                        id="downPayment"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...register('downPayment', { valueAsNumber: true })}
+                        placeholder="50000"
+                      />
+                      {errors.downPayment && <p className="text-red-500 text-sm mt-1">{errors.downPayment.message}</p>}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="monthlyPayment" className="block text-sm font-medium text-text mb-2">
+                        Mensualité (MAD)
+                      </label>
+                      <Input
+                        id="monthlyPayment"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...register('monthlyPayment', { valueAsNumber: true })}
+                        placeholder="3500"
+                      />
+                      {errors.monthlyPayment && <p className="text-red-500 text-sm mt-1">{errors.monthlyPayment.message}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="financingDurationMonths" className="block text-sm font-medium text-text mb-2">
+                        Durée crédit (mois)
+                      </label>
+                      <Input
+                        id="financingDurationMonths"
+                        type="number"
+                        min="1"
+                        max="120"
+                        {...register('financingDurationMonths', { valueAsNumber: true })}
+                        placeholder="48"
+                      />
+                      {errors.financingDurationMonths && <p className="text-red-500 text-sm mt-1">{errors.financingDurationMonths.message}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="creditStartDate" className="block text-sm font-medium text-text mb-2">
+                        Début du crédit
+                      </label>
+                      <Input
+                        id="creditStartDate"
+                        type="date"
+                        {...register('creditStartDate')}
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-text-muted">
+                    Les mensualités seront comparées aux charges &quot;Mensualité bancaire&quot; pour vérifier la cohérence.
+                  </p>
+                </div>
+              )}
+
+              {/* 3. Prix d'achat (calculé dynamiquement si crédit/mixte) */}
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="purchasePrice" className="block text-sm font-medium text-text mb-2">
+                    Prix d'achat (MAD)
+                    {(financingType === 'CREDIT' || financingType === 'MIXED') && (
+                      <span className="text-xs text-primary ml-1">(calculé)</span>
+                    )}
+                  </label>
+                  <Input
+                    id="purchasePrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...register('purchasePrice', { valueAsNumber: true })}
+                    placeholder="150000"
+                    readOnly={financingType === 'CREDIT' || financingType === 'MIXED'}
+                    className={financingType === 'CREDIT' || financingType === 'MIXED' ? 'bg-card cursor-not-allowed' : ''}
+                  />
+                  {errors.purchasePrice && <p className="text-red-500 text-sm mt-1">{errors.purchasePrice.message}</p>}
+                  {(financingType === 'CREDIT' || financingType === 'MIXED') && (
+                    <p className="text-xs text-text-muted mt-1">
+                      {financingType === 'CREDIT'
+                        ? 'Mensualité × Durée crédit'
+                        : 'Apport + (Mensualité × Durée crédit)'}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="acquisitionDate" className="block text-sm font-medium text-text mb-2">
+                    Date d'acquisition
+                  </label>
+                  <Input
+                    id="acquisitionDate"
+                    type="date"
+                    {...register('acquisitionDate')}
+                  />
+                  {errors.acquisitionDate && <p className="text-red-500 text-sm mt-1">{errors.acquisitionDate.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="amortizationYears" className="block text-sm font-medium text-text mb-2">
+                    Durée amortissement (ans)
+                  </label>
+                  <Input
+                    id="amortizationYears"
+                    type="number"
+                    min="1"
+                    max="30"
+                    {...register('amortizationYears', { valueAsNumber: true })}
+                    placeholder="5"
+                  />
+                  {errors.amortizationYears && <p className="text-red-500 text-sm mt-1">{errors.amortizationYears.message}</p>}
+                  <p className="text-xs text-text-muted mt-1">
+                    Durée comptable pour répartir le coût dans les KPI.
+                    {(financingType === 'CREDIT' || financingType === 'MIXED') && ' Pré-rempli depuis la durée du crédit.'}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div>
               <label htmlFor="status" className="block text-sm font-medium text-text mb-2">

@@ -222,14 +222,11 @@ export class SubscriptionService {
       throw new ForbiddenException('Seul SUPER_ADMIN peut mettre à jour les abonnements');
     }
 
-    const dataWithAudit = this.auditService.addUpdateAuditFields(
-      updateSubscriptionDto,
-      user?.userId || user?.id,
-    );
-
+    // Note: Subscription model does not have updatedByUserId field,
+    // so we pass the DTO directly without audit fields
     return this.prisma.subscription.update({
       where: { id },
-      data: dataWithAudit,
+      data: updateSubscriptionDto,
       include: {
         company: {
           select: {

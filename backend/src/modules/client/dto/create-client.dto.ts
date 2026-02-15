@@ -74,6 +74,11 @@ export class CreateClientDto {
   @IsBoolean()
   isForeignLicense?: boolean;
 
+  @ApiPropertyOptional({ description: 'Type de pièce d\'identité (CIN, CARTE_SEJOUR, TITRE_SEJOUR, PERMIS_RESIDENCE, AUTRE)' })
+  @IsOptional()
+  @IsString()
+  idCardType?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

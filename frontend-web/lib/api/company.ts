@@ -38,6 +38,7 @@ export interface UpdateCompanyDto {
   identifiantLegal?: string;
   formeJuridique?: string;
   maxAgencies?: number | null;
+  bookingNumberMode?: string;
   phone?: string;
   address?: string;
   isActive?: boolean;

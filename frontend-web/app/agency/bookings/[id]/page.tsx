@@ -12,6 +12,7 @@ import { vehicleApi } from '@/lib/api/vehicle';
 import { clientApi } from '@/lib/api/client-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { ArrowLeft, Save, X, CheckCircle, Clock, Car } from 'lucide-react';
@@ -88,6 +89,8 @@ export default function EditBookingPage() {
       startDate: '',
       endDate: '',
       totalAmount: 0,
+      depositRequired: false,
+      depositAmount: undefined,
     },
   });
 
@@ -107,6 +110,8 @@ export default function EditBookingPage() {
         startDate,
         endDate,
         totalAmount: booking.totalAmount || booking.totalPrice || 0,
+        depositRequired: booking.depositRequired ?? false,
+        depositAmount: booking.depositAmount ? Number(booking.depositAmount) : undefined,
       });
     }
   }, [booking, reset]);
@@ -129,6 +134,8 @@ export default function EditBookingPage() {
         startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
         endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
         totalPrice: data.totalAmount,
+        depositRequired: data.depositRequired,
+        depositAmount: data.depositAmount,
       };
       return bookingApi.update(bookingId, updateData);
     },
@@ -358,6 +365,36 @@ export default function EditBookingPage() {
                   {errors.totalAmount && <p className="text-red-500 text-sm mt-1">{errors.totalAmount.message}</p>}
                 </div>
 
+                {/* Section Caution */}
+                <div className="border-t border-border pt-6 mt-2">
+                  <h3 className="text-sm font-semibold text-text mb-4">Caution</h3>
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        {...register('depositRequired')}
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm font-medium text-text">Caution requise</span>
+                    </label>
+                  </div>
+
+                  {watch('depositRequired') && (
+                    <div>
+                      <label htmlFor="depositAmount" className="block text-sm font-medium text-text mb-2">
+                        Montant (MAD)
+                      </label>
+                      <Input
+                        id="depositAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        {...register('depositAmount', { valueAsNumber: true })}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-4">
                   <Button
                     type="button"
@@ -418,7 +455,6 @@ export default function EditBookingPage() {
                       </p>
                       <p className="text-text-muted text-xs">
                         Statut: {booking.depositStatusCheckIn === 'COLLECTED' ? 'Collectée' : 'En attente'}
-                        {booking.depositDecisionSource && ` • Source: ${booking.depositDecisionSource === 'COMPANY' ? 'Entreprise' : 'Agence'}`}
                       </p>
                       {booking.depositStatusCheckIn === 'COLLECTED' && booking.totalPrice && booking.depositAmount && (
                         <p className="text-text-muted text-xs mt-1">

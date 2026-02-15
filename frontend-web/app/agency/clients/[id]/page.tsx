@@ -20,6 +20,7 @@ import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import { getImageUrl } from '@/lib/utils/image-url';
 import { AlertCircle, Info, CheckCircle2 } from 'lucide-react';
+import { COUNTRIES } from '@/lib/utils/countries';
 import { Card } from '@/components/ui/card';
 
 export default function EditClientPage() {
@@ -69,6 +70,7 @@ export default function EditClientPage() {
       countryOfOrigin: '',
       licenseExpiryDate: '',
       isForeignLicense: false,
+      idCardType: '',
       idCardNumber: '',
       idCardExpiryDate: '',
       passportNumber: '',
@@ -124,6 +126,7 @@ export default function EditClientPage() {
         countryOfOrigin: client.countryOfOrigin || '',
         licenseExpiryDate: client.licenseExpiryDate || '',
         isForeignLicense: client.isForeignLicense ?? false,
+        idCardType: (client as any).idCardType || '',
         idCardNumber: client.idCardNumber || '',
         idCardExpiryDate: client.idCardExpiryDate || '',
         passportNumber: client.passportNumber || '',
@@ -231,6 +234,7 @@ export default function EditClientPage() {
       licenseNumber: data.licenseNumber || undefined,
       licenseExpiryDate: data.licenseExpiryDate || undefined,
       countryOfOrigin: data.countryOfOrigin || undefined,
+      idCardType: data.idCardType || undefined,
       idCardNumber: data.idCardNumber || undefined,
       idCardExpiryDate: data.idCardExpiryDate || undefined,
       passportNumber: data.passportNumber || undefined,
@@ -244,7 +248,8 @@ export default function EditClientPage() {
   const validationStatus = useMemo(() => {
     const requiredFields = ['firstName', 'lastName', 'email', 'phone'];
     const requiredValid = requiredFields.every(field => !errors[field as keyof typeof errors]);
-    const conditionalValid = !showIdentitySection || (idCardNumber || passportNumber);
+    const idCardType = watch('idCardType');
+    const conditionalValid = !showIdentitySection || (idCardType && idCardNumber);
     const countryValid = isMoroccan || countryOfOrigin;
     
     return {
@@ -466,13 +471,18 @@ export default function EditClientPage() {
                   <span className="text-xs text-text-muted ml-2">(si résidant à l'étranger)</span>
                 )}
               </label>
-              <Input
+              <select
                 id="countryOfOrigin"
                 {...register('countryOfOrigin')}
-                placeholder="Ex: France, Espagne, Belgique..."
+                className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
                 disabled={isMoroccan && !countryOfOrigin}
                 onBlur={() => trigger('countryOfOrigin')}
-              />
+              >
+                <option value="">-- Sélectionner un pays --</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
               {errors.countryOfOrigin && (
                 <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
@@ -579,17 +589,17 @@ export default function EditClientPage() {
             </div>
           </div>
 
-          {/* Pièce d'identité / Passeport */}
+          {/* Document d'identité */}
           {showIdentitySection && (
             <div className="border-t border-border pt-6 mt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-text">
-                  Pièce d'identité / Passeport
+                  Document d&apos;identité
                 </h3>
                 {isIdentityRequired && !validationStatus.conditional && (
                   <span className="text-xs text-orange-500 flex items-center gap-1">
                     <Info className="w-3 h-3" />
-                    Au moins un document requis
+                    Document requis
                   </span>
                 )}
               </div>
@@ -599,109 +609,77 @@ export default function EditClientPage() {
                   <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <p className="text-sm">
                     {!isMoroccan 
-                      ? 'Pour les clients non-marocains, au moins une pièce d\'identité ou un passeport est obligatoire.'
-                      : 'Pour les marocains résidant à l\'étranger, une pièce d\'identité ou un passeport est recommandé.'}
+                      ? 'Pour les clients non-marocains, un document d\'identité est obligatoire.'
+                      : 'Pour les marocains résidant à l\'étranger, un document d\'identité est recommandé.'}
                   </p>
                 </div>
               </Card>
-                
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="idCardNumber" className="block text-sm font-medium text-text mb-2">
-                    Numéro de pièce d'identité
-                    {isIdentityRequired && !passportNumber && (
-                      <span className="text-red-500 ml-1">*</span>
-                    )}
-                  </label>
-                  <Input
-                    id="idCardNumber"
-                    {...register('idCardNumber')}
-                    placeholder="Ex: AB123456"
-                    onBlur={() => trigger(['idCardNumber', 'idCardExpiryDate'])}
-                  />
-                  {errors.idCardNumber && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.idCardNumber.message}
-                    </p>
-                  )}
-                </div>
 
-                <div>
-                  <label htmlFor="idCardExpiryDate" className="block text-sm font-medium text-text mb-2">
-                    Date d'expiration de la pièce d'identité
-                    {idCardNumber && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  <Input
-                    id="idCardExpiryDate"
-                    type="date"
-                    {...register('idCardExpiryDate')}
-                    min={new Date().toISOString().split('T')[0]}
-                    disabled={!idCardNumber}
-                  />
-                  {errors.idCardExpiryDate && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.idCardExpiryDate.message}
-                    </p>
-                  )}
-                  {idCardExpiryDate && new Date(idCardExpiryDate) < new Date() && (
-                    <p className="text-orange-500 text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      Attention: La pièce d'identité est expirée
-                    </p>
-                  )}
-                </div>
+              <div>
+                <label htmlFor="idCardType" className="block text-sm font-medium text-text mb-2">
+                  Type de document {isIdentityRequired && <span className="text-red-500">*</span>}
+                </label>
+                <select
+                  id="idCardType"
+                  {...register('idCardType')}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+                >
+                  <option value="">-- Sélectionner le type --</option>
+                  <option value="CIN">CIN (Carte d&apos;identité nationale)</option>
+                  <option value="PASSEPORT">Passeport</option>
+                  <option value="CARTE_SEJOUR">Carte de séjour</option>
+                  <option value="TITRE_SEJOUR">Titre de séjour</option>
+                  <option value="PERMIS_RESIDENCE">Permis de résidence</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="passportNumber" className="block text-sm font-medium text-text mb-2">
-                    Numéro de passeport
-                    {isIdentityRequired && !idCardNumber && (
-                      <span className="text-red-500 ml-1">*</span>
+              {watch('idCardType') && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="idCardNumber" className="block text-sm font-medium text-text mb-2">
+                      Numéro du document <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      id="idCardNumber"
+                      {...register('idCardNumber')}
+                      placeholder={watch('idCardType') === 'PASSEPORT' ? 'Ex: 12AB34567' : 'Ex: AB123456'}
+                      onBlur={() => trigger(['idCardNumber', 'idCardExpiryDate'])}
+                    />
+                    {errors.idCardNumber && (
+                      <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.idCardNumber.message}
+                      </p>
                     )}
-                  </label>
-                  <Input
-                    id="passportNumber"
-                    {...register('passportNumber')}
-                    placeholder="Ex: 12AB34567"
-                    onBlur={() => trigger(['passportNumber', 'passportExpiryDate'])}
-                  />
-                  {errors.passportNumber && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.passportNumber.message}
-                    </p>
-                  )}
-                </div>
+                  </div>
 
-                <div>
-                  <label htmlFor="passportExpiryDate" className="block text-sm font-medium text-text mb-2">
-                    Date d'expiration du passeport
-                    {passportNumber && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  <Input
-                    id="passportExpiryDate"
-                    type="date"
-                    {...register('passportExpiryDate')}
-                    min={new Date().toISOString().split('T')[0]}
-                    disabled={!passportNumber}
-                  />
-                  {errors.passportExpiryDate && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.passportExpiryDate.message}
-                    </p>
-                  )}
-                  {passportExpiryDate && new Date(passportExpiryDate) < new Date() && (
-                    <p className="text-orange-500 text-sm mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      Attention: Le passeport est expiré
-                    </p>
-                  )}
+                  <div>
+                    <label htmlFor="idCardExpiryDate" className="block text-sm font-medium text-text mb-2">
+                      Date d&apos;expiration
+                      {idCardNumber && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    <Input
+                      id="idCardExpiryDate"
+                      type="date"
+                      {...register('idCardExpiryDate')}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                    {errors.idCardExpiryDate && (
+                      <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.idCardExpiryDate.message}
+                      </p>
+                    )}
+                    {idCardExpiryDate && new Date(idCardExpiryDate) < new Date() && (
+                      <p className="text-orange-500 text-sm mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        Attention : le document est expiré
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </FormCard>

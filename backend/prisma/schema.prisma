@@ -436,6 +436,18 @@ model Vehicle {
   horsepower         Int? // Puissance en CV
   color              String? // Couleur du véhicule
 
+  // Informations financieres / amortissement
+  purchasePrice     Float?    // Prix d'achat du vehicule
+  acquisitionDate   DateTime? // Date d'acquisition
+  amortizationYears Int?      @default(5) // Duree d'amortissement en annees
+
+  // Mode de financement
+  financingType           String?   // CASH | CREDIT | MIXED (comptant, credit total, mixte)
+  downPayment             Float?    // Apport / avance initiale (MAD)
+  monthlyPayment          Float?    // Mensualite du credit (MAD)
+  financingDurationMonths Int?      // Duree du credit en mois
+  creditStartDate         DateTime? // Date debut du credit
+
   // GPS Tracker (boitier physique type mini GPS / AirTag)
   gpsTrackerId    String?   // Identifiant / numero de serie du tracker
   gpsTrackerLabel String?   // Description (ex: "Mini GPS noir coffre")
@@ -492,6 +504,7 @@ model Client {
   isForeignLicense  Boolean   @default(false) // Si le permis est étranger
 
   // Pièce d'identité (pour non-marocains ou marocains résidant à l'étranger)
+  idCardType         String? // Type de pièce d'identité (CIN, CARTE_SEJOUR, TITRE_SEJOUR, PERMIS_RESIDENCE, AUTRE)
   idCardNumber       String? // Numéro de pièce d'identité
   idCardExpiryDate   DateTime? // Date d'expiration de la pièce d'identité
   passportNumber     String? // Numéro de passeport

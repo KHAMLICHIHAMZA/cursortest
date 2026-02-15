@@ -8,12 +8,21 @@ export interface Vehicle {
   year?: number;
   color?: string;
   dailyRate?: number;
+  depositAmount?: number;
   status: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE' | 'UNAVAILABLE';
   agencyId: string;
   imageUrl?: string;
   horsepower?: number;
   fuel?: string;
   gearbox?: string;
+  purchasePrice?: number;
+  acquisitionDate?: string;
+  amortizationYears?: number;
+  financingType?: string;
+  downPayment?: number;
+  monthlyPayment?: number;
+  financingDurationMonths?: number;
+  creditStartDate?: string;
   gpsTrackerId?: string;
   gpsTrackerLabel?: string;
   agency?: {
@@ -38,11 +47,20 @@ export interface CreateVehicleDto {
   year?: number;
   color?: string;
   dailyRate?: number;
+  depositAmount?: number;
   status?: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE' | 'UNAVAILABLE';
   imageUrl?: string;
   horsepower?: number;
   fuel?: string;
   gearbox?: string;
+  purchasePrice?: number;
+  acquisitionDate?: string;
+  amortizationYears?: number;
+  financingType?: string;
+  downPayment?: number;
+  monthlyPayment?: number;
+  financingDurationMonths?: number;
+  creditStartDate?: string;
 }
 
 export interface UpdateVehicleDto {
@@ -52,11 +70,20 @@ export interface UpdateVehicleDto {
   year?: number;
   color?: string;
   dailyRate?: number;
+  depositAmount?: number;
   status?: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE' | 'UNAVAILABLE';
   imageUrl?: string;
   horsepower?: number;
   fuel?: string;
   gearbox?: string;
+  purchasePrice?: number;
+  acquisitionDate?: string;
+  amortizationYears?: number;
+  financingType?: string;
+  downPayment?: number;
+  monthlyPayment?: number;
+  financingDurationMonths?: number;
+  creditStartDate?: string;
 }
 
 export const vehicleApi = {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
-import { Plus, Trash2, RefreshCw, AlertCircle, CheckCircle, Info, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, AlertCircle, CheckCircle, Info, ArrowLeft, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ interface Company {
 
 export default function SubscriptionsPage() {
   const [showModal, setShowModal] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -103,6 +104,39 @@ export default function SubscriptionsPage() {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      apiClient.patch(`/subscriptions/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      setEditingSubscription(null);
+    },
+  });
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingSubscription) return;
+    const formData = new FormData(e.currentTarget);
+    const data: Record<string, unknown> = {};
+
+    const billingPeriod = formData.get('billingPeriod') as string;
+    if (billingPeriod) data.billingPeriod = billingPeriod;
+
+    const amount = formData.get('amount') as string;
+    if (amount) data.amount = parseFloat(amount);
+
+    const startDate = formData.get('startDate') as string;
+    if (startDate) data.startDate = startDate;
+
+    const endDate = formData.get('endDate') as string;
+    if (endDate) data.endDate = endDate;
+
+    const status = formData.get('status') as string;
+    if (status) data.status = status;
+
+    updateMutation.mutate({ id: editingSubscription.id, data });
+  };
 
   const getStatusKey = (status: string): 'success' | 'pending' | 'error' | 'cancelled' => {
     switch (status) {
@@ -268,6 +302,101 @@ export default function SubscriptionsPage() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit subscription modal */}
+        <Dialog open={!!editingSubscription} onOpenChange={(open) => { if (!open) setEditingSubscription(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                Modifier l&apos;abonnement — {editingSubscription?.company?.name || ''}
+              </DialogTitle>
+            </DialogHeader>
+            {editingSubscription && (
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Statut</label>
+                  <select
+                    name="status"
+                    defaultValue={editingSubscription.status}
+                    className="w-full px-3 py-2 border rounded-lg bg-background"
+                  >
+                    <option value="ACTIVE">Actif</option>
+                    <option value="SUSPENDED">Suspendu</option>
+                    <option value="EXPIRED">Expiré</option>
+                    <option value="CANCELLED">Annulé</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Périodicité</label>
+                  <select
+                    name="billingPeriod"
+                    defaultValue={editingSubscription.billingPeriod}
+                    className="w-full px-3 py-2 border rounded-lg bg-background"
+                  >
+                    <option value="MONTHLY">Mensuel</option>
+                    <option value="QUARTERLY">Trimestriel</option>
+                    <option value="YEARLY">Annuel</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Montant (MAD)</label>
+                  <Input
+                    type="number"
+                    name="amount"
+                    step="0.01"
+                    min="0"
+                    defaultValue={editingSubscription.amount}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date de début</label>
+                  <Input
+                    type="date"
+                    name="startDate"
+                    defaultValue={editingSubscription.startDate?.split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date de fin</label>
+                  <Input
+                    type="date"
+                    name="endDate"
+                    defaultValue={editingSubscription.endDate?.split('T')[0]}
+                  />
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 rounded-lg text-sm flex gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-700 dark:text-amber-300 mb-1">
+                      Attention
+                    </p>
+                    <p className="text-amber-600 dark:text-amber-400 text-xs">
+                      Les modifications prennent effet immédiatement. Changer le statut vers &quot;Suspendu&quot; ou &quot;Annulé&quot; bloquera l&apos;accès de l&apos;entreprise.
+                    </p>
+                  </div>
+                </div>
+                {updateMutation.isError && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                    {(updateMutation.error as Error)?.message || 'Une erreur est survenue'}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setEditingSubscription(null)}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="border rounded-lg">
@@ -309,6 +438,16 @@ export default function SubscriptionsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      {subscription.status !== 'CANCELLED' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingSubscription(subscription)}
+                          title="Modifier"
+                        >
+                          <Pencil className="w-4 h-4 text-text-muted" />
+                        </Button>
+                      )}
                       {subscription.status === 'ACTIVE' && (
                         <>
                           <Button

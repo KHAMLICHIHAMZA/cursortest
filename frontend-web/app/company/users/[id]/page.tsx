@@ -186,7 +186,6 @@ export default function EditCompanyUserPage() {
             >
               <option value="AGENT">Agent</option>
               <option value="AGENCY_MANAGER">Gestionnaire d&apos;agence</option>
-              <option value="COMPANY_ADMIN">Administrateur d&apos;entreprise</option>
             </Select>
             {isSelf && (
               <p className="text-xs text-text-muted mt-1">

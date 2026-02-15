@@ -44,7 +44,6 @@ export default function NewBookingPage() {
       status: 'DRAFT',
       depositRequired: false,
       depositAmount: undefined,
-      depositDecisionSource: undefined,
     },
   });
 
@@ -97,6 +96,14 @@ export default function NewBookingPage() {
     }
   }, [selectedVehicle, startDate, endDate, setValue]);
 
+  // Pre-remplir la caution depuis le vehicule selectionne
+  useEffect(() => {
+    if (selectedVehicle && selectedVehicle.depositAmount != null && selectedVehicle.depositAmount > 0) {
+      setValue('depositRequired', true);
+      setValue('depositAmount', selectedVehicle.depositAmount);
+    }
+  }, [selectedVehicle, setValue]);
+
   const createMutation = useMutation({
     mutationFn: (data: CreateBookingFormData) => {
       const bookingData: any = {
@@ -110,7 +117,6 @@ export default function NewBookingPage() {
         // Champs caution (R3)
         depositRequired: data.depositRequired || false,
         depositAmount: data.depositAmount,
-        depositDecisionSource: data.depositDecisionSource,
       };
       return bookingApi.create(bookingData);
     },
@@ -270,6 +276,12 @@ export default function NewBookingPage() {
             {/* Section Caution (R3) */}
             <div className="border-t border-border pt-6 mt-6">
               <h3 className="text-lg font-semibold text-text mb-4">Caution</h3>
+
+              {selectedVehicle && selectedVehicle.depositAmount != null && selectedVehicle.depositAmount > 0 && (
+                <div className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400 flex items-center gap-2">
+                  <span>Caution définie sur le véhicule : <strong>{selectedVehicle.depositAmount.toFixed(2)} MAD</strong>. Vous pouvez la modifier ci-dessous.</span>
+                </div>
+              )}
               
               <div className="mb-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -301,23 +313,6 @@ export default function NewBookingPage() {
                     {errors.depositAmount && <p className="text-red-500 text-sm mt-1">{errors.depositAmount.message}</p>}
                   </div>
 
-                  <div>
-                    <label htmlFor="depositDecisionSource" className="block text-sm font-medium text-text mb-2">
-                      Source de décision *
-                    </label>
-                    <Select
-                      id="depositDecisionSource"
-                      {...register('depositDecisionSource')}
-                    >
-                      <option value="">Sélectionner une source</option>
-                      <option value="COMPANY">Entreprise (règle globale)</option>
-                      <option value="AGENCY">Agence (décision locale)</option>
-                    </Select>
-                    {errors.depositDecisionSource && <p className="text-red-500 text-sm mt-1">{errors.depositDecisionSource.message}</p>}
-                    <p className="text-xs text-text-muted mt-1">
-                      Indique si la caution est requise par une règle de l'entreprise ou par décision de l'agence
-                    </p>
-                  </div>
                 </>
               )}
             </div>

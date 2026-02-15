@@ -45,6 +45,7 @@ export const createClientSchema = z.object({
     { message: 'La date d\'expiration du permis doit être dans le futur' }
   ),
   isForeignLicense: z.boolean().optional().default(false),
+  idCardType: z.string().max(50).optional(),
   idCardNumber: z.string().max(50, 'Le numéro de pièce d\'identité ne peut pas dépasser 50 caractères').optional(),
   idCardExpiryDate: z.string().optional().refine(
     (val) => validateExpiryDate(val, 'pièce d\'identité'),
@@ -139,6 +140,7 @@ export const updateClientSchema = z.object({
     { message: 'La date d\'expiration du permis doit être dans le futur' }
   ),
   isForeignLicense: z.boolean().optional(),
+  idCardType: z.string().max(50).optional(),
   idCardNumber: z.string().max(50, 'Le numéro de pièce d\'identité ne peut pas dépasser 50 caractères').optional(),
   idCardExpiryDate: z.string().optional().refine(
     (val) => validateExpiryDate(val, 'pièce d\'identité'),

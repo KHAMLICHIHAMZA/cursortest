@@ -135,6 +135,19 @@ export class VehicleService {
         imageUrl: createVehicleDto.imageUrl,
         color: createVehicleDto.color,
         horsepower: createVehicleDto.horsepower,
+        // Informations financieres / amortissement
+        purchasePrice: createVehicleDto.purchasePrice,
+        acquisitionDate: createVehicleDto.acquisitionDate ? new Date(createVehicleDto.acquisitionDate) : undefined,
+        amortizationYears: createVehicleDto.amortizationYears,
+        // Mode de financement
+        financingType: createVehicleDto.financingType,
+        downPayment: createVehicleDto.downPayment,
+        monthlyPayment: createVehicleDto.monthlyPayment,
+        financingDurationMonths: createVehicleDto.financingDurationMonths,
+        creditStartDate: createVehicleDto.creditStartDate ? new Date(createVehicleDto.creditStartDate) : undefined,
+        // GPS Tracker
+        gpsTrackerId: createVehicleDto.gpsTrackerId,
+        gpsTrackerLabel: createVehicleDto.gpsTrackerLabel,
       },
       user.id,
     );
@@ -211,8 +224,17 @@ export class VehicleService {
     // Check if status changed
     const statusChanged = updateVehicleDto.status && updateVehicleDto.status !== vehicle.status;
 
+    // Convert date strings to Date objects for Prisma DateTime fields
+    const dtoForPrisma: any = { ...updateVehicleDto };
+    if (dtoForPrisma.acquisitionDate) {
+      dtoForPrisma.acquisitionDate = new Date(dtoForPrisma.acquisitionDate);
+    }
+    if (dtoForPrisma.creditStartDate) {
+      dtoForPrisma.creditStartDate = new Date(dtoForPrisma.creditStartDate);
+    }
+
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(updateVehicleDto, user.id);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(dtoForPrisma, user.id);
 
     const updatedVehicle = await this.prisma.vehicle.update({
       where: { id },

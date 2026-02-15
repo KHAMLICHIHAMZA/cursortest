@@ -68,6 +68,46 @@ export class UpdateVehicleDto {
   @IsString()
   gearbox?: string;
 
+  @ApiPropertyOptional({ description: 'Prix d\'achat du vehicule' })
+  @IsOptional()
+  @IsNumber()
+  purchasePrice?: number;
+
+  @ApiPropertyOptional({ description: 'Date d\'acquisition du vehicule (ISO string)' })
+  @IsOptional()
+  @IsString()
+  acquisitionDate?: string;
+
+  @ApiPropertyOptional({ description: 'Duree d\'amortissement en annees (defaut 5)' })
+  @IsOptional()
+  @IsNumber()
+  amortizationYears?: number;
+
+  @ApiPropertyOptional({ description: 'Mode de financement: CASH, CREDIT ou MIXED' })
+  @IsOptional()
+  @IsString()
+  financingType?: string;
+
+  @ApiPropertyOptional({ description: 'Apport / avance initiale (MAD)' })
+  @IsOptional()
+  @IsNumber()
+  downPayment?: number;
+
+  @ApiPropertyOptional({ description: 'Mensualite du credit (MAD)' })
+  @IsOptional()
+  @IsNumber()
+  monthlyPayment?: number;
+
+  @ApiPropertyOptional({ description: 'Duree du credit en mois' })
+  @IsOptional()
+  @IsNumber()
+  financingDurationMonths?: number;
+
+  @ApiPropertyOptional({ description: 'Date debut du credit (ISO string)' })
+  @IsOptional()
+  @IsString()
+  creditStartDate?: string;
+
   @ApiPropertyOptional({ description: 'Identifiant / numero de serie du tracker GPS' })
   @IsOptional()
   @IsString()
