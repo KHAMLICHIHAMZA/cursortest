@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, ChargeCategory } from '@prisma/client';
 
 export interface CreateChargeDto {
   agencyId: string;
@@ -78,7 +78,7 @@ export class ChargeService {
         agencyId: dto.agencyId,
         vehicleId: dto.vehicleId,
         bookingId: dto.bookingId || null,
-        category: dto.category as any,
+        category: dto.category as ChargeCategory,
         description: dto.description,
         amount: new Prisma.Decimal(dto.amount),
         date: new Date(dto.date),

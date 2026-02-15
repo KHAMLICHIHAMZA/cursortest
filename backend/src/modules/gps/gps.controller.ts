@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { GpsService, CreateGpsSnapshotDto, CreateGpsSnapshotMissingDto } from './gps.service';
@@ -18,7 +19,7 @@ import { RequireActiveAgencyGuard } from '../../common/guards/require-active-age
 import { RequireModuleGuard, RequireModule } from '../../common/guards/require-module.guard';
 import { RequirePermission } from '../../common/decorators/permission.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { ModuleCode, UserAgencyPermission, Role } from '@prisma/client';
+import { ModuleCode, UserAgencyPermission, Role, GpsSnapshotReason } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('GPS')
@@ -53,7 +54,7 @@ export class GpsController {
     return this.gpsService.findByAgency(
       agencyId || user.agencyIds?.[0],
       {
-        reason: reason as any,
+        reason: reason as GpsSnapshotReason,
         dateFrom: dateFrom ? new Date(dateFrom) : undefined,
         dateTo: dateTo ? new Date(dateTo) : undefined,
         limit: limit ? parseInt(limit, 10) : undefined,
@@ -87,7 +88,7 @@ export class GpsController {
   @Permissions('gps:create')
   @ApiOperation({ summary: 'Capture a GPS snapshot' })
   async capture(@Body() dto: CreateGpsSnapshotDto, @CurrentUser() user: any) {
-    return this.gpsService.captureSnapshot(dto, user.userId, user.role);
+    return this.gpsService.captureSnapshot(dto, user.userId, user.role, user);
   }
 
   @Post('manual')
@@ -97,9 +98,10 @@ export class GpsController {
   @ApiOperation({ summary: 'Capture a manual GPS snapshot (managers only)' })
   async captureManual(@Body() dto: CreateGpsSnapshotDto, @CurrentUser() user: any) {
     return this.gpsService.captureSnapshot(
-      { ...dto, reason: 'MANUAL' as any },
+      { ...dto, reason: 'MANUAL' as GpsSnapshotReason },
       user.userId,
       user.role,
+      user,
     );
   }
 
@@ -107,7 +109,7 @@ export class GpsController {
   @Permissions('gps:create')
   @ApiOperation({ summary: 'Record GPS missing (when GPS is unavailable)' })
   async recordMissing(@Body() dto: CreateGpsSnapshotMissingDto, @CurrentUser() user: any) {
-    return this.gpsService.recordGpsMissing(dto, user.userId, user.role);
+    return this.gpsService.recordGpsMissing(dto, user.userId, user.role, user);
   }
 
   @Get('kpi/eco')
@@ -120,11 +122,18 @@ export class GpsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    // Enforce agency access for non-admin roles
+    if (agencyId && user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
+      if (user.agencyIds && !user.agencyIds.includes(agencyId)) {
+        throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+      }
+    }
+
     const now = new Date();
     const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const end = endDate || now.toISOString().slice(0, 10);
     return this.gpsKpiService.computeKpi(user.companyId, {
-      agencyId,
+      agencyId: agencyId || (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN' ? user.agencyIds?.[0] : undefined),
       vehicleId,
       startDate: start,
       endDate: end,

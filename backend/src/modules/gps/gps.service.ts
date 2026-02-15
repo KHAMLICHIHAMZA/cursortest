@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '@prisma/client';
+import { AuditAction, GpsSnapshotReason as PrismaGpsSnapshotReason } from '@prisma/client';
 
 // GPS Snapshot Reason (mirroring Prisma enum)
 const GpsSnapshotReason = {
@@ -71,7 +71,13 @@ export class GpsService {
     dto: CreateGpsSnapshotDto,
     userId: string,
     userRole: string,
+    user?: any,
   ): Promise<any> {
+    // Enforce agency access
+    if (user) {
+      enforceAgencyAccess(user, dto.agencyId);
+    }
+
     // Check permissions for manual snapshots
     if (dto.reason === GpsSnapshotReason.MANUAL) {
       if (!MANUAL_SNAPSHOT_ROLES.includes(userRole)) {
@@ -90,7 +96,7 @@ export class GpsService {
         longitude: dto.longitude,
         accuracy: dto.accuracy || null,
         altitude: dto.altitude || null,
-        reason: dto.reason as any,
+        reason: dto.reason as PrismaGpsSnapshotReason,
         capturedByUserId: userId,
         capturedByRole: userRole,
         deviceInfo: dto.deviceInfo || null,
@@ -127,7 +133,13 @@ export class GpsService {
     dto: CreateGpsSnapshotMissingDto,
     userId: string,
     userRole: string,
+    user?: any,
   ): Promise<any> {
+    // Enforce agency access
+    if (user) {
+      enforceAgencyAccess(user, dto.agencyId);
+    }
+
     const snapshot = await this.prisma.gpsSnapshot.create({
       data: {
         agencyId: dto.agencyId,
@@ -135,7 +147,7 @@ export class GpsService {
         vehicleId: dto.vehicleId || null,
         latitude: 0,
         longitude: 0,
-        reason: dto.reason as any,
+        reason: dto.reason as PrismaGpsSnapshotReason,
         capturedByUserId: userId,
         capturedByRole: userRole,
         isGpsMissing: true,
