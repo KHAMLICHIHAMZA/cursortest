@@ -92,7 +92,7 @@ export default function EditFinePage() {
 
   if (isLoading) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <LoadingState message="Chargement de l'amende..." />
         </MainLayout>
@@ -102,7 +102,7 @@ export default function EditFinePage() {
 
   if (!fine) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <ErrorState
             title="Amende non trouvée"
@@ -115,7 +115,7 @@ export default function EditFinePage() {
   }
 
   return (
-    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         <FormCard
           title="Modifier l'amende"
@@ -153,8 +153,7 @@ export default function EditFinePage() {
                 <option value="">Sélectionner une réservation</option>
                 {bookings?.map((booking) => (
                   <option key={booking.id} value={booking.id}>
-                    {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.firstName}{' '}
-                    {booking.client?.lastName} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
+                    {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.name || 'Client'} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
                   </option>
                 ))}
               </Select>

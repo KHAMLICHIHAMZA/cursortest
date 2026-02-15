@@ -37,13 +37,16 @@ export default function BookingsPage() {
     enabled: isModuleActive, // Ne charger que si le module est activé
   });
 
-  const filteredBookings = bookings?.filter(
-    (booking) =>
-      booking.vehicle?.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.vehicle?.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.client?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.client?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredBookings = bookings?.filter((booking) => {
+    const q = searchTerm.toLowerCase();
+    const bookingNumber = String(booking.bookingNumber || booking.id.slice(-6)).toLowerCase();
+    return (
+      bookingNumber.includes(q) ||
+      booking.vehicle?.brand?.toLowerCase().includes(q) ||
+      booking.vehicle?.model?.toLowerCase().includes(q) ||
+      booking.client?.name?.toLowerCase().includes(q)
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
@@ -123,6 +126,7 @@ export default function BookingsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>N° Réservation</TableHead>
                     <TableHead>Véhicule</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Dates</TableHead>
@@ -137,6 +141,11 @@ export default function BookingsPage() {
                     return (
                       <TableRow key={booking.id}>
                         <TableCell>
+                          <p className="font-medium text-text">
+                            #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
+                          </p>
+                        </TableCell>
+                        <TableCell>
                           <div>
                             <p className="font-medium text-text">
                               {booking.vehicle?.brand} {booking.vehicle?.model}
@@ -148,7 +157,7 @@ export default function BookingsPage() {
                         </TableCell>
                         <TableCell>
                           <p className="text-text">
-                            {booking.client?.firstName} {booking.client?.lastName}
+                            {booking.client?.name || '—'}
                           </p>
                         </TableCell>
                         <TableCell>

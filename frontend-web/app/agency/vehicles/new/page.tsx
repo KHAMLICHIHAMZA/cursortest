@@ -20,7 +20,6 @@ import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import Cookies from 'js-cookie';
 import { getImageUrl } from '@/lib/utils/image-url';
-import { DebugPanel } from '@/components/ui/debug-panel';
 
 export default function NewVehiclePage() {
   const router = useRouter();
@@ -28,20 +27,6 @@ export default function NewVehiclePage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const [debugData, setDebugData] = useState<any>(null);
-
-  // Vérifier le token au chargement
-  useEffect(() => {
-    const token = Cookies.get('accessToken');
-    if (!token) {
-      console.error('No access token found in cookies');
-      toast.error('Session expirée. Veuillez vous reconnecter.');
-      router.push('/login');
-    } else {
-      console.log('Access token found:', token.substring(0, 20) + '...');
-    }
-  }, [router]);
 
   const {
     register,
@@ -74,7 +59,6 @@ export default function NewVehiclePage() {
   useEffect(() => {
     if (!agenciesError) return;
     const error: any = agenciesError;
-    console.error('Error fetching agencies:', error);
     if (error?.response?.status === 401) {
       toast.error('Session expirée. Veuillez vous reconnecter.');
     } else {
@@ -87,71 +71,23 @@ export default function NewVehiclePage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: CreateVehicleFormData) => {
-      console.log('=== CREATE MUTATION CALLED ===');
-      console.log('Data to send:', JSON.stringify(data, null, 2));
-      
-      // Mettre à jour le panneau de débogage
-      setDebugData((prev: any) => ({
-        ...(prev || {}),
-        mutationCalled: true,
-        dataSent: data,
-        mutationTimestamp: new Date().toISOString(),
-      }));
-      
-      return vehicleApi.create(data);
-    },
-    onSuccess: (response) => {
-      console.log('=== CREATE MUTATION SUCCESS ===');
-      console.log('Response:', response);
-      
-      // Mettre à jour le panneau de débogage
-      setDebugData((prev: any) => ({
-        ...(prev || {}),
-        success: true,
-        response,
-        successTimestamp: new Date().toISOString(),
-      }));
-      
+    mutationFn: (data: CreateVehicleFormData) => vehicleApi.create(data),
+    onSuccess: () => {
       toast.success('Véhicule créé avec succès');
       setTimeout(() => {
         router.push('/agency/vehicles');
       }, 1000);
     },
     onError: (error: any) => {
-      console.error('=== CREATE MUTATION ERROR ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error.message);
-      console.error('Error response:', error.response);
-      
-      // Mettre à jour le panneau de débogage
-      setDebugData((prev: any) => ({
-        ...(prev || {}),
-        error: true,
-        errorDetails: {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-        },
-        errorTimestamp: new Date().toISOString(),
-      }));
-      
       if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        console.error('Response headers:', error.response.headers);
-        
         const message = error.response.data?.message || 
                        error.response.data?.error ||
-                       `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
-        toast.error(`Erreur création: ${message}`);
+                       `Erreur serveur (${error.response.status})`;
+        toast.error(message);
       } else if (error.request) {
-        console.error('No response received');
         toast.error('Aucune réponse du serveur. Vérifiez votre connexion.');
       } else {
-        console.error('Request setup error:', error.message);
-        toast.error(`Erreur: ${error.message}`);
+        toast.error(error.message || 'Erreur inconnue lors de la création');
       }
     },
   });
@@ -160,209 +96,77 @@ export default function NewVehiclePage() {
     setSelectedVehicle(vehicle);
     setValue('brand', vehicle.brand, { shouldValidate: true });
     setValue('model', vehicle.model, { shouldValidate: true });
-    // Pré-remplir l'année avec la moyenne des années disponibles
     if (vehicle.years && vehicle.years.length >= 2) {
       const avgYear = Math.round((vehicle.years[0] + vehicle.years[1]) / 2);
       setValue('year', avgYear);
     }
-    // Pré-remplir la puissance avec la moyenne
     if (vehicle.horsepower && vehicle.horsepower.length >= 2) {
       const avgHorsepower = Math.round((vehicle.horsepower[0] + vehicle.horsepower[1]) / 2);
       setValue('horsepower', avgHorsepower);
     }
-    // Pré-remplir le carburant si un seul type
     if (vehicle.fuel && vehicle.fuel.length === 1) {
       setValue('fuel', vehicle.fuel[0]);
     }
-    // Pré-remplir la boîte si un seul type
     if (vehicle.gearbox && vehicle.gearbox.length === 1) {
       setValue('gearbox', vehicle.gearbox[0]);
     }
-    // Déclencher la validation
     trigger(['brand', 'model']);
   };
 
   const handleImageChange = async (file: File | null, previewUrl?: string) => {
-    console.log('=== HANDLE IMAGE CHANGE ===');
-    console.log('File:', file ? { name: file.name, type: file.type, size: file.size } : null);
-    console.log('Preview URL:', previewUrl ? 'present' : 'none');
-    
     setImageFile(file);
     setImagePreview(previewUrl || null);
 
     if (file) {
       try {
-        console.log('Starting image upload mutation...');
-        console.log('Upload mutation state:', {
-          isPending: uploadImageMutation.isPending,
-          isError: uploadImageMutation.isError,
-          isSuccess: uploadImageMutation.isSuccess,
-        });
-        
         const result = await uploadImageMutation.mutateAsync(file);
-        
-        console.log('=== IMAGE UPLOAD SUCCESS IN HANDLER ===');
-        console.log('Result:', result);
-        console.log('Image URL:', result.imageUrl);
-        
         setUploadedImageUrl(result.imageUrl);
         setValue('imageUrl', result.imageUrl, { shouldValidate: true });
-        
-        console.log('Form imageUrl updated:', result.imageUrl);
         toast.success('Image uploadée avec succès');
       } catch (error: any) {
-        console.error('=== IMAGE UPLOAD ERROR IN HANDLER ===');
-        console.error('Error object:', error);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        
-        if (error.response) {
-          console.error('Response status:', error.response.status);
-          console.error('Response data:', error.response.data);
-        }
-        
-        const errorMessage = error.message || 
-                           error.response?.data?.message || 
-                           error.response?.data?.error ||
+        const errorMessage = error.response?.data?.message || 
+                           error.message || 
                            'Erreur lors de l\'upload de l\'image';
-        
-        console.error('Displaying error to user:', errorMessage);
-        toast.error(`Erreur upload: ${errorMessage}`);
-        
-        // Réinitialiser l'état en cas d'erreur
+        toast.error(errorMessage);
         setImageFile(null);
         setImagePreview(null);
         setUploadedImageUrl(null);
         setValue('imageUrl', undefined);
-        
-        // Réinitialiser l'input file
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
-        }
       }
     } else {
-      console.log('No file, resetting image state');
       setUploadedImageUrl(null);
       setValue('imageUrl', undefined);
     }
   };
 
   const onSubmit = async (data: CreateVehicleFormData) => {
-    console.log('=== FORM SUBMISSION START ===');
-    console.log('Form data:', JSON.stringify(data, null, 2));
-    console.log('Uploaded image URL:', uploadedImageUrl);
-    console.log('Image upload state:', {
-      isPending: uploadImageMutation.isPending,
-      isError: uploadImageMutation.isError,
-      isSuccess: uploadImageMutation.isSuccess,
-      error: uploadImageMutation.error,
-    });
-    console.log('Image file:', imageFile ? { name: imageFile.name, size: imageFile.size } : null);
-    
-    // Vérifier si un upload est en cours
     if (uploadImageMutation.isPending) {
-      console.warn('Upload still pending, blocking submission');
       toast.error('Veuillez attendre la fin de l\'upload de l\'image');
       return;
     }
 
-    // Si une image a été sélectionnée mais l'upload n'est pas terminé (ni réussi ni échoué)
     if (imageFile && !uploadedImageUrl && !uploadImageMutation.isError && !uploadImageMutation.isSuccess) {
-      console.warn('Image selected but upload not completed');
       toast.error('Veuillez attendre la fin de l\'upload de l\'image');
       return;
     }
 
-    // Si l'upload a échoué, informer l'utilisateur mais permettre la soumission sans image
     if (imageFile && uploadImageMutation.isError) {
-      console.warn('Image upload failed, asking user to continue');
-      const errorMessage = uploadImageMutation.error?.message || 'Erreur inconnue';
       const shouldContinue = window.confirm(
-        `L'upload de l'image a échoué: ${errorMessage}\n\nVoulez-vous continuer sans image ?`
+        'L\'upload de l\'image a échoué.\n\nVoulez-vous continuer sans image ?'
       );
-      if (!shouldContinue) {
-        console.log('User chose not to continue without image');
-        return;
-      }
-      console.log('User chose to continue without image');
+      if (!shouldContinue) return;
     }
     
-    try {
-      // S'assurer que l'imageUrl est inclus si uploadée, sinon undefined
-      const submitData = {
-        ...data,
-        imageUrl: uploadedImageUrl || undefined,
-      };
-      
-      // Nettoyer les valeurs vides
-      if (submitData.imageUrl === '') {
-        submitData.imageUrl = undefined;
-      }
-      
-      console.log('=== SUBMITTING DATA ===');
-      console.log('Submit data:', JSON.stringify(submitData, null, 2));
-      
-      // Validation supplémentaire
-      const missingFields = [];
-      if (!submitData.brand) missingFields.push('marque');
-      if (!submitData.model) missingFields.push('modèle');
-      if (!submitData.registrationNumber) missingFields.push('numéro d\'immatriculation');
-      if (!submitData.agencyId) missingFields.push('agence');
-      
-      if (missingFields.length > 0) {
-        const errorMsg = `Champs obligatoires manquants: ${missingFields.join(', ')}`;
-        console.error('Validation error:', errorMsg);
-        toast.error(errorMsg);
-        return;
-      }
-      
-      console.log('All validations passed, calling createMutation...');
-      
-      // Préparer les données de débogage
-      const debugInfo = {
-        timestamp: new Date().toISOString(),
-        formData: data,
-        submitData,
-        imageState: {
-          imageFile: imageFile ? { name: imageFile.name, size: imageFile.size, type: imageFile.type } : null,
-          imagePreview: imagePreview ? 'present' : null,
-          uploadedImageUrl,
-          uploadMutationState: {
-            isPending: uploadImageMutation.isPending,
-            isError: uploadImageMutation.isError,
-            isSuccess: uploadImageMutation.isSuccess,
-            error: uploadImageMutation.error,
-          },
-        },
-        formState: {
-          errors,
-          isSubmitting,
-        },
-      };
-      
-      setDebugData(debugInfo);
-      console.log('Debug info prepared:', debugInfo);
-      
-      // Afficher le panneau de débogage si une image est présente
-      if (uploadedImageUrl || imageFile) {
-        setShowDebugPanel(true);
-      }
-      
-      createMutation.mutate(submitData);
-    } catch (error: any) {
-      console.error('=== SUBMISSION ERROR ===');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      toast.error(`Erreur lors de la création: ${error.message || 'Erreur inconnue'}`);
+    const submitData = {
+      ...data,
+      imageUrl: uploadedImageUrl || undefined,
+    };
+    
+    if (submitData.imageUrl === '') {
+      submitData.imageUrl = undefined;
     }
-  };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submit event triggered');
-    handleSubmit(onSubmit)(e);
+    createMutation.mutate(submitData);
   };
 
   return (
@@ -372,7 +176,7 @@ export default function NewVehiclePage() {
           title="Nouveau véhicule"
           description="Ajoutez un nouveau véhicule à votre flotte"
           backHref="/agency/vehicles"
-          onSubmit={handleFormSubmit}
+          onSubmit={handleSubmit(onSubmit)}
           isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
           submitLabel="Créer le véhicule"
         >
@@ -408,11 +212,9 @@ export default function NewVehiclePage() {
             selectedVehicle={selectedVehicle}
           />
           
-          {/* Affichage des erreurs pour brand et model */}
           {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand.message}</p>}
           {errors.model && <p className="text-red-500 text-sm mt-1">{errors.model.message}</p>}
 
-          {/* Champs pré-remplis mais modifiables */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="year" className="block text-sm font-medium text-text mb-2">
@@ -545,90 +347,6 @@ export default function NewVehiclePage() {
             {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
           </div>
         </FormCard>
-        
-        {/* Boutons de test et débogage */}
-        <div className="fixed bottom-4 right-4 z-40 flex flex-col gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const currentData = watch();
-              const debugInfo = {
-                timestamp: new Date().toISOString(),
-                formData: currentData,
-                imageState: {
-                  imageFile: imageFile ? { name: imageFile.name, size: imageFile.size, type: imageFile.type } : null,
-                  uploadedImageUrl,
-                  uploadMutationState: {
-                    isPending: uploadImageMutation.isPending,
-                    isError: uploadImageMutation.isError,
-                    isSuccess: uploadImageMutation.isSuccess,
-                  },
-                },
-                formErrors: errors,
-                canSubmit: !isSubmitting && !uploadImageMutation.isPending,
-                validationChecks: {
-                  hasBrand: !!currentData.brand,
-                  hasModel: !!currentData.model,
-                  hasRegistration: !!currentData.registrationNumber,
-                  hasAgency: !!currentData.agencyId,
-                  imageUploaded: !!uploadedImageUrl,
-                  imageUploadSuccess: uploadImageMutation.isSuccess,
-                },
-              };
-              setDebugData(debugInfo);
-              setShowDebugPanel(true);
-            }}
-            className="bg-primary/10 hover:bg-primary/20"
-          >
-            🐛 Debug
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              console.log('=== TEST MANUAL SUBMIT ===');
-              const currentData = watch();
-              console.log('Current form data:', currentData);
-              console.log('Uploaded image URL:', uploadedImageUrl);
-              console.log('Upload mutation state:', {
-                isPending: uploadImageMutation.isPending,
-                isError: uploadImageMutation.isError,
-                isSuccess: uploadImageMutation.isSuccess,
-              });
-              
-              // Forcer la soumission manuellement
-              const submitData = {
-                ...currentData,
-                imageUrl: uploadedImageUrl || undefined,
-              };
-              
-              console.log('Manual submit data:', submitData);
-              
-              // Appeler directement la mutation
-              try {
-                createMutation.mutate(submitData);
-              } catch (error) {
-                console.error('Manual submit error:', error);
-                toast.error('Erreur lors de la soumission manuelle');
-              }
-            }}
-            className="bg-green-500/10 hover:bg-green-500/20 text-green-600"
-            disabled={isSubmitting || createMutation.isPending}
-          >
-            ⚡ Test Submit
-          </Button>
-        </div>
-        
-        {/* Panneau de débogage */}
-        {showDebugPanel && debugData && (
-          <DebugPanel
-            data={debugData}
-            title="Debug - Création Véhicule"
-            onClose={() => setShowDebugPanel(false)}
-          />
-        )}
       </MainLayout>
     </RouteGuard>
   );

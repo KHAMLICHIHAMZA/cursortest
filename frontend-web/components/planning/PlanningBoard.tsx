@@ -283,9 +283,12 @@ export function PlanningBoard({
 
   const renderDayView = () => {
     const columnHeight = SLOT_COUNT * SLOT_HEIGHT;
+    const colCount = resources.length || 1;
+    const headerCols = `80px repeat(${colCount}, 1fr)`;
+    const vehicleCols = `repeat(${colCount}, 1fr)`;
     return (
       <div className="planning-grid" ref={boardRef}>
-        <div className="planning-header">
+        <div className="planning-header" style={{ gridTemplateColumns: headerCols }}>
           <div className="time-col-header" />
           {resources.map((resource) => (
             <div key={resource.id} className="vehicle-col-header">
@@ -301,7 +304,7 @@ export function PlanningBoard({
               </div>
             ))}
           </div>
-          <div className="vehicles-columns">
+          <div className="vehicles-columns" style={{ gridTemplateColumns: vehicleCols }}>
             {resources.map((resource) => (
               <div
                 key={resource.id}
@@ -341,8 +344,9 @@ export function PlanningBoard({
                     return (
                       <div
                         key={event.id}
-                        className={className}
+                        className={`${className} clickable`}
                         style={{ top, height }}
+                        title={event.title}
                         onPointerDown={(e) => handlePointerDown(e, event, 'move')}
                         onClick={() => onEventClick?.(event)}
                       >
@@ -391,32 +395,37 @@ export function PlanningBoard({
                   return Boolean(getEventRangeForDay(event, dayItem));
                 });
                 return (
-                  <div key={dayItem.toISOString()} className="week-cell">
+                  <div
+                    key={dayItem.toISOString()}
+                    className="week-cell"
+                    onContextMenu={(e) => {
+                      if (!onContextMenu) return;
+                      e.preventDefault();
+                      onContextMenu({
+                        date: new Date(dayItem),
+                        resourceId: resource.id,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                  >
                     {dayEventsForCell.map((event) => {
                       const type = getEventType(event);
                       const className = getEventClassName(type);
                       return (
-                        <div key={event.id} className={className}>
-                          <div className="event-title" onClick={() => onEventClick?.(event)}>
-                            {event.title}
-                          </div>
+                        <div
+                          key={event.id}
+                          className={`${className} clickable`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(event);
+                          }}
+                          title={event.title}
+                        >
+                          <div className="event-title">{event.title}</div>
                         </div>
                       );
                     })}
-                    {onContextMenu && (
-                      <div
-                        className="week-cell-overlay"
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          onContextMenu({
-                            date: new Date(dayItem),
-                            resourceId: resource.id,
-                            x: event.clientX,
-                            y: event.clientY,
-                          });
-                        }}
-                      />
-                    )}
                   </div>
                 );
               })}
@@ -428,8 +437,14 @@ export function PlanningBoard({
   };
 
   const renderMonthView = () => {
+    const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     return (
       <div className="planning-month">
+        <div className="month-header">
+          {dayNames.map((name) => (
+            <div key={name} className="month-header-day">{name}</div>
+          ))}
+        </div>
         <div className="month-grid">
           {monthDays.map((dayItem) => {
             const dayEventsForCell = events.filter((event) => getEventRangeForDay(event, dayItem));
@@ -443,10 +458,16 @@ export function PlanningBoard({
                   const type = getEventType(event);
                   const className = getEventClassName(type);
                   return (
-                    <div key={event.id} className={className}>
-                      <div className="event-title" onClick={() => onEventClick?.(event)}>
-                        {event.title}
-                      </div>
+                    <div
+                      key={event.id}
+                      className={`${className} clickable`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick?.(event);
+                      }}
+                      title={event.title}
+                    >
+                      <div className="event-title">{event.title}</div>
                     </div>
                   );
                 })}

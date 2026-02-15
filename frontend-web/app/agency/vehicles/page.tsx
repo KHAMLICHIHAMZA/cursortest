@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Car, Plus, Edit, Trash2 } from 'lucide-react';
+import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -18,6 +18,7 @@ import { getImageUrl } from '@/lib/utils/image-url';
 import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
+import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
 
 export default function VehiclesPage() {
@@ -31,6 +32,15 @@ export default function VehiclesPage() {
   const user = userStr ? JSON.parse(userStr) : null;
   const agencyId = user?.agencyId || user?.userAgencies?.[0]?.agencyId;
   const { isModuleActive, isLoading: isLoadingModule } = useModuleAccess('VEHICLES', agencyId);
+
+  // Récupérer le rôle pour masquer les actions selon les specs
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => authApi.getMe(),
+    retry: false,
+  });
+  const userRole = currentUser?.role;
+  const canManageVehicles = userRole !== 'AGENT'; // Spec: AGENT ne peut pas gérer la flotte
 
   const { data: vehicles, isLoading, error } = useQuery({
     queryKey: ['vehicles'],
@@ -71,12 +81,14 @@ export default function VehiclesPage() {
               <h1 className="text-3xl font-bold text-text mb-2">Véhicules</h1>
               <p className="text-text-muted">Gérer la flotte de véhicules</p>
             </div>
-            <Link href="/agency/vehicles/new">
-              <Button variant="primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau véhicule
-              </Button>
-            </Link>
+            {canManageVehicles && (
+              <Link href="/agency/vehicles/new">
+                <Button variant="primary">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau véhicule
+                </Button>
+              </Link>
+            )}
           </div>
 
           {isLoading ? (

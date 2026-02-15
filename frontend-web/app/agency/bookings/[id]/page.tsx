@@ -312,7 +312,7 @@ export default function EditBookingPage() {
                   >
                     {clients?.map((client) => (
                       <option key={client.id} value={client.id}>
-                        {client.firstName} {client.lastName} - {client.email}
+                        {client.name} - {client.email}
                       </option>
                     ))}
                   </select>
@@ -414,7 +414,7 @@ export default function EditBookingPage() {
                     <div>
                       <p className="text-text-muted">Caution</p>
                       <p className="text-text font-medium">
-                        {booking.depositAmount?.toFixed(2) || '0.00'} MAD
+                        {Number(booking.depositAmount || 0).toFixed(2)} MAD
                       </p>
                       <p className="text-text-muted text-xs">
                         Statut: {booking.depositStatusCheckIn === 'COLLECTED' ? 'Collectée' : 'En attente'}
@@ -422,7 +422,7 @@ export default function EditBookingPage() {
                       </p>
                       {booking.depositStatusCheckIn === 'COLLECTED' && booking.totalPrice && booking.depositAmount && (
                         <p className="text-text-muted text-xs mt-1">
-                          Paiement restant: {(booking.totalPrice - booking.depositAmount).toFixed(2)} MAD
+                          Paiement restant: {(Number(booking.totalPrice || 0) - Number(booking.depositAmount || 0)).toFixed(2)} MAD
                         </p>
                       )}
                     </div>
@@ -435,7 +435,7 @@ export default function EditBookingPage() {
                         <div>
                           <p className="text-text-muted">Frais de retard</p>
                           <p className="text-text font-medium">
-                            {booking.lateFeeAmount.toFixed(2)} MAD
+                            {Number(booking.lateFeeAmount || 0).toFixed(2)} MAD
                           </p>
                           {booking.lateFeeCalculatedAt && (
                             <p className="text-text-muted text-xs">
@@ -496,6 +496,12 @@ export default function EditBookingPage() {
                   <h2 className="text-lg font-semibold text-text mb-4">Informations</h2>
                   <div className="space-y-3 text-sm">
                     <div>
+                      <p className="text-text-muted">N° Réservation</p>
+                      <p className="text-text font-medium">
+                        #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-text-muted">Véhicule</p>
                       <p className="text-text font-medium">
                         {booking.vehicle.brand} {booking.vehicle.model}
@@ -506,7 +512,7 @@ export default function EditBookingPage() {
                       <div>
                         <p className="text-text-muted">Client</p>
                         <p className="text-text font-medium">
-                          {booking.client.firstName} {booking.client.lastName}
+                          {booking.client.name}
                         </p>
                         {booking.client.email && (
                           <p className="text-text-muted text-xs">{booking.client.email}</p>
