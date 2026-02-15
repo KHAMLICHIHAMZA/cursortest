@@ -51,6 +51,22 @@ export class PermissionGuard implements CanActivate {
 
     const userRole = user.role as Role;
 
+    // AGENT role-based restrictions ALWAYS apply first, regardless of UserAgency permissions.
+    // This prevents FULL UserAgency permission from bypassing AGENT module restrictions.
+    if (userRole === 'AGENT') {
+      const forbiddenModules = ['fines', 'maintenance', 'charges', 'analytics', 'journal', 'invoices', 'contracts', 'gps'];
+      if (requiredPermissions.some((p) => forbiddenModules.some(m => p.startsWith(`${m}:`)))) {
+        throw new ForbiddenException(
+          `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
+        );
+      }
+      if (requiredPermissions.some((p) => p.startsWith('vehicles:') && !p.endsWith(':read'))) {
+        throw new ForbiddenException(
+          `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
+        );
+      }
+    }
+
     // Si l'utilisateur a des permissions UserAgency (READ/WRITE/FULL), les vérifier d'abord
     // Les permissions UserAgency surchargent les permissions basiques du rôle
     const agencyId = request.params?.agencyId || request.body?.agencyId || request.query?.agencyId;

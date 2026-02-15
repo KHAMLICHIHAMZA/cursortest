@@ -36,6 +36,9 @@ export const updateBookingSchema = z.object({
   endDate: z.string().optional(),
   totalAmount: z.number().min(0, 'Le montant doit être positif').optional(),
   status: z.enum(['DRAFT', 'PENDING', 'CONFIRMED', 'IN_PROGRESS', 'RETURNED', 'CANCELLED', 'LATE', 'NO_SHOW']).optional(),
+  depositRequired: z.boolean().optional(),
+  depositAmount: z.number().min(0, 'Le montant de la caution doit être positif').optional().nullable(),
+  depositDecisionSource: z.enum(['COMPANY', 'AGENCY']).optional().nullable(),
 }).refine((data) => {
   if (data.startDate && data.endDate) {
     return new Date(data.startDate) < new Date(data.endDate);

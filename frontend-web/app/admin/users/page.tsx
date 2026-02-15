@@ -24,6 +24,7 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  const [agencyFilter, setAgencyFilter] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
@@ -96,12 +97,31 @@ export default function UsersPage() {
     },
   });
 
-  const filteredUsers = users?.filter(
-    (user) =>
+  // Extract unique agencies for filter dropdown
+  const allAgencies = users
+    ? Array.from(
+        new Map(
+          users
+            .flatMap((u) => u.userAgencies || [])
+            .map((ua) => [ua.agency.id, ua.agency.name])
+        ).entries()
+      )
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+
+  const filteredUsers = users?.filter((user) => {
+    const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+      user.role.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesAgency =
+      !agencyFilter ||
+      user.userAgencies?.some((ua) => ua.agency.id === agencyFilter);
+
+    return matchesSearch && matchesAgency;
+  });
 
   const getRoleStatus = (role: string): 'active' | 'pending' | 'completed' | 'inactive' => {
     switch (role) {
@@ -132,17 +152,29 @@ export default function UsersPage() {
             </Link>
           </div>
 
-          <div className="mb-6">
-            <div className="relative">
+          <div className="mb-6 flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
               <Input
                 type="search"
                 placeholder="Rechercher un utilisateur..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 max-w-md"
+                className="pl-10"
               />
             </div>
+            <select
+              value={agencyFilter}
+              onChange={(e) => setAgencyFilter(e.target.value)}
+              className="px-3 py-2 border border-border rounded-lg bg-card text-text text-sm min-w-[200px]"
+            >
+              <option value="">Toutes les agences</option>
+              {allAgencies.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {isLoading ? (
@@ -177,7 +209,22 @@ export default function UsersPage() {
                           {user.role.replace('_', ' ')}
                         </Badge>
                       </TableCell>
-                      <TableCell>{user.userAgencies?.length || 0} agence(s)</TableCell>
+                      <TableCell>
+                        {user.userAgencies && user.userAgencies.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {user.userAgencies.map((ua) => (
+                              <span
+                                key={ua.agency.id}
+                                className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary"
+                              >
+                                {ua.agency.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-text-muted text-sm">Aucune</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge status={user.isActive ? 'active' : 'inactive'}>
                           {user.isActive ? 'Actif' : 'Inactif'}

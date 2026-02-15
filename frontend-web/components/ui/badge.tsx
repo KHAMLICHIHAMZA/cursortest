@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils/cn';
 import { colors } from '@/lib/design-system';
 
-type StatusKey = 'confirmed' | 'active' | 'rented' | 'pending' | 'option' | 'available' | 'success' | 'late' | 'incident' | 'alert' | 'error' | 'completed' | 'inactive' | 'blocked' | 'cancelled' | 'draft' | 'returned' | 'in_progress' | 'planned';
+type StatusKey = 'confirmed' | 'active' | 'rented' | 'pending' | 'option' | 'available' | 'success' | 'late' | 'incident' | 'alert' | 'error' | 'completed' | 'inactive' | 'blocked' | 'cancelled' | 'draft' | 'returned' | 'in_progress' | 'planned' | 'info' | 'warning';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: StatusKey;
@@ -60,6 +60,8 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
         returned: { text: 'text-gray-500', bg: 'bg-gray-500/15', border: 'border-gray-500' },
         in_progress: { text: 'text-blue-500', bg: 'bg-blue-500/15', border: 'border-blue-500' },
         planned: { text: 'text-orange-500', bg: 'bg-orange-500/15', border: 'border-orange-500' },
+        info: { text: 'text-blue-500', bg: 'bg-blue-500/15', border: 'border-blue-500' },
+        warning: { text: 'text-amber-500', bg: 'bg-amber-500/15', border: 'border-amber-500' },
       };
       
       const styles = statusColorMap[statusKey] || statusColorMap.completed;

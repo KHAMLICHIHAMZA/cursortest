@@ -25,6 +25,20 @@ export interface KpiResult {
   avgBookingValue: number;
   vehicleCount: number;
   chargesByCategory: Record<string, number>;
+  totalPurchaseValue: number;   // Somme des prix d'achat
+  periodAmortization: number;   // Amortissement pro-rata sur la periode
+  trueMargin: number;           // CA - charges - amortissement
+  trueMarginRate: number;       // (trueMargin / CA) * 100
+  monthlyInstallments: number;  // Total charges BANK_INSTALLMENT
+  financing: {
+    cashVehicles: number;          // Nombre de vehicules payes comptant
+    creditVehicles: number;        // Nombre de vehicules en credit
+    mixedVehicles: number;         // Nombre de vehicules en mixte
+    totalDownPayments: number;     // Total des apports
+    expectedMonthlyTotal: number;  // Total des mensualites attendues (sur la base vehicule)
+    actualMonthlyCharges: number;  // Total des charges BANK_INSTALLMENT enregistrees
+    coherenceGap: number;          // Ecart: expected - actual (0 = coherent)
+  };
 }
 
 /**
@@ -190,8 +204,15 @@ export class ChargeService {
     };
     if (options.vehicleId) whereCharge.vehicleId = options.vehicleId;
 
+    const vehicleWhere = {
+      agency: { companyId },
+      ...(options.agencyId ? { agencyId: options.agencyId } : {}),
+      ...(options.vehicleId ? { id: options.vehicleId } : {}),
+      deletedAt: null,
+    };
+
     // Fetch data
-    const [bookings, charges, vehicleCount] = await Promise.all([
+    const [bookings, charges, vehicles] = await Promise.all([
       this.prisma.booking.findMany({
         where: whereBooking,
         select: { id: true, totalPrice: true, startDate: true, endDate: true, vehicleId: true },
@@ -200,15 +221,17 @@ export class ChargeService {
         where: whereCharge,
         select: { amount: true, category: true },
       }),
-      this.prisma.vehicle.count({
-        where: {
-          agency: { companyId },
-          ...(options.agencyId ? { agencyId: options.agencyId } : {}),
-          ...(options.vehicleId ? { id: options.vehicleId } : {}),
-          deletedAt: null,
+      this.prisma.vehicle.findMany({
+        where: vehicleWhere,
+        select: {
+          id: true, purchasePrice: true, acquisitionDate: true, amortizationYears: true,
+          financingType: true, downPayment: true, monthlyPayment: true,
+          financingDurationMonths: true, creditStartDate: true,
         },
       }),
     ]);
+
+    const vehicleCount = vehicles.length;
 
     // Revenue
     const revenue = bookings.reduce((sum: number, b: any) => sum + (b.totalPrice || 0), 0);
@@ -241,6 +264,46 @@ export class ChargeService {
     // Avg booking value
     const avgBookingValue = bookings.length > 0 ? revenue / bookings.length : 0;
 
+    // Amortization calculations
+    let totalPurchaseValue = 0;
+    let periodAmortization = 0;
+    for (const v of vehicles) {
+      if (v.purchasePrice && v.purchasePrice > 0) {
+        totalPurchaseValue += v.purchasePrice;
+        const years = v.amortizationYears || 5;
+        const dailyAmort = v.purchasePrice / years / 365;
+        periodAmortization += dailyAmort * totalDays;
+      }
+    }
+
+    const trueMargin = revenue - totalCharges - periodAmortization;
+    const trueMarginRate = revenue > 0 ? (trueMargin / revenue) * 100 : 0;
+    const monthlyInstallments = chargesByCategory['BANK_INSTALLMENT'] || 0;
+
+    // Financing analysis
+    let cashVehicles = 0;
+    let creditVehicles = 0;
+    let mixedVehicles = 0;
+    let totalDownPayments = 0;
+    let expectedMonthlyTotal = 0;
+
+    for (const v of vehicles) {
+      if (v.financingType === 'CASH') {
+        cashVehicles++;
+      } else if (v.financingType === 'CREDIT') {
+        creditVehicles++;
+        if (v.monthlyPayment) expectedMonthlyTotal += v.monthlyPayment;
+      } else if (v.financingType === 'MIXED') {
+        mixedVehicles++;
+        if (v.downPayment) totalDownPayments += v.downPayment;
+        if (v.monthlyPayment) expectedMonthlyTotal += v.monthlyPayment;
+      }
+    }
+
+    const totalMonths = Math.max(1, Math.round(totalDays / 30.44));
+    const expectedInstallmentsForPeriod = expectedMonthlyTotal * totalMonths;
+    const coherenceGap = expectedInstallmentsForPeriod - monthlyInstallments;
+
     return {
       period: `${options.startDate} - ${options.endDate}`,
       revenue: Math.round(revenue * 100) / 100,
@@ -252,6 +315,20 @@ export class ChargeService {
       avgBookingValue: Math.round(avgBookingValue * 100) / 100,
       vehicleCount,
       chargesByCategory,
+      totalPurchaseValue: Math.round(totalPurchaseValue * 100) / 100,
+      periodAmortization: Math.round(periodAmortization * 100) / 100,
+      trueMargin: Math.round(trueMargin * 100) / 100,
+      trueMarginRate: Math.round(trueMarginRate * 100) / 100,
+      monthlyInstallments: Math.round(monthlyInstallments * 100) / 100,
+      financing: {
+        cashVehicles,
+        creditVehicles,
+        mixedVehicles,
+        totalDownPayments: Math.round(totalDownPayments * 100) / 100,
+        expectedMonthlyTotal: Math.round(expectedMonthlyTotal * 100) / 100,
+        actualMonthlyCharges: Math.round(monthlyInstallments * 100) / 100,
+        coherenceGap: Math.round(coherenceGap * 100) / 100,
+      },
     };
   }
 
@@ -280,32 +357,56 @@ export class ChargeService {
       }
     }
 
-    const vehicles = await this.prisma.vehicle.findMany({
+    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+    const profitVehicles = await this.prisma.vehicle.findMany({
       where: vehicleWhere,
       select: {
         id: true, brand: true, model: true, registrationNumber: true,
+        purchasePrice: true, acquisitionDate: true, amortizationYears: true,
+        financingType: true, downPayment: true, monthlyPayment: true,
+        financingDurationMonths: true, creditStartDate: true,
         bookings: {
           where: { startDate: { lte: end }, endDate: { gte: start }, deletedAt: null },
           select: { totalPrice: true },
         },
         charges: {
           where: { date: { gte: start, lte: end } },
-          select: { amount: true },
+          select: { amount: true, category: true },
         },
       },
     });
 
-    return vehicles.map((v: any) => {
+    return profitVehicles.map((v: any) => {
       const revenue = v.bookings.reduce((s: number, b: any) => s + (b.totalPrice || 0), 0);
       const vCharges = v.charges.reduce((s: number, c: any) => s + Number(c.amount), 0);
+
+      let amortization = 0;
+      if (v.purchasePrice && v.purchasePrice > 0) {
+        const years = v.amortizationYears || 5;
+        amortization = (v.purchasePrice / years / 365) * totalDays;
+      }
+
+      const trueProfit = revenue - vCharges - amortization;
+
+      const installmentCharges = v.charges
+        .filter((c: any) => c.category === 'BANK_INSTALLMENT')
+        .reduce((s: number, c: any) => s + Number(c.amount), 0);
+
       return {
         vehicleId: v.id,
         vehicle: `${v.brand} ${v.model} (${v.registrationNumber})`,
         revenue: Math.round(revenue * 100) / 100,
         charges: Math.round(vCharges * 100) / 100,
         profit: Math.round((revenue - vCharges) * 100) / 100,
+        purchasePrice: v.purchasePrice ? Math.round(v.purchasePrice * 100) / 100 : null,
+        amortization: Math.round(amortization * 100) / 100,
+        trueProfit: Math.round(trueProfit * 100) / 100,
+        financingType: v.financingType || null,
+        monthlyPayment: v.monthlyPayment ? Math.round(v.monthlyPayment * 100) / 100 : null,
+        installmentCharges: Math.round(installmentCharges * 100) / 100,
         bookingCount: v.bookings.length,
       };
-    }).sort((a: any, b: any) => b.profit - a.profit);
+    }).sort((a: any, b: any) => b.trueProfit - a.trueProfit);
   }
 }

@@ -76,6 +76,7 @@ export default function ChargesPage() {
   // Filters
   const [filterVehicle, setFilterVehicle] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterRecurrence, setFilterRecurrence] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
@@ -114,16 +115,44 @@ export default function ChargesPage() {
     enabled: !!agencyId,
   });
 
-  const allCharges = charges ?? [];
+  const allChargesRaw = charges ?? [];
 
-  // Summary stats
+  // Apply recurrence filter client-side
+  const allCharges = useMemo(() => {
+    if (!filterRecurrence) return allChargesRaw;
+    if (filterRecurrence === 'NONE') return allChargesRaw.filter((c) => !c.recurring);
+    return allChargesRaw.filter((c) => c.recurring && c.recurrencePeriod === filterRecurrence);
+  }, [allChargesRaw, filterRecurrence]);
+
+  // Summary stats with projected annual cost
   const summary = useMemo(() => {
     const total = allCharges.reduce((sum, c) => sum + Number(c.amount), 0);
     const byCategory: Record<string, number> = {};
     allCharges.forEach((c) => {
       byCategory[c.category] = (byCategory[c.category] || 0) + Number(c.amount);
     });
-    return { total, byCategory, count: allCharges.length };
+
+    // Projected annual cost for recurring charges
+    let annualProjected = 0;
+    let monthlyTotal = 0;
+    let quarterlyTotal = 0;
+    let yearlyTotal = 0;
+    allCharges.forEach((c) => {
+      if (!c.recurring) return;
+      const amt = Number(c.amount);
+      if (c.recurrencePeriod === 'MONTHLY') {
+        monthlyTotal += amt;
+        annualProjected += amt * 12;
+      } else if (c.recurrencePeriod === 'QUARTERLY') {
+        quarterlyTotal += amt;
+        annualProjected += amt * 4;
+      } else if (c.recurrencePeriod === 'YEARLY') {
+        yearlyTotal += amt;
+        annualProjected += amt;
+      }
+    });
+
+    return { total, byCategory, count: allCharges.length, annualProjected, monthlyTotal, quarterlyTotal, yearlyTotal };
   }, [allCharges]);
 
   // Vehicle lookup
@@ -239,7 +268,7 @@ export default function ChargesPage() {
     }
   };
 
-  const hasFilters = filterVehicle || filterCategory || filterDateFrom || filterDateTo;
+  const hasFilters = filterVehicle || filterCategory || filterRecurrence || filterDateFrom || filterDateTo;
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
@@ -268,9 +297,24 @@ export default function ChargesPage() {
               <p className="text-xl font-bold text-text mt-1">{formatAmount(summary.total)}</p>
               <p className="text-xs text-text-muted">{summary.count} charge(s)</p>
             </div>
+            <div className="rounded-xl border border-border bg-card p-4 shadow">
+              <p className="text-xs text-text-muted font-medium">Coût annuel projeté</p>
+              <p className="text-xl font-bold text-primary mt-1">{formatAmount(summary.annualProjected)}</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                {summary.monthlyTotal > 0 && (
+                  <p className="text-xs text-text-muted">{formatAmount(summary.monthlyTotal)}/mois</p>
+                )}
+                {summary.quarterlyTotal > 0 && (
+                  <p className="text-xs text-text-muted">{formatAmount(summary.quarterlyTotal)}/trim.</p>
+                )}
+                {summary.yearlyTotal > 0 && (
+                  <p className="text-xs text-text-muted">{formatAmount(summary.yearlyTotal)}/an</p>
+                )}
+              </div>
+            </div>
             {Object.entries(summary.byCategory)
               .sort(([, a], [, b]) => b - a)
-              .slice(0, 3)
+              .slice(0, 2)
               .map(([cat, amount]) => (
                 <div key={cat} className="rounded-xl border border-border bg-card p-4 shadow">
                   <div className="flex items-center gap-2">
@@ -327,6 +371,20 @@ export default function ChargesPage() {
                   ))}
                 </select>
               </div>
+              <div className="min-w-[160px]">
+                <label className="block text-xs font-medium text-text mb-1">Récurrence</label>
+                <select
+                  value={filterRecurrence}
+                  onChange={(e) => setFilterRecurrence(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm"
+                >
+                  <option value="">Toutes</option>
+                  <option value="MONTHLY">Mensuel</option>
+                  <option value="QUARTERLY">Trimestriel</option>
+                  <option value="YEARLY">Annuel</option>
+                  <option value="NONE">Ponctuelle</option>
+                </select>
+              </div>
               <div className="min-w-[140px]">
                 <label className="block text-xs font-medium text-text mb-1">Du</label>
                 <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm" />
@@ -337,7 +395,7 @@ export default function ChargesPage() {
               </div>
               {hasFilters && (
                 <button
-                  onClick={() => { setFilterVehicle(''); setFilterCategory(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  onClick={() => { setFilterVehicle(''); setFilterCategory(''); setFilterRecurrence(''); setFilterDateFrom(''); setFilterDateTo(''); }}
                   className="px-4 py-2 text-sm text-text-muted hover:text-text border border-border rounded-lg hover:bg-background transition-colors"
                 >
                   Reinitialiser
@@ -390,12 +448,21 @@ export default function ChargesPage() {
                           </td>
                           <td className="py-3 px-4 text-text-muted max-w-[200px] truncate">{charge.description || '-'}</td>
                           <td className="py-3 px-4 text-right font-semibold text-text">{formatAmount(Number(charge.amount))}</td>
-                          <td className="py-3 px-4 text-text-muted">
+                          <td className="py-3 px-4">
                             {charge.recurring ? (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                                {RECURRENCE_LABELS[charge.recurrencePeriod || ''] || charge.recurrencePeriod || 'Oui'}
-                              </span>
-                            ) : '-'}
+                              <div>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                                  {RECURRENCE_LABELS[charge.recurrencePeriod || ''] || charge.recurrencePeriod || 'Oui'}
+                                </span>
+                                <p className="text-xs text-text-muted mt-1">
+                                  {charge.recurrencePeriod === 'MONTHLY' && `${formatAmount(Number(charge.amount) * 12)}/an`}
+                                  {charge.recurrencePeriod === 'QUARTERLY' && `${formatAmount(Number(charge.amount) * 4)}/an`}
+                                  {charge.recurrencePeriod === 'YEARLY' && `${formatAmount(Number(charge.amount))}/an`}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-text-muted">Ponctuelle</span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex justify-end gap-2">

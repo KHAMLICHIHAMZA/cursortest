@@ -25,10 +25,11 @@ export default function EditAgencyPage() {
     enabled: !!id,
   });
 
-  const [formData, setFormData] = useState<UpdateAgencyDto>({
+  const [formData, setFormData] = useState<UpdateAgencyDto & { preparationTimeMinutes?: number }>({
     name: '',
     phone: '',
     address: '',
+    preparationTimeMinutes: undefined,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -38,6 +39,7 @@ export default function EditAgencyPage() {
         name: agency.name,
         phone: agency.phone || '',
         address: agency.address || '',
+        preparationTimeMinutes: (agency as any).preparationTimeMinutes ?? undefined,
       });
     }
   }, [agency]);
@@ -137,6 +139,21 @@ export default function EditAgencyPage() {
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
+          </div>
+
+          <div>
+            <label htmlFor="preparationTimeMinutes" className="block text-sm font-medium text-text mb-2">
+              Temps de preparation apres retour (minutes)
+            </label>
+            <Input
+              id="preparationTimeMinutes"
+              type="number"
+              min="1"
+              value={formData.preparationTimeMinutes ?? ''}
+              onChange={(e) => setFormData({ ...formData, preparationTimeMinutes: e.target.value ? parseInt(e.target.value) : undefined })}
+              placeholder="60"
+            />
+            <p className="text-xs text-text-muted mt-1">Temps minimum entre la fin d&apos;une location et le debut de la suivante</p>
           </div>
 
           {errors.submit && (

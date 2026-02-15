@@ -140,9 +140,41 @@ export default function NewCompanyPage() {
               {errors.formeJuridique && <p className="text-red-500 text-sm mt-1">{errors.formeJuridique}</p>}
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="maxAgencies" className="block text-sm font-medium text-text mb-2">
+                  Nombre max d&apos;agences
+                </label>
+                <Input
+                  id="maxAgencies"
+                  type="number"
+                  min="0"
+                  value={(formData as any).maxAgencies ?? ''}
+                  onChange={(e) => setFormData({ ...formData, maxAgencies: e.target.value ? parseInt(e.target.value) : undefined } as any)}
+                  placeholder="Illimite si vide"
+                />
+                <p className="text-xs text-text-muted mt-1">Laisser vide pour illimite</p>
+              </div>
+
+              <div>
+                <label htmlFor="bookingNumberMode" className="block text-sm font-medium text-text mb-2">
+                  Mode N° reservation
+                </label>
+                <select
+                  id="bookingNumberMode"
+                  value={(formData as any).bookingNumberMode || 'AUTO'}
+                  onChange={(e) => setFormData({ ...formData, bookingNumberMode: e.target.value } as any)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+                >
+                  <option value="AUTO">Automatique</option>
+                  <option value="MANUAL">Manuel</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-text mb-2">
-                Téléphone
+                Telephone
               </label>
               <Input
                 id="phone"
@@ -160,7 +192,7 @@ export default function NewCompanyPage() {
                 id="address"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Adresse complète"
+                placeholder="Adresse complete"
               />
             </div>
 

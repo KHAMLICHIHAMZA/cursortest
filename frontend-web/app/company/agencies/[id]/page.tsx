@@ -26,13 +26,14 @@ export default function EditCompanyAgencyPage() {
     enabled: !!id,
   });
 
-  const [formData, setFormData] = useState<UpdateAgencyDto>({
+  const [formData, setFormData] = useState<UpdateAgencyDto & { preparationTimeMinutes?: number }>({
     name: '',
     phone: '',
     address: '',
     status: 'ACTIVE',
     timezone: 'Africa/Casablanca',
     capacity: undefined,
+    preparationTimeMinutes: undefined,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -45,6 +46,7 @@ export default function EditCompanyAgencyPage() {
         status: agency.status || 'ACTIVE',
         timezone: agency.timezone || 'Africa/Casablanca',
         capacity: agency.capacity || undefined,
+        preparationTimeMinutes: (agency as any).preparationTimeMinutes ?? undefined,
       });
     }
   }, [agency]);
@@ -179,7 +181,7 @@ export default function EditCompanyAgencyPage() {
 
           <div>
             <label htmlFor="capacity" className="block text-sm font-medium text-text mb-2">
-              Capacité (nombre max de véhicules)
+              Capacite (nombre max de vehicules)
             </label>
             <Input
               id="capacity"
@@ -188,7 +190,22 @@ export default function EditCompanyAgencyPage() {
               value={formData.capacity || ''}
               onChange={(e) => setFormData({ ...formData, capacity: e.target.value ? parseInt(e.target.value) : undefined })}
             />
-            <p className="text-sm text-text-muted mt-1">Laisser vide pour illimité</p>
+            <p className="text-sm text-text-muted mt-1">Laisser vide pour illimite</p>
+          </div>
+
+          <div>
+            <label htmlFor="preparationTimeMinutes" className="block text-sm font-medium text-text mb-2">
+              Temps de preparation apres retour (minutes)
+            </label>
+            <Input
+              id="preparationTimeMinutes"
+              type="number"
+              min="1"
+              value={formData.preparationTimeMinutes ?? ''}
+              onChange={(e) => setFormData({ ...formData, preparationTimeMinutes: e.target.value ? parseInt(e.target.value) : undefined })}
+              placeholder="60"
+            />
+            <p className="text-xs text-text-muted mt-1">Temps minimum entre la fin d&apos;une location et le debut de la suivante</p>
           </div>
 
           {agency?.suspendedAt && (

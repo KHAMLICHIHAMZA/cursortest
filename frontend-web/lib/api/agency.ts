@@ -9,6 +9,7 @@ export interface Agency {
   status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
   timezone?: string;
   capacity?: number;
+  preparationTimeMinutes?: number;
   suspendedAt?: string;
   suspendedReason?: string;
   company?: {
@@ -39,6 +40,7 @@ export interface UpdateAgencyDto {
   status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
   timezone?: string;
   capacity?: number;
+  preparationTimeMinutes?: number;
 }
 
 export const agencyApi = {

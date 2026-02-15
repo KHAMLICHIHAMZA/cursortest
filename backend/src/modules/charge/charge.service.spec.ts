@@ -72,7 +72,11 @@ describe('ChargeService', () => {
         { amount: 300, category: 'INSURANCE' },
       ]);
 
-      mockPrisma.vehicle.count.mockResolvedValue(3);
+      mockPrisma.vehicle.findMany.mockResolvedValue([
+        { id: 'v1', purchasePrice: null, acquisitionDate: null, amortizationYears: null, financingType: null, downPayment: null, monthlyPayment: null, financingDurationMonths: null, creditStartDate: null },
+        { id: 'v2', purchasePrice: 120000, acquisitionDate: new Date('2024-06-01'), amortizationYears: 5, financingType: 'CREDIT', downPayment: null, monthlyPayment: 2500, financingDurationMonths: 48, creditStartDate: new Date('2024-06-01') },
+        { id: 'v3', purchasePrice: null, acquisitionDate: null, amortizationYears: null, financingType: 'CASH', downPayment: null, monthlyPayment: null, financingDurationMonths: null, creditStartDate: null },
+      ]);
 
       const result = await service.computeKpi(makeUser(), { startDate: start, endDate: end });
 
@@ -85,17 +89,27 @@ describe('ChargeService', () => {
       expect(result.chargesByCategory['INSURANCE']).toBe(300);
       expect(result.occupancyRate).toBeGreaterThan(0);
       expect(result.marginRate).toBeGreaterThan(0);
+      // Amortization & financing
+      expect(result.totalPurchaseValue).toBe(120000);
+      expect(result.periodAmortization).toBeGreaterThan(0);
+      expect(result.trueMargin).toBeLessThan(result.margin);
+      expect(result.financing.cashVehicles).toBe(1);
+      expect(result.financing.creditVehicles).toBe(1);
+      expect(result.financing.expectedMonthlyTotal).toBe(2500);
     });
 
     it('should handle no bookings', async () => {
       mockPrisma.booking.findMany.mockResolvedValue([]);
       mockPrisma.charge.findMany.mockResolvedValue([]);
-      mockPrisma.vehicle.count.mockResolvedValue(0);
+      mockPrisma.vehicle.findMany.mockResolvedValue([]);
 
       const result = await service.computeKpi(makeUser(), { startDate: '2026-01-01', endDate: '2026-01-31' });
       expect(result.revenue).toBe(0);
       expect(result.margin).toBe(0);
       expect(result.occupancyRate).toBe(0);
+      expect(result.totalPurchaseValue).toBe(0);
+      expect(result.periodAmortization).toBe(0);
+      expect(result.financing.cashVehicles).toBe(0);
     });
   });
 
