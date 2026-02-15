@@ -38,7 +38,7 @@ export class AnalyticsService {
   ) {
     // Check permissions - only SUPER_ADMIN can access global analytics
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Access to global analytics is restricted to SUPER_ADMIN');
+      throw new ForbiddenException('L\'accès aux analyses globales est restreint à SUPER_ADMIN');
     }
 
     const dateFilter: any = {};
@@ -182,13 +182,13 @@ export class AnalyticsService {
   ) {
     // Check permissions - only AGENCY_MANAGER can access analytics
     if (user.role !== 'AGENCY_MANAGER' && user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
-      throw new ForbiddenException('Access to analytics is restricted to managers');
+      throw new ForbiddenException('L\'accès aux analyses est restreint aux gestionnaires');
     }
 
     // Verify agency access
     const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
     const dateFilter: any = {};

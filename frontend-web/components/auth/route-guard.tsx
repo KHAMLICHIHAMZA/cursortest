@@ -17,7 +17,18 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
 
   const { data: user, isLoading, error } = useQuery({
     queryKey: ['me'],
-    queryFn: () => authApi.getMe(),
+    queryFn: async () => {
+      const me = await authApi.getMe();
+      // Sync user cookie pour useModuleAccess et autres hooks
+      if (me) {
+        Cookies.set('user', JSON.stringify(me), {
+          expires: 7,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        });
+      }
+      return me;
+    },
     enabled: !!token,
     retry: false,
   });

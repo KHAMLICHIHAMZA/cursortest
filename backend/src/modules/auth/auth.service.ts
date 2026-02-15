@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -104,7 +104,7 @@ export class AuthService {
           // Collision détectée, générer un nouveau token
           retries++;
           if (retries >= maxRetries) {
-            throw new UnauthorizedException('Failed to generate unique refresh token');
+            throw new UnauthorizedException('Échec de la génération d\'un token de rafraîchissement unique');
           }
           // Générer un nouveau token avec un jti différent
           const newJti = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
@@ -302,7 +302,7 @@ export class AuthService {
     });
 
     if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException('Token de rafraîchissement invalide ou expiré. Veuillez vous reconnecter.');
     }
 
     // Vérifier que l'utilisateur est toujours actif
@@ -324,7 +324,7 @@ export class AuthService {
         where: { id: storedToken.id },
         data: { revoked: true, revokedAt: new Date() },
       });
-      throw new UnauthorizedException('User is inactive');
+      throw new UnauthorizedException('L\'utilisateur est inactif');
     }
 
     // Vérifier que la company est active
@@ -333,7 +333,7 @@ export class AuthService {
         where: { id: storedToken.id },
         data: { revoked: true, revokedAt: new Date() },
       });
-      throw new UnauthorizedException('Company is inactive');
+      throw new UnauthorizedException('La société est inactive. Contactez votre administrateur.');
     }
 
     const agencyIds = user.userAgencies.map(ua => ua.agencyId);
@@ -397,7 +397,7 @@ export class AuthService {
           // Collision détectée, générer un nouveau token
           retries++;
           if (retries >= maxRetries) {
-            throw new UnauthorizedException('Failed to generate unique refresh token');
+            throw new UnauthorizedException('Échec de la génération d\'un token de rafraîchissement unique');
           }
           newRefreshToken = generateRefreshToken();
         } else {
@@ -441,7 +441,7 @@ export class AuthService {
     });
 
     if (!resetToken) {
-      throw new UnauthorizedException('Invalid or expired reset token');
+      throw new UnauthorizedException('Token de réinitialisation invalide ou expiré');
     }
 
     // Hash the new password
@@ -468,7 +468,7 @@ export class AuthService {
       metadata: { userId: resetToken.userId },
     });
 
-    return { message: 'Password reset successfully' };
+    return { message: 'Mot de passe réinitialisé avec succès' };
   }
 
   async validateUser(userId: string) {
@@ -489,6 +489,118 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  /**
+   * Impersonate: Super Admin se connecte en tant qu'un autre utilisateur
+   * Génère un token pour l'utilisateur cible avec un flag impersonation
+   */
+  async impersonate(targetUserId: string, adminUserId: string) {
+    // Vérifier que l'admin est bien SUPER_ADMIN
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminUserId },
+    });
+
+    if (!admin || admin.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Seul un Super Admin peut utiliser cette fonctionnalité');
+    }
+
+    // Récupérer l'utilisateur cible
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: {
+        company: true,
+        userAgencies: {
+          include: {
+            agency: true,
+          },
+        },
+      },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    const agencyIds = targetUser.userAgencies.map(ua => ua.agencyId);
+
+    // Générer un token avec les infos de l'utilisateur cible + flag impersonation
+    const jti = `imp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    const payload = {
+      sub: targetUser.id,
+      email: targetUser.email,
+      role: targetUser.role,
+      companyId: targetUser.companyId || undefined,
+      agencyIds,
+      impersonatedBy: adminUserId, // Flag impersonation
+      jti,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: '2h', // Durée courte pour l'impersonation
+    });
+
+    // Stocker le refresh token
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 2);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: targetUser.id,
+        token: refreshToken,
+        expiresAt,
+      },
+    });
+
+    // Log dans l'audit
+    await this.auditService.log({
+      userId: adminUserId,
+      action: AuditAction.UPDATE,
+      entityType: 'User',
+      entityId: targetUser.id,
+      description: `Super Admin impersonated user ${targetUser.email}`,
+      metadata: {
+        adminId: adminUserId,
+        adminEmail: admin.email,
+        targetUserId: targetUser.id,
+        targetEmail: targetUser.email,
+        targetRole: targetUser.role,
+      },
+    });
+
+    const agencies = targetUser.userAgencies.map((ua) => ({
+      id: ua.agency.id,
+      name: ua.agency.name,
+      isActive: !ua.agency.deletedAt && ua.agency.status === 'ACTIVE',
+      status: ua.agency.status,
+    }));
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      impersonating: true,
+      originalAdminId: adminUserId,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        firstName: targetUser.name.split(' ')[0] || '',
+        lastName: targetUser.name.split(' ').slice(1).join(' ') || '',
+        role: targetUser.role,
+        companyId: targetUser.companyId,
+        company: targetUser.company
+          ? {
+              id: targetUser.company.id,
+              name: targetUser.company.name,
+              isActive: targetUser.company.isActive,
+              status: targetUser.company.status,
+            }
+          : undefined,
+        agencyIds,
+      },
+      agencies,
+    };
   }
 }
 

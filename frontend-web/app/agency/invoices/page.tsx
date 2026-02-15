@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { MainLayout } from '@/components/layout/main-layout';
+import { RouteGuard } from '@/components/auth/route-guard';
+import { toast } from '@/components/ui/toast';
 
 interface Invoice {
   id: string;
@@ -25,13 +28,14 @@ interface Invoice {
 export default function InvoicesPage() {
   const [search, setSearch] = useState('');
 
-  const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
+  const { data: rawInvoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ['invoices'],
     queryFn: async () => {
       const res = await apiClient.get('/invoices');
-      return res.data;
+      return res.data ?? [];
     },
   });
+  const invoices = rawInvoices ?? [];
 
   const filteredInvoices = invoices.filter((inv) => {
     const haystack = [
@@ -79,21 +83,59 @@ export default function InvoicesPage() {
     }).format(amount);
   };
 
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
   const downloadPdf = async (invoiceId: string, invoiceNumber: string) => {
+    setDownloadingId(invoiceId);
     try {
-      const res = await apiClient.get(`/invoices/${invoiceId}/payload`);
-      console.log('Invoice payload:', res.data);
-      alert(`PDF de la facture ${invoiceNumber} - Fonctionnalité à implémenter`);
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
+      const res = await apiClient.get(`/invoices/${invoiceId}/pdf`, {
+        responseType: 'blob',
+        validateStatus: (status) => status < 500,
+      });
+
+      if (res.status !== 200) {
+        let errorMsg = 'Erreur lors du téléchargement';
+        try {
+          const text = await res.data.text();
+          const json = JSON.parse(text);
+          errorMsg = json.message || errorMsg;
+        } catch { /* ignore parse errors */ }
+        toast.error(errorMsg);
+        return;
+      }
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `facture-${invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Facture PDF téléchargée');
+    } catch (error: any) {
+      console.error('Erreur téléchargement PDF facture:', error);
+      const msg = error?.message || error?.response?.data?.message || 'Erreur lors du téléchargement du PDF';
+      toast.error(typeof msg === 'string' ? msg : 'Erreur lors du téléchargement du PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+        <MainLayout>
+          <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   return (
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+      <MainLayout>
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Factures</h1>
@@ -160,8 +202,9 @@ export default function InvoicesPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => downloadPdf(invoice.id, invoice.invoiceNumber)}
+                      disabled={downloadingId === invoice.id}
                     >
-                      PDF
+                      {downloadingId === invoice.id ? 'Chargement...' : 'PDF'}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -171,5 +214,7 @@ export default function InvoicesPage() {
         </Table>
       </div>
     </div>
+      </MainLayout>
+    </RouteGuard>
   );
 }

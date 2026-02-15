@@ -33,7 +33,7 @@ export class UpdateBookingDto {
   @MinLength(1)
   @MaxLength(32)
   @Matches(/^[A-Za-z0-9]+$/, {
-    message: 'bookingNumber must be alphanumeric (A-Z, 0-9) with no spaces',
+    message: 'Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces',
   })
   bookingNumber?: string;
 }

@@ -31,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Session invalide ou compte désactivé. Veuillez vous reconnecter.');
     }
 
     // Note: Les règles métier SaaS (company suspended/inactive, etc.) sont gérées

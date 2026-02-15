@@ -98,7 +98,7 @@ export class ContractService {
     });
 
     if (!booking) {
-      throw new NotFoundException('Booking not found');
+      throw new NotFoundException('Réservation introuvable');
     }
 
     // Check if contract already exists for this booking
@@ -234,7 +234,7 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contract not found');
+      throw new NotFoundException('Contrat introuvable');
     }
 
     // Cannot sign if already fully signed
@@ -271,9 +271,10 @@ export class ContractService {
     }
 
     // Check if both signatures are now complete
-    const willBeFullySigned =
+    const willBeFullySigned = !!(
       (dto.signerType === 'client' && contract.agentSignedAt) ||
-      (dto.signerType === 'agent' && contract.clientSignedAt);
+      (dto.signerType === 'agent' && contract.clientSignedAt)
+    );
 
     if (willBeFullySigned) {
       updateData.status = ContractStatus.SIGNED;
@@ -341,7 +342,7 @@ export class ContractService {
     });
 
     if (!originalContract) {
-      throw new NotFoundException('Contract not found');
+      throw new NotFoundException('Contrat introuvable');
     }
 
     // Mark original as expired
@@ -398,7 +399,7 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contract not found');
+      throw new NotFoundException('Contrat introuvable');
     }
 
     if (contract.status !== ContractStatus.SIGNED) {
@@ -432,7 +433,7 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contract not found');
+      throw new NotFoundException('Contrat introuvable');
     }
 
     return contract;
@@ -480,7 +481,7 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contract not found');
+      throw new NotFoundException('Contrat introuvable');
     }
 
     return contract.payload as ContractPayload;

@@ -30,7 +30,7 @@ export class RequireActiveCompanyGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException('Utilisateur non authentifié');
     }
 
     // SUPER_ADMIN bypass
@@ -40,7 +40,7 @@ export class RequireActiveCompanyGuard implements CanActivate {
 
     // Si pas de companyId, pas de vérification possible
     if (!user.companyId) {
-      throw new ForbiddenException('User is not associated with a company');
+      throw new ForbiddenException('L\'utilisateur n\'est pas associé à une société');
     }
 
     // Vérifier le statut de la Company
@@ -50,21 +50,21 @@ export class RequireActiveCompanyGuard implements CanActivate {
     });
 
     if (!company) {
-      throw new ForbiddenException('Company not found');
+      throw new ForbiddenException('Société introuvable');
     }
 
     // Vérifier le statut SaaS (priorité sur isActive pour rétrocompatibilité)
     if (company.status !== CompanyStatus.ACTIVE) {
       const reason =
         company.status === CompanyStatus.SUSPENDED
-          ? 'Company is suspended. Please contact support.'
-          : 'Company is not active';
+          ? 'La société est suspendue. Veuillez contacter le support.'
+          : 'La société n\'est pas active';
       throw new ForbiddenException(reason);
     }
 
     // Rétrocompatibilité : vérifier aussi isActive (Boolean)
     if (!company.isActive) {
-      throw new ForbiddenException('Company is not active');
+      throw new ForbiddenException('La société n\'est pas active');
     }
 
     return true;

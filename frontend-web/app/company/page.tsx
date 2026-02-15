@@ -377,9 +377,7 @@ export default function CompanyDashboard() {
                             {booking.vehicle?.brand} {booking.vehicle?.model}
                           </p>
                           <p className="text-sm text-text-muted">
-                            {(booking.client
-                              ? `${booking.client.firstName || ''} ${booking.client.lastName || ''}`.trim() || 'Client'
-                              : 'Client')} • {booking.agency?.name || 'Agence'}
+                            {(booking.client?.name || 'Client')} • {booking.agency?.name || 'Agence'}
                           </p>
                         </div>
                         <Badge status="active">En cours</Badge>

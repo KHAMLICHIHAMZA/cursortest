@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
+import { MainLayout } from '@/components/layout/main-layout';
+import { RouteGuard } from '@/components/auth/route-guard';
 
 interface Company {
   id: string;
@@ -144,6 +146,8 @@ function CompanyHealthContent() {
   // Sélection d'entreprise
   if (!selectedCompanyId) {
     return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+        <MainLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => router.back()}>
@@ -168,11 +172,19 @@ function CompanyHealthContent() {
           </select>
         </Card>
       </div>
+        </MainLayout>
+      </RouteGuard>
     );
   }
 
   if (companyLoading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+        <MainLayout>
+          <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   const daysUntilExpiration = subscription?.endDate
@@ -185,6 +197,8 @@ function CompanyHealthContent() {
   const willBeDeleted = daysSinceSuspension !== null && daysSinceSuspension >= 100;
 
   return (
+    <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+      <MainLayout>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -367,5 +381,7 @@ function CompanyHealthContent() {
         )}
       </Card>
     </div>
+      </MainLayout>
+    </RouteGuard>
   );
 }

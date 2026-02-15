@@ -17,7 +17,7 @@ interface PlanningCalendarProps {
 export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<'day' | 'week' | 'month'>('day');
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateRange, setSelectedDateRange] = useState<{ start: string; end: string; resourceId?: string } | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
@@ -26,6 +26,8 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
   const [vehicleId, setVehicleId] = useState<string>('');
   const [selectedTypes, setSelectedTypes] = useState<Array<'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER'>>([]);
   const [search, setSearch] = useState<string>('');
+  const [brandFilter, setBrandFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
   const { data, isLoading, error } = useQuery<PlanningData>({
     queryKey: ['planning', selectedAgencyId],
@@ -41,6 +43,26 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
     return 'OTHER';
   };
 
+  // Extraire les marques uniques pour le filtre (spec: filtre par marque/modèle)
+  const uniqueBrands = useMemo(() => {
+    if (!data?.resources) return [];
+    const brands = new Set<string>();
+    data.resources.forEach((r) => {
+      if (r.extendedProps?.brand) brands.add(r.extendedProps.brand);
+    });
+    return Array.from(brands).sort();
+  }, [data?.resources]);
+
+  // Extraire les statuts véhicules uniques (spec: filtre par statut véhicule)
+  const uniqueStatuses = useMemo(() => {
+    if (!data?.resources) return [];
+    const statuses = new Set<string>();
+    data.resources.forEach((r) => {
+      if (r.extendedProps?.status) statuses.add(r.extendedProps.status);
+    });
+    return Array.from(statuses).sort();
+  }, [data?.resources]);
+
   const calendarEvents = useMemo(() => {
     if (!data?.events) return [];
 
@@ -52,6 +74,16 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
     return data.events
       .filter((event) => {
         if (vehicleId && event.resourceId !== vehicleId) return false;
+        // Filtre par marque (spec)
+        if (brandFilter) {
+          const resource = resourceMap.get(event.resourceId);
+          if (resource?.extendedProps?.brand !== brandFilter) return false;
+        }
+        // Filtre par statut véhicule (spec)
+        if (statusFilter) {
+          const resource = resourceMap.get(event.resourceId);
+          if (resource?.extendedProps?.status !== statusFilter) return false;
+        }
         const bucketType = normalizeToKnownType(event.extendedProps?.type);
         if (selectedTypes.length > 0 && !selectedTypes.includes(bucketType)) return false;
         const q = search.trim().toLowerCase();
@@ -82,7 +114,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
           },
         };
       });
-  }, [data?.events, data?.resources, vehicleId, selectedTypes, search]);
+  }, [data?.events, data?.resources, vehicleId, selectedTypes, search, brandFilter, statusFilter]);
 
   const toggleType = (type: 'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER') => {
     setSelectedTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
@@ -211,6 +243,42 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                 ))}
               </select>
             </div>
+            {/* Filtre par marque (spec) */}
+            <div className="min-w-[150px]">
+              <label htmlFor="brand-filter" className="block text-sm font-medium text-text mb-1">
+                Marque
+              </label>
+              <select
+                id="brand-filter"
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+              >
+                <option value="">Toutes</option>
+                {uniqueBrands.map((brand) => (
+                  <option key={brand} value={brand}>{brand}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtre par statut véhicule (spec) */}
+            <div className="min-w-[150px]">
+              <label htmlFor="status-filter" className="block text-sm font-medium text-text mb-1">
+                Statut véhicule
+              </label>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+              >
+                <option value="">Tous</option>
+                {uniqueStatuses.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex flex-col gap-2">
               <div className="text-sm font-medium text-text">Type</div>
               <div className="flex flex-wrap gap-2">
@@ -274,12 +342,14 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
               />
             </div>
 
-            {(vehicleId || selectedTypes.length > 0 || search.trim()) && (
+            {(vehicleId || selectedTypes.length > 0 || search.trim() || brandFilter || statusFilter) && (
               <button
                 onClick={() => {
                   setVehicleId('');
                   setSelectedTypes([]);
                   setSearch('');
+                  setBrandFilter('');
+                  setStatusFilter('');
                 }}
                 className="px-4 py-2 text-sm text-text-muted hover:text-text border border-border rounded-lg hover:bg-background"
               >
@@ -488,48 +558,57 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
           </button>
         </div>
       )}
-      <style jsx>{`
+      <style jsx global>{`
+        .planning-board {
+          overflow-x: auto;
+        }
         .planning-grid {
           display: grid;
           grid-template-rows: auto 1fr;
-          gap: 8px;
+          gap: 0;
+          min-width: fit-content;
         }
         .planning-header {
           display: grid;
-          grid-template-columns: 80px repeat(auto-fit, minmax(180px, 1fr));
-          gap: 8px;
+          gap: 4px;
         }
         .time-col-header {
-          height: 28px;
+          height: 36px;
         }
         .vehicle-col-header {
           background: var(--background);
           border: 1px solid var(--border);
           border-radius: 8px;
-          padding: 8px;
-          font-size: 12px;
-          color: var(--text-muted);
+          padding: 8px 6px;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text);
           text-align: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 150px;
         }
         .planning-body {
           display: grid;
           grid-template-columns: 80px 1fr;
-          gap: 8px;
+          gap: 4px;
         }
         .time-column {
-          display: grid;
-          grid-template-rows: repeat(33, 24px);
-          font-size: 11px;
-          color: var(--text-muted);
+          display: flex;
+          flex-direction: column;
         }
         .time-slot {
+          height: 24px;
           border-top: 1px solid var(--border);
           padding-top: 2px;
+          font-size: 11px;
+          color: var(--text-muted);
+          white-space: nowrap;
         }
         .vehicles-columns {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 8px;
+          gap: 4px;
         }
         .vehicle-column {
           position: relative;
@@ -537,32 +616,59 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
           border: 1px solid var(--border);
           border-radius: 8px;
           overflow: hidden;
+          min-width: 150px;
+          background-image: repeating-linear-gradient(
+            to bottom,
+            transparent,
+            transparent 23px,
+            var(--border) 23px,
+            var(--border) 24px
+          );
         }
         .event {
           position: absolute;
-          left: 8px;
-          right: 8px;
-          border-radius: 8px;
-          padding: 6px 8px;
+          left: 4px;
+          right: 4px;
+          border-radius: 6px;
+          padding: 4px 8px;
           font-size: 11px;
           color: white;
           cursor: pointer;
+          transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease;
+          z-index: 2;
+          border-left: 4px solid rgba(255,255,255,0.35);
+        }
+        .event.clickable:hover {
+          filter: brightness(1.15);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          transform: scale(1.02);
+          z-index: 10;
+        }
+        .event.clickable:active {
+          transform: scale(0.98);
         }
         .event.booking {
-          background: #2563EB;
+          background: linear-gradient(135deg, #2563EB 0%, #1d4ed8 100%);
+          border-left-color: #93c5fd;
         }
         .event.maintenance {
-          background: #EF4444;
+          background: linear-gradient(135deg, #EF4444 0%, #dc2626 100%);
+          border-left-color: #fca5a5;
         }
         .event.preparation {
-          background: #10B981;
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+          border-left-color: #6ee7b7;
         }
         .event.other {
-          background: #6B7280;
+          background: linear-gradient(135deg, #6B7280 0%, #4b5563 100%);
+          border-left-color: #d1d5db;
         }
         .event-title {
           font-weight: 600;
-          line-height: 1.2;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .resize-handle {
           position: absolute;
@@ -621,14 +727,45 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
           border: 1px solid var(--border);
           border-radius: 8px;
           padding: 4px;
-          min-height: 60px;
-          display: grid;
-          gap: 4px;
+          min-height: 70px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
           position: relative;
+          overflow: hidden;
+          transition: background 0.15s ease;
         }
-        .week-cell-overlay {
-          position: absolute;
-          inset: 0;
+        .week-cell:hover {
+          background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
+        }
+        .week-cell .event {
+          position: relative;
+          left: auto;
+          right: auto;
+          top: auto;
+          font-size: 11px;
+          padding: 4px 6px;
+          border-radius: 4px;
+          border-left-width: 3px;
+          cursor: pointer;
+        }
+        .week-cell .event .event-title {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .planning-month .month-header {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 6px;
+          margin-bottom: 6px;
+        }
+        .planning-month .month-header-day {
+          text-align: center;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-muted);
+          padding: 4px;
         }
         .planning-month .month-grid {
           display: grid;
@@ -641,8 +778,30 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
           border-radius: 8px;
           padding: 6px;
           min-height: 90px;
-          display: grid;
-          gap: 4px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          overflow: hidden;
+          transition: background 0.15s ease;
+        }
+        .month-cell:hover {
+          background: color-mix(in srgb, var(--card) 90%, var(--primary) 10%);
+        }
+        .month-cell .event {
+          position: relative;
+          left: auto;
+          right: auto;
+          top: auto;
+          font-size: 10px;
+          padding: 3px 5px;
+          border-radius: 4px;
+          border-left-width: 3px;
+          cursor: pointer;
+        }
+        .month-cell .event .event-title {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .month-cell.muted {
           opacity: 0.4;

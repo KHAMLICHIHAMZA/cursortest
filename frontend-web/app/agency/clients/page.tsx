@@ -48,8 +48,7 @@ export default function ClientsPage() {
     const searchLower = debouncedSearchTerm.toLowerCase();
     return clients.filter(
       (client) =>
-        client.firstName.toLowerCase().includes(searchLower) ||
-        client.lastName.toLowerCase().includes(searchLower) ||
+        client.name?.toLowerCase().includes(searchLower) ||
         client.email?.toLowerCase().includes(searchLower) ||
         client.phone?.toLowerCase().includes(searchLower) ||
         client.licenseNumber?.toLowerCase().includes(searchLower) ||
@@ -104,7 +103,7 @@ export default function ClientsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-text">
-                              {client.firstName} {client.lastName}
+                              {client.name}
                             </p>
                             {client.address && (
                               <p className="text-xs text-text-muted">

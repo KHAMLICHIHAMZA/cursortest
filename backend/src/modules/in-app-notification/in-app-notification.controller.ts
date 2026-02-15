@@ -5,7 +5,9 @@ import {
   Patch,
   Param,
   Query,
+  Body,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InAppNotificationService } from './in-app-notification.service';
@@ -60,5 +62,34 @@ export class InAppNotificationController {
   async markAllAsRead(@CurrentUser() user: any) {
     const count = await this.notificationService.markAllAsRead(user.userId);
     return { markedAsRead: count };
+  }
+
+  @Post('broadcast')
+  @ApiOperation({ summary: 'Broadcast notification to company or all companies (Super Admin / Company Admin)' })
+  async broadcast(
+    @Body() body: { title: string; message: string; companyId?: string; actionUrl?: string; scheduledAt?: string },
+    @CurrentUser() user: any,
+  ) {
+    // Only SUPER_ADMIN and COMPANY_ADMIN can broadcast
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
+      throw new ForbiddenException('Seuls les administrateurs peuvent envoyer des notifications');
+    }
+
+    // COMPANY_ADMIN can only send to their own company
+    let targetCompanyId = body.companyId || undefined;
+    if (user.role === 'COMPANY_ADMIN') {
+      targetCompanyId = user.companyId;
+    }
+
+    const result = await this.notificationService.broadcastNotification({
+      title: body.title,
+      message: body.message,
+      companyId: targetCompanyId,
+      actionUrl: body.actionUrl,
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+      senderId: user.userId,
+    });
+
+    return { success: true, notificationsSent: result.count };
   }
 }

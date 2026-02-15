@@ -14,6 +14,8 @@ export interface Vehicle {
   horsepower?: number;
   fuel?: string;
   gearbox?: string;
+  gpsTrackerId?: string;
+  gpsTrackerLabel?: string;
   agency?: {
     id: string;
     name: string;

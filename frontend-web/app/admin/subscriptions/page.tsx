@@ -11,6 +11,8 @@ import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MainLayout } from '@/components/layout/main-layout';
+import { RouteGuard } from '@/components/auth/route-guard';
 
 interface Subscription {
   id: string;
@@ -145,10 +147,18 @@ export default function SubscriptionsPage() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+        <MainLayout>
+          <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   return (
+    <RouteGuard allowedRoles={['SUPER_ADMIN']}>
+      <MainLayout>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -367,5 +377,7 @@ export default function SubscriptionsPage() {
         </Table>
       </div>
     </div>
+      </MainLayout>
+    </RouteGuard>
   );
 }

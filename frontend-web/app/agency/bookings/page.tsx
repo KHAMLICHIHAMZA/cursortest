@@ -44,8 +44,7 @@ export default function BookingsPage() {
       bookingNumber.includes(q) ||
       booking.vehicle?.brand?.toLowerCase().includes(q) ||
       booking.vehicle?.model?.toLowerCase().includes(q) ||
-      booking.client?.firstName?.toLowerCase().includes(q) ||
-      booking.client?.lastName?.toLowerCase().includes(q)
+      booking.client?.name?.toLowerCase().includes(q)
     );
   });
 
@@ -158,7 +157,7 @@ export default function BookingsPage() {
                         </TableCell>
                         <TableCell>
                           <p className="text-text">
-                            {booking.client?.firstName} {booking.client?.lastName}
+                            {booking.client?.name || '—'}
                           </p>
                         </TableCell>
                         <TableCell>

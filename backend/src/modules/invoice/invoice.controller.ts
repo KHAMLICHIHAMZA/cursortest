@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query, Res, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { InvoiceService } from './invoice.service';
+import { InvoicePdfService } from './invoice-pdf.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard, Permissions } from '../../common/guards/permission.guard';
 import { ReadOnlyGuard } from '../../common/guards/read-only.guard';
@@ -26,7 +28,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @RequireModule(ModuleCode.BOOKINGS) // Utiliser BOOKINGS car les factures sont liées aux bookings
 @ApiBearerAuth()
 export class InvoiceController {
-  constructor(private readonly invoiceService: InvoiceService) {}
+  constructor(
+    private readonly invoiceService: InvoiceService,
+    private readonly invoicePdfService: InvoicePdfService,
+  ) {}
 
   @Get()
   @Permissions('invoices:read')
@@ -80,6 +85,26 @@ export class InvoiceController {
     @CurrentUser() user: any,
   ) {
     return this.invoiceService.updateStatus(id, body.status, user.userId);
+  }
+
+  @Get(':id/pdf')
+  @Permissions('invoices:read')
+  @ApiOperation({ summary: 'V2.1: Download invoice as PDF' })
+  async downloadPdf(@Param('id') id: string, @CurrentUser() user: any, @Res() res: Response) {
+    const invoice = await this.invoiceService.findOne(id, user);
+    const payload = await this.invoiceService.getInvoicePayload(id);
+    const pdfBuffer = await this.invoicePdfService.generatePdf(
+      payload as any,
+      invoice.invoiceNumber,
+      invoice.type,
+    );
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="facture-${invoice.invoiceNumber}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.end(pdfBuffer);
   }
 }
 

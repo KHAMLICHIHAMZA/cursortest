@@ -2,8 +2,7 @@ import { apiClient } from './client';
 
 export interface Client {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   phone: string;
   dateOfBirth?: string;

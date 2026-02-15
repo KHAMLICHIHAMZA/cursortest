@@ -25,7 +25,7 @@ async function bootstrap() {
     const requiredEnv = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'FRONTEND_URL', 'FRONTEND_AGENCY_URL'];
     const missingEnv = requiredEnv.filter((key) => !process.env[key]);
     if (missingEnv.length > 0) {
-      throw new Error(`Missing required environment variables: ${missingEnv.join(', ')}`);
+      throw new Error(`Variables d'environnement manquantes : ${missingEnv.join(', ')}. Vérifiez votre fichier .env.`);
     }
   }
 

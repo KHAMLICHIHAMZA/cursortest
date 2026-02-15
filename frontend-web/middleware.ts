@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Routes protégées par rôle
+// Routes protégées par rôle (ordre important : plus spécifique d'abord)
 const ROLE_ROUTES: Record<string, string[]> = {
+  // Routes agency réservées aux managers uniquement
+  '/agency/invoices': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  '/agency/contracts': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  '/agency/journal': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  '/agency/fines': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  '/agency/maintenance': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  '/agency/kpi': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  '/agency/gps-kpi': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'],
+  // Routes par préfixe (moins spécifiques)
   '/admin': ['SUPER_ADMIN'],
   '/company': ['SUPER_ADMIN', 'COMPANY_ADMIN'],
   '/agency': ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT'],
@@ -48,11 +57,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Vérifier si le token est expiré
+  // Si le token access est expiré, on laisse passer côté serveur
+  // Le client (intercepteur Axios) tentera un refresh automatique via le refresh token
+  // On ne redirige vers /login que si AUCUN refresh token n'existe non plus
   if (payload.exp && payload.exp * 1000 < Date.now()) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('expired', 'true');
-    return NextResponse.redirect(loginUrl);
+    const refreshToken = request.cookies.get('refreshToken')?.value;
+    if (!refreshToken) {
+      // Pas de refresh token = session totalement expirée
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('expired', 'true');
+      return NextResponse.redirect(loginUrl);
+    }
+    // Refresh token existe → laisser le client gérer le refresh via l'intercepteur Axios
+    return NextResponse.next();
   }
 
   const userRole = payload.role;

@@ -88,16 +88,16 @@ export class AgencyService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agency not found');
+      throw new NotFoundException('Agence introuvable');
     }
 
     // Check permissions
     if (user.role === 'COMPANY_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : cette agence n\'appartient pas à votre société');
     }
 
     if ((user.role === 'AGENCY_MANAGER' || user.role === 'AGENT') && !user.agencyIds?.includes(id)) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'êtes pas rattaché(e) à cette agence');
     }
 
     // Remove audit fields from public responses
@@ -108,23 +108,23 @@ export class AgencyService {
     const { name, phone, address, companyId } = createAgencyDto;
 
     if (!name) {
-      throw new BadRequestException('Name is required');
+      throw new BadRequestException('Le nom de l\'agence est requis');
     }
 
     let targetCompanyId = companyId || user.companyId;
 
     if (user.role === 'SUPER_ADMIN') {
       if (!companyId) {
-        throw new BadRequestException('Company ID required');
+        throw new BadRequestException('L\'identifiant de la société est requis');
       }
       targetCompanyId = companyId;
     } else if (user.role === 'COMPANY_ADMIN') {
       if (companyId && companyId !== user.companyId) {
-        throw new ForbiddenException('Cannot create agency for another company');
+        throw new ForbiddenException('Impossible de créer une agence pour une autre société');
       }
       targetCompanyId = user.companyId!;
     } else {
-      throw new ForbiddenException('Insufficient permissions');
+      throw new ForbiddenException('Permissions insuffisantes : seuls SUPER_ADMIN et COMPANY_ADMIN peuvent créer des agences');
     }
 
     const company = await this.prisma.company.findUnique({
@@ -132,7 +132,7 @@ export class AgencyService {
     });
 
     if (!company || !company.isActive) {
-      throw new BadRequestException('Company not found or inactive');
+      throw new BadRequestException('Société introuvable ou inactive. Vérifiez que la société existe et est active.');
     }
 
     if (company.maxAgencies !== null && company.maxAgencies !== undefined) {
@@ -213,16 +213,16 @@ export class AgencyService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agency not found');
+      throw new NotFoundException('Agence introuvable');
     }
 
     // Check permissions
     if (user.role === 'COMPANY_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Cannot update agency from another company');
+      throw new ForbiddenException('Impossible de mettre à jour une agence d\'une autre société');
     }
 
     if ((user.role === 'AGENCY_MANAGER' || user.role === 'AGENT') && !user.agencyIds?.includes(id)) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'êtes pas rattaché(e) à cette agence');
     }
 
     // Store previous state for event log
@@ -275,15 +275,15 @@ export class AgencyService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agency not found');
+      throw new NotFoundException('Agence introuvable');
     }
 
     if (user.role === 'COMPANY_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Cannot delete agency from another company');
+      throw new ForbiddenException('Impossible de supprimer une agence d\'une autre société');
     }
 
     if (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
-      throw new ForbiddenException('Insufficient permissions');
+      throw new ForbiddenException('Permissions insuffisantes : seuls SUPER_ADMIN et COMPANY_ADMIN peuvent supprimer des agences');
     }
 
     // Store previous state for event log
@@ -311,6 +311,6 @@ export class AgencyService {
       )
       .catch((err) => this.logger.error('Error logging agency deletion event:', err));
 
-    return { message: 'Agency deleted successfully' };
+    return { message: 'Agence supprimée avec succès' };
   }
 }

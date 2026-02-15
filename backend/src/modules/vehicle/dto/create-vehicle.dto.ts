@@ -68,5 +68,15 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsNumber()
   horsepower?: number;
+
+  @ApiPropertyOptional({ description: 'Identifiant / numero de serie du tracker GPS' })
+  @IsOptional()
+  @IsString()
+  gpsTrackerId?: string;
+
+  @ApiPropertyOptional({ description: 'Description du tracker (ex: Mini GPS noir coffre)' })
+  @IsOptional()
+  @IsString()
+  gpsTrackerLabel?: string;
 }
 

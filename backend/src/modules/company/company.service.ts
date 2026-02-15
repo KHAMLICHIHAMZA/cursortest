@@ -69,7 +69,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Remove audit fields from public responses
@@ -79,7 +79,7 @@ export class CompanyService {
   async findMyCompany(user: any) {
     const companyId = user?.companyId;
     if (!companyId) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     const company = await this.prisma.company.findFirst({
@@ -87,7 +87,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     return this.auditService.removeAuditFields(company);
@@ -96,7 +96,7 @@ export class CompanyService {
   async updateMyCompanySettings(user: any, dto: UpdateCompanySettingsDto) {
     const companyId = user?.companyId;
     if (!companyId) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     const company = await this.prisma.company.findFirst({
@@ -104,7 +104,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     const previousState = { ...company };
@@ -153,39 +153,41 @@ export class CompanyService {
     } = createCompanyDto;
 
     if (!name) {
-      throw new BadRequestException('Name is required');
+      throw new BadRequestException('Le nom est requis');
     }
 
     if (!raisonSociale || !identifiantLegal || !formeJuridique) {
-      throw new BadRequestException('Legal fields are required');
+      throw new BadRequestException('Les champs légaux sont requis');
     }
 
     const slug = this.generateSlug(name);
 
-    // Check if slug already exists
-    const existingCompany = await this.prisma.company.findUnique({
-      where: { slug },
+    // Check if slug already exists (exclure les companies supprimées)
+    const existingCompany = await this.prisma.company.findFirst({
+      where: { slug, deletedAt: null },
     });
 
     if (existingCompany) {
-      throw new BadRequestException('Company with this name already exists');
+      throw new BadRequestException('Une société avec ce nom existe déjà');
     }
 
+    // Check identifiant légal (exclure les companies supprimées)
     const existingLegalId = await this.prisma.company.findFirst({
-      where: { identifiantLegal },
+      where: { identifiantLegal, deletedAt: null },
     });
 
     if (existingLegalId) {
-      throw new BadRequestException('Legal identifier already exists');
+      throw new BadRequestException('L\'identifiant légal existe déjà');
     }
 
     if (adminEmail) {
-      const existingAdmin = await this.prisma.user.findUnique({
-        where: { email: adminEmail },
+      // Check admin email (exclure les users supprimés)
+      const existingAdmin = await this.prisma.user.findFirst({
+        where: { email: adminEmail, deletedAt: null },
       });
 
       if (existingAdmin) {
-        throw new BadRequestException('Admin email already exists');
+        throw new BadRequestException('L\'email administrateur existe déjà');
       }
     }
 
@@ -271,7 +273,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Store previous state for event log
@@ -333,7 +335,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Store previous state for event log
@@ -361,6 +363,6 @@ export class CompanyService {
       )
       .catch((err) => console.error('Error logging company deletion event:', err));
 
-    return { message: 'Company deleted successfully' };
+    return { message: 'Société supprimée avec succès' };
   }
 }

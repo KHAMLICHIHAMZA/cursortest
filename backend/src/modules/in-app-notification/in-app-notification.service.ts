@@ -20,6 +20,7 @@ const InAppNotificationType = {
   CHECK_OUT_REMINDER: 'CHECK_OUT_REMINDER',
   INCIDENT_REPORTED: 'INCIDENT_REPORTED',
   SYSTEM_ALERT: 'SYSTEM_ALERT',
+  ADMIN_ANNOUNCEMENT: 'ADMIN_ANNOUNCEMENT',
 } as const;
 
 type InAppNotificationStatusType = (typeof InAppNotificationStatus)[keyof typeof InAppNotificationStatus];
@@ -199,6 +200,68 @@ export class InAppNotificationService {
     }
 
     return notification;
+  }
+
+  /**
+   * V2: Broadcast a notification to all users of a company, or all companies
+   * Used by Super Admin to send announcements
+   */
+  async broadcastNotification(dto: {
+    title: string;
+    message: string;
+    companyId?: string; // null = all companies
+    actionUrl?: string;
+    scheduledAt?: Date;
+    senderId: string;
+  }): Promise<{ count: number }> {
+    // Build user filter
+    const userWhere: any = { isActive: true, deletedAt: null };
+
+    if (dto.companyId) {
+      // Target specific company
+      userWhere.companyId = dto.companyId;
+    }
+    // else: all users across all companies
+
+    // Fetch target users
+    const users = await (this.prisma as any).user.findMany({
+      where: userWhere,
+      select: { id: true, companyId: true },
+    });
+
+    if (users.length === 0) {
+      return { count: 0 };
+    }
+
+    const status = dto.scheduledAt
+      ? InAppNotificationStatus.SCHEDULED
+      : InAppNotificationStatus.SENT;
+
+    const now = new Date();
+
+    // Create one notification per user
+    const createData = users.map((u: any) => ({
+      userId: u.id,
+      companyId: u.companyId || null,
+      agencyId: null,
+      type: InAppNotificationType.ADMIN_ANNOUNCEMENT,
+      status,
+      title: dto.title,
+      message: dto.message,
+      actionUrl: dto.actionUrl || null,
+      bookingId: null,
+      contractId: null,
+      invoiceId: null,
+      scheduledAt: dto.scheduledAt || null,
+      sentAt: dto.scheduledAt ? null : now,
+      metadata: { senderId: dto.senderId, broadcast: true, targetCompanyId: dto.companyId || 'ALL' },
+    }));
+
+    const result = await (this.prisma as any).inAppNotification.createMany({
+      data: createData,
+    });
+
+    return { count: result.count };
   }
 
   /**

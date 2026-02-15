@@ -34,6 +34,13 @@ export default function LoginPage() {
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
       });
+
+      // Stocker les infos utilisateur (nécessaire pour useModuleAccess, sidebar, etc.)
+      Cookies.set('user', JSON.stringify(response.user), {
+        expires: 7,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      });
       
       console.log('Tokens stored successfully');
 

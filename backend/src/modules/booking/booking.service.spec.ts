@@ -8,6 +8,7 @@ import { AuditService as CommonAuditService } from '../../common/services/audit.
 import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
 import { InvoiceService } from '../invoice/invoice.service';
 import { OutboxService } from '../../common/services/outbox.service';
+import { ContractService } from '../contract/contract.service';
 
 describe('BookingService', () => {
   let service: BookingService;
@@ -72,6 +73,10 @@ describe('BookingService', () => {
     enqueue: jest.fn(),
   };
 
+  const mockContractService = {
+    createContract: jest.fn().mockResolvedValue({ id: 'contract-1' }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -83,6 +88,7 @@ describe('BookingService', () => {
         { provide: BusinessEventLogService, useValue: mockBusinessEventLogService },
         { provide: InvoiceService, useValue: mockInvoiceService },
         { provide: OutboxService, useValue: mockOutboxService },
+        { provide: ContractService, useValue: mockContractService },
       ],
     }).compile();
 

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { GpsService, CreateGpsSnapshotDto, CreateGpsSnapshotMissingDto } from './gps.service';
+import { GpsKpiService } from './gps-kpi.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard, Permissions } from '../../common/guards/permission.guard';
 import { ReadOnlyGuard } from '../../common/guards/read-only.guard';
@@ -33,7 +34,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @RequireModule(ModuleCode.VEHICLES)
 @ApiBearerAuth()
 export class GpsController {
-  constructor(private readonly gpsService: GpsService) {}
+  constructor(
+    private readonly gpsService: GpsService,
+    private readonly gpsKpiService: GpsKpiService,
+  ) {}
 
   @Get()
   @Permissions('gps:read')
@@ -100,5 +104,26 @@ export class GpsController {
   @ApiOperation({ summary: 'Record GPS missing (when GPS is unavailable)' })
   async recordMissing(@Body() dto: CreateGpsSnapshotMissingDto, @CurrentUser() user: any) {
     return this.gpsService.recordGpsMissing(dto, user.userId, user.role);
+  }
+
+  @Get('kpi/eco')
+  @Permissions('gps:read')
+  @ApiOperation({ summary: 'V2.1: GPS eco-friendly KPIs (distance, consistency, stats)' })
+  async getEcoKpi(
+    @CurrentUser() user: any,
+    @Query('agencyId') agencyId?: string,
+    @Query('vehicleId') vehicleId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const now = new Date();
+    const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const end = endDate || now.toISOString().slice(0, 10);
+    return this.gpsKpiService.computeKpi(user.companyId, {
+      agencyId,
+      vehicleId,
+      startDate: start,
+      endDate: end,
+    });
   }
 }

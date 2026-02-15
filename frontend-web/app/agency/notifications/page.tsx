@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MainLayout } from '@/components/layout/main-layout';
+import { RouteGuard } from '@/components/auth/route-guard';
 
 interface Notification {
   id: string;
@@ -37,13 +39,14 @@ const TYPE_LABELS: Record<string, string> = {
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
 
-  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
+  const { data: rawNotifications, isLoading } = useQuery<Notification[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
       const res = await apiClient.get('/notifications/in-app');
-      return res.data;
+      return res.data ?? [];
     },
   });
+  const notifications = rawNotifications ?? [];
 
   const { data: unreadCount } = useQuery<{ count: number }>({
     queryKey: ['notifications-count'],
@@ -84,10 +87,18 @@ export default function NotificationsPage() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <MainLayout>
+          <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   return (
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <MainLayout>
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
@@ -163,5 +174,7 @@ export default function NotificationsPage() {
         )}
       </div>
     </div>
+      </MainLayout>
+    </RouteGuard>
   );
 }

@@ -6,10 +6,13 @@ import {
   Param,
   Body,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ContractService } from './contract.service';
+import { ContractPdfService } from './contract-pdf.service';
 import { CreateContractDto, SignContractDto } from './dto/create-contract.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard, Permissions } from '../../common/guards/permission.guard';
@@ -35,7 +38,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @RequireModule(ModuleCode.BOOKINGS)
 @ApiBearerAuth()
 export class ContractController {
-  constructor(private readonly contractService: ContractService) {}
+  constructor(
+    private readonly contractService: ContractService,
+    private readonly contractPdfService: ContractPdfService,
+  ) {}
 
   @Get()
   @Permissions('contracts:read')
@@ -103,5 +109,26 @@ export class ContractController {
   @ApiOperation({ summary: 'Make a contract effective (at check-in)' })
   async makeEffective(@Param('id') id: string, @CurrentUser() user: any) {
     return this.contractService.makeEffective(id, user.userId);
+  }
+
+  @Get(':id/pdf')
+  @Permissions('contracts:read')
+  @ApiOperation({ summary: 'V2.1: Download contract as PDF' })
+  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
+    const contract = await this.contractService.findOne(id);
+    const payload = await this.contractService.getContractPayload(id);
+    const pdfBuffer = await this.contractPdfService.generatePdf(
+      payload as any,
+      contract.version,
+      contract.status,
+    );
+
+    const filename = `contrat-v${contract.version}-${contract.id.slice(0, 8)}.pdf`;
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.end(pdfBuffer);
   }
 }

@@ -25,7 +25,7 @@ export class IncidentService {
 
     const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, { id: userId });
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
     // Récupérer le booking si fourni pour vérifier la caution
@@ -40,7 +40,7 @@ export class IncidentService {
       });
 
       if (!booking || booking.agencyId !== agencyId) {
-        throw new BadRequestException('Booking not found or does not belong to this agency');
+        throw new BadRequestException('Réservation introuvable ou n\'appartient pas à cette agence');
       }
     }
 
@@ -163,14 +163,14 @@ export class IncidentService {
     });
 
     if (!incident) {
-      throw new NotFoundException('Incident not found');
+      throw new NotFoundException('Incident introuvable. Vérifiez l\'identifiant de l\'incident.');
     }
 
     // Vérifier les permissions avec PermissionService
     // Note: findOne reçoit user, pas userId, donc on utilise user directement
     const hasAccess = await this.permissionService.checkAgencyAccess(incident.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this incident');
+      throw new ForbiddenException('Accès refusé à cet incident');
     }
 
     return incident;
@@ -190,12 +190,12 @@ export class IncidentService {
     });
 
     if (!incident) {
-      throw new NotFoundException('Incident not found');
+      throw new NotFoundException('Incident introuvable. Vérifiez l\'identifiant de l\'incident.');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(incident.agencyId, { id: userId });
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
     // Si passage à DISPUTED → bloquer clôture financière

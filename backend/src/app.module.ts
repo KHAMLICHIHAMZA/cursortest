@@ -36,6 +36,9 @@ import { JournalModule } from './modules/journal/journal.module';
 import { GpsModule } from './modules/gps/gps.module';
 import { InAppNotificationModule } from './modules/in-app-notification/in-app-notification.module';
 
+// V2.1 Modules
+import { ChargeModule } from './modules/charge/charge.module';
+
 // Common
 import { PrismaModule } from './common/prisma/prisma.module';
 import { ReadOnlyGuard } from './common/guards/read-only.guard';
@@ -92,6 +95,9 @@ import { ReadOnlyGuard } from './common/guards/read-only.guard';
     JournalModule,
     GpsModule,
     InAppNotificationModule,
+
+    // V2.1 Modules
+    ChargeModule,
   ],
   providers: [
     {

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -43,6 +43,17 @@ export class AuthController {
   @ApiOperation({ summary: 'Send password reset email' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('impersonate/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Super Admin: se connecter en tant qu\'un autre utilisateur' })
+  async impersonate(
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.authService.impersonate(targetUserId, user.userId);
   }
 }
 

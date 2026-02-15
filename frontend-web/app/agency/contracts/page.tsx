@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { MainLayout } from '@/components/layout/main-layout';
+import { RouteGuard } from '@/components/auth/route-guard';
+import { toast } from '@/components/ui/toast';
 
 interface Contract {
   id: string;
@@ -26,13 +29,14 @@ interface Contract {
 export default function ContractsPage() {
   const [search, setSearch] = useState('');
 
-  const { data: contracts = [], isLoading } = useQuery<Contract[]>({
+  const { data: rawContracts, isLoading } = useQuery<Contract[]>({
     queryKey: ['contracts'],
     queryFn: async () => {
       const res = await apiClient.get('/contracts');
-      return res.data;
+      return res.data ?? [];
     },
   });
+  const contracts = rawContracts ?? [];
 
   const filteredContracts = contracts.filter((contract) => {
     const haystack = [
@@ -85,21 +89,61 @@ export default function ContractsPage() {
     return `${client} | ${agent}`;
   };
 
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
   const downloadPdf = async (contractId: string) => {
+    setDownloadingId(contractId);
     try {
-      const res = await apiClient.get(`/contracts/${contractId}/payload`);
-      console.log('Contract payload:', res.data);
-      alert('PDF du contrat - Fonctionnalité à implémenter');
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
+      const res = await apiClient.get(`/contracts/${contractId}/pdf`, {
+        responseType: 'blob',
+        // Prevent interceptor from misinterpreting blob error responses
+        validateStatus: (status) => status < 500,
+      });
+
+      if (res.status !== 200) {
+        // Try to read error message from blob
+        let errorMsg = 'Erreur lors du téléchargement';
+        try {
+          const text = await res.data.text();
+          const json = JSON.parse(text);
+          errorMsg = json.message || errorMsg;
+        } catch { /* ignore parse errors */ }
+        toast.error(errorMsg);
+        return;
+      }
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `contrat-${contractId.slice(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF téléchargé avec succès');
+    } catch (error: any) {
+      console.error('Erreur téléchargement PDF:', error);
+      const msg = error?.message || error?.response?.data?.message || 'Erreur lors du téléchargement du PDF';
+      toast.error(typeof msg === 'string' ? msg : 'Erreur lors du téléchargement du PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+        <MainLayout>
+          <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   return (
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+      <MainLayout>
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Contrats</h1>
@@ -158,8 +202,13 @@ export default function ContractsPage() {
                   <TableCell>{formatDate(contract.effectiveAt)}</TableCell>
                   <TableCell>{formatDate(contract.createdAt)}</TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => downloadPdf(contract.id)}>
-                      PDF
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadPdf(contract.id)}
+                      disabled={downloadingId === contract.id}
+                    >
+                      {downloadingId === contract.id ? 'Chargement...' : 'PDF'}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -169,5 +218,7 @@ export default function ContractsPage() {
         </Table>
       </div>
     </div>
+      </MainLayout>
+    </RouteGuard>
   );
 }

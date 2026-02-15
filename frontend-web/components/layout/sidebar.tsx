@@ -13,7 +13,6 @@ import {
   Calendar,
   Wrench,
   FileText,
-  Settings,
   LogOut,
   BarChart3,
   CreditCard,
@@ -21,6 +20,8 @@ import {
   ScrollText,
   BookOpen,
   Bell,
+  Navigation,
+  Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Cookies from 'js-cookie';
@@ -36,13 +37,32 @@ import {
   ModuleCode
 } from '@/lib/modules';
 
+// Roles autorisés par route agency (si absent = tous les roles agency)
+const agencyRouteRoleMap: Record<string, string[]> = {
+  '/agency': ['AGENCY_MANAGER', 'AGENT'],
+  '/agency/vehicles': ['AGENCY_MANAGER', 'AGENT'],
+  '/agency/clients': ['AGENCY_MANAGER', 'AGENT'],
+  '/agency/bookings': ['AGENCY_MANAGER', 'AGENT'],
+  '/agency/planning': ['AGENCY_MANAGER', 'AGENT'],
+  '/agency/invoices': ['AGENCY_MANAGER'], // Factures : manager uniquement
+  '/agency/contracts': ['AGENCY_MANAGER'], // Contrats : manager uniquement
+  '/agency/journal': ['AGENCY_MANAGER'], // Journal : manager uniquement
+  '/agency/fines': ['AGENCY_MANAGER'], // Amendes : manager uniquement
+  '/agency/charges': ['AGENCY_MANAGER'], // Charges & Depenses : manager uniquement
+  '/agency/kpi': ['AGENCY_MANAGER'], // KPI : manager uniquement
+  '/agency/gps': ['AGENCY_MANAGER', 'AGENT'], // GPS : tous
+  '/agency/notifications': ['AGENCY_MANAGER', 'AGENT'],
+};
+
 interface SidebarProps {
   userRole?: string;
   companyId?: string;
   agencyId?: string;
+  /** Pour COMPANY_ADMIN : rôle agence hérité dynamiquement selon les users existants */
+  effectiveAgencyRole?: 'AGENCY_MANAGER' | 'AGENT' | 'BOTH' | null;
 }
 
-export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
+export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
@@ -50,7 +70,9 @@ export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
 
   const isAdmin = userRole === 'SUPER_ADMIN';
   const isCompanyAdmin = userRole === 'COMPANY_ADMIN';
-  const isAgencyUser = userRole === 'AGENCY_MANAGER' || userRole === 'AGENT';
+  const isAgencyManager = userRole === 'AGENCY_MANAGER';
+  const isAgent = userRole === 'AGENT';
+  const isAgencyUser = isAgencyManager || isAgent;
 
   // Charger les modules actifs
   useEffect(() => {
@@ -59,8 +81,25 @@ export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
         if (isAgencyUser && agencyId) {
           const modules = await fetchAgencyModules(agencyId);
           setActiveModules(modules);
-        } else if (isCompanyAdmin && companyId) {
-          const modules = await fetchCompanyModules(companyId);
+        } else if (isCompanyAdmin) {
+          // COMPANY_ADMIN: charger les modules company + agency si agencyId disponible
+          let modules: ActiveModule[] = [];
+          if (companyId) {
+            modules = await fetchCompanyModules(companyId);
+          }
+          // Si le COMPANY_ADMIN a un agencyId (solo operator), fusionner les modules agence
+          if (agencyId) {
+            const agencyModules = await fetchAgencyModules(agencyId);
+            // Fusionner : si un module est actif dans l'agence OU la company, il est actif
+            const mergedMap = new Map<string, ActiveModule>();
+            [...modules, ...agencyModules].forEach(m => {
+              const existing = mergedMap.get(m.moduleCode);
+              if (!existing || m.isActive) {
+                mergedMap.set(m.moduleCode, m);
+              }
+            });
+            modules = Array.from(mergedMap.values());
+          }
           setActiveModules(modules);
         }
       } catch (error) {
@@ -83,12 +122,37 @@ export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
     router.push('/login');
   };
 
-  // Vérifier si un lien doit être affiché
+  // Vérifier si un lien doit être affiché (role + module)
   const shouldShowLink = (href: string): boolean => {
     // Admin voit tout
     if (isAdmin) return true;
+
+    // 1. Vérifier le rôle pour les routes agency (AGENT restrictions)
+    if (isAgent && userRole) {
+      const allowedRoles = agencyRouteRoleMap[href];
+      if (allowedRoles && !allowedRoles.includes(userRole)) {
+        return false; // AGENT n'a pas accès à ce menu
+      }
+    }
+
+    // COMPANY_ADMIN avec rôle agence hérité : filtrer selon le rôle effectif
+    if (isCompanyAdmin && href.startsWith('/agency') && effectiveAgencyRole) {
+      // Vérifier d'abord le rôle effectif
+      const allowedRoles = agencyRouteRoleMap[href];
+      if (allowedRoles) {
+        if (effectiveAgencyRole === 'BOTH') {
+          // Solo : accès total, pas de filtre rôle
+        } else if (!allowedRoles.includes(effectiveAgencyRole)) {
+          return false;
+        }
+      }
+      // Puis vérifier le module
+      const requiredModule = agencyRouteModuleMap[href];
+      if (!requiredModule) return true;
+      return isModuleActive(activeModules, requiredModule as ModuleCode);
+    }
     
-    // Déterminer le mapping selon le type d'utilisateur
+    // 2. Vérifier le module requis
     const routeMap = isAgencyUser ? agencyRouteModuleMap : companyRouteModuleMap;
     const requiredModule = routeMap[href];
     
@@ -106,6 +170,7 @@ export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
     { href: '/admin/company-health', label: 'Santé comptes', icon: Heart },
+    { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   ];
 
   const companyAdminLinks = [
@@ -116,21 +181,58 @@ export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
     { href: '/company/planning', label: 'Planning', icon: Calendar },
   ];
 
-  const agencyLinks = [
-    { href: '/agency', label: 'Tableau de bord', icon: LayoutDashboard },
+  // Menus opérationnels agence (pour AGENCY_MANAGER et COMPANY_ADMIN avec accès agence)
+  const agencyOperationalLinks = [
     { href: '/agency/vehicles', label: 'Véhicules', icon: Car },
     { href: '/agency/clients', label: 'Clients', icon: UserCircle },
     { href: '/agency/bookings', label: 'Locations', icon: Calendar },
-    { href: '/agency/planning', label: 'Planning', icon: Calendar },
+    { href: '/agency/planning', label: 'Planning agence', icon: Calendar },
     { href: '/agency/invoices', label: 'Factures', icon: FileText },
     { href: '/agency/contracts', label: 'Contrats', icon: ScrollText },
     { href: '/agency/journal', label: 'Journal', icon: BookOpen },
     { href: '/agency/fines', label: 'Amendes', icon: FileText },
-    { href: '/agency/maintenance', label: 'Maintenance', icon: Wrench },
+    { href: '/agency/charges', label: 'Charges & Dépenses', icon: Receipt },
+    { href: '/agency/kpi', label: 'KPI', icon: BarChart3 },
+    { href: '/agency/gps', label: 'GPS', icon: Navigation },
     { href: '/agency/notifications', label: 'Notifications', icon: Bell },
   ];
 
-  const allLinks = isAdmin ? adminLinks : isCompanyAdmin ? companyAdminLinks : agencyLinks;
+  const agencyLinks = [
+    { href: '/agency', label: 'Tableau de bord', icon: LayoutDashboard },
+    ...agencyOperationalLinks,
+  ];
+
+  // Menus agent uniquement (opérationnel terrain)
+  const agencyAgentOnlyLinks = agencyOperationalLinks.filter(l => {
+    const allowed = agencyRouteRoleMap[l.href];
+    return !allowed || allowed.includes('AGENT');
+  });
+
+  // Menus manager uniquement (gestion avancée)
+  const agencyManagerOnlyLinks = agencyOperationalLinks.filter(l => {
+    const allowed = agencyRouteRoleMap[l.href];
+    return !allowed || allowed.includes('AGENCY_MANAGER');
+  });
+
+  // COMPANY_ADMIN : menus agence dynamiques selon les rôles couverts
+  // - BOTH : solo, personne d'autre → tous les menus agence
+  // - AGENCY_MANAGER : pas de manager créé → il gère (menus manager)
+  // - AGENT : pas d'agent créé → il opère (menus agent)
+  // - null : tout est couvert → pas de menus agence
+  const getCompanyAdminAgencyLinks = () => {
+    if (!agencyId || !effectiveAgencyRole) return [];
+    if (effectiveAgencyRole === 'BOTH') return agencyOperationalLinks;
+    if (effectiveAgencyRole === 'AGENCY_MANAGER') return agencyManagerOnlyLinks;
+    if (effectiveAgencyRole === 'AGENT') return agencyAgentOnlyLinks;
+    return [];
+  };
+
+  const companyAdminWithAgencyLinks = [
+    ...companyAdminLinks,
+    ...getCompanyAdminAgencyLinks(),
+  ];
+
+  const allLinks = isAdmin ? adminLinks : isCompanyAdmin ? companyAdminWithAgencyLinks : agencyLinks;
   
   // Filtrer les liens selon les modules actifs
   const links = modulesLoaded ? allLinks.filter(link => shouldShowLink(link.href)) : [];
@@ -144,23 +246,37 @@ export function Sidebar({ userRole, companyId, agencyId }: SidebarProps) {
         </p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {links.map((link) => {
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {links.map((link, index) => {
           const Icon = link.icon;
           const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
+          // Séparateur visuel entre section Entreprise et section Agence (COMPANY_ADMIN solo)
+          const showAgencySeparator = isCompanyAdmin && agencyId && index > 0 
+            && link.href.startsWith('/agency') 
+            && !links[index - 1]?.href.startsWith('/agency');
           return (
-            <Link key={link.href} href={link.href}>
-              <div
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'text-text-muted hover:bg-background hover:text-text'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{link.label}</span>
-              </div>
-            </Link>
+            <div key={link.href}>
+              {showAgencySeparator && (
+                <div className="mt-4 mb-2 px-4">
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">
+                    Opérations Agence
+                  </p>
+                  <div className="border-t border-border mt-1" />
+                </div>
+              )}
+              <Link href={link.href}>
+                <div
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-primary text-white'
+                      : 'text-text-muted hover:bg-background hover:text-text'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium text-sm">{link.label}</span>
+                </div>
+              </Link>
+            </div>
           );
         })}
       </nav>

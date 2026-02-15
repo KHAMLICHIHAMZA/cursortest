@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Cookies from 'js-cookie';
+import { MainLayout } from '@/components/layout/main-layout';
+import { RouteGuard } from '@/components/auth/route-guard';
 
 interface JournalEntry {
   id: string;
@@ -51,7 +53,7 @@ export default function JournalPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: entries = [], isLoading } = useQuery<JournalEntry[]>({
+  const { data: rawEntries, isLoading } = useQuery<JournalEntry[]>({
     queryKey: ['journal', typeFilter, dateFrom, dateTo],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -59,9 +61,10 @@ export default function JournalPage() {
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
       const res = await apiClient.get(`/journal?${params.toString()}`);
-      return res.data;
+      return res.data ?? [];
     },
   });
+  const entries = rawEntries ?? [];
 
   const createNoteMutation = useMutation({
     mutationFn: async (data: { title: string; content: string }) => {
@@ -109,10 +112,18 @@ export default function JournalPage() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+        <MainLayout>
+          <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
   }
 
   return (
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
+      <MainLayout>
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Journal d&apos;agence</h1>
@@ -224,5 +235,7 @@ export default function JournalPage() {
         </Table>
       </div>
     </div>
+      </MainLayout>
+    </RouteGuard>
   );
 }

@@ -18,11 +18,14 @@ enum Role {
 }
 
 enum VehicleStatus {
-  AVAILABLE
-  RENTED
-  MAINTENANCE
-  UNAVAILABLE
-  TEMP_UNAVAILABLE // Temporairement indisponible (ajout pour compléter les états métier)
+  AVAILABLE         // Disponible
+  RESERVED          // Réservé (booking CONFIRMED, pas encore livré)
+  RENTED            // Loué (en location active)
+  IN_DELIVERY       // En livraison (check-in en cours) - spec
+  IN_RECOVERY       // En récupération (check-out en cours) - spec
+  MAINTENANCE       // En maintenance
+  UNAVAILABLE       // Non disponible
+  TEMP_UNAVAILABLE  // Temporairement indisponible
 }
 
 enum BookingStatus {
@@ -296,6 +299,7 @@ model Company {
   companyModules          CompanyModule[]
   notificationPreferences NotificationPreference[]
   PaymentSaas             PaymentSaas[]
+  charges                 Charge[]
 
   @@index([slug])
   @@index([isActive])
@@ -347,6 +351,7 @@ model Agency {
   businessEventLogs BusinessEventLog[]
   agencyModules     AgencyModule[]
   invoices          Invoice[]
+  charges           Charge[]
 
   @@index([companyId])
   @@index([status])
@@ -385,6 +390,7 @@ model User {
   refreshTokens       RefreshToken[]
   auditLogs           AuditLog[]
   inAppNotifications  InAppNotification[]
+  deviceTokens        DeviceToken[]
 
   @@index([email])
   @@index([companyId])
@@ -430,6 +436,10 @@ model Vehicle {
   horsepower         Int? // Puissance en CV
   color              String? // Couleur du véhicule
 
+  // GPS Tracker (boitier physique type mini GPS / AirTag)
+  gpsTrackerId    String?   // Identifiant / numero de serie du tracker
+  gpsTrackerLabel String?   // Description (ex: "Mini GPS noir coffre")
+
   // Audit fields (auto-populated by backend, never editable from frontend)
   createdByUserId String?
   updatedByUserId String?
@@ -449,6 +459,7 @@ model Vehicle {
   incidents      Incident[]
   planningEvents PlanningEvent[]
   gpsSnapshots   GpsSnapshot[]
+  charges        Charge[]
 
   @@index([agencyId])
   @@index([status])
@@ -729,18 +740,38 @@ model Incident {
 }
 
 // ============================================
-// FINE MODELS (Legacy - maintenant dans Incident)
+// FINE (AMENDES) MODELS
 // ============================================
 
+// Statuts amendes selon spec: reçue → client identifié → transmise → contestée → clôturée
+enum FineStatus {
+  RECUE             // Amende reçue par l'agence
+  CLIENT_IDENTIFIE  // Client responsable identifié automatiquement
+  TRANSMISE         // Amende transmise au client
+  CONTESTEE         // Client conteste l'amende
+  CLOTUREE          // Amende traitée (payée ou annulée)
+}
+
 model Fine {
-  id            String  @id @default(cuid())
-  agencyId      String
-  bookingId     String
-  amount        Float
-  description   String
-  number        String? // Numéro de l'amende
-  location      String? // Lieu de l'amende
-  attachmentUrl String? // URL de la pièce jointe
+  id                  String     @id @default(cuid())
+  agencyId            String
+  bookingId           String?    // Peut être null si auto-identification échoue
+  amount              Float
+  description         String
+  number              String?    // Référence de l'amende (numéro officiel)
+  location            String?    // Lieu de l'infraction
+  attachmentUrl       String?    // URL de la pièce jointe
+  
+  // Champs spec amendes (saisie minimale)
+  infractionDate      DateTime?  // Date d'infraction (spec: donnée minimale)
+  registrationNumber  String?    // N° immatriculation (spec: donnée minimale pour auto-identification)
+  
+  // Statut selon spec
+  status              FineStatus @default(RECUE)
+  
+  // Client identifié automatiquement
+  clientId            String?    // Client principal identifié
+  secondaryDriverId   String?    // Conducteur secondaire si existant
 
   // Audit fields (auto-populated by backend, never editable from frontend)
   createdByUserId String?
@@ -751,11 +782,14 @@ model Fine {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  agency  Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
   @@index([bookingId])
+  @@index([status])
+  @@index([infractionDate])
+  @@index([registrationNumber])
 }
 
 // ============================================
@@ -1136,6 +1170,7 @@ enum InAppNotificationType {
   CHECK_OUT_REMINDER
   INCIDENT_REPORTED
   SYSTEM_ALERT
+  ADMIN_ANNOUNCEMENT
 }
 
 model InAppNotification {
@@ -1569,6 +1604,75 @@ model ModuleDependency {
   @@unique([moduleCode, dependsOnCode])
   @@index([moduleCode])
   @@index([dependsOnCode])
+}
+
+// ============================================
+// V2.1: Charges & KPI
+// ============================================
+
+// Types de charges selon spec: assurance, vignette/dariba, mensualité bancaire,
+// maintenance préventive/corrective, charges exceptionnelles
+enum ChargeCategory {
+  INSURANCE             // Assurance (annuelle)
+  VIGNETTE              // Vignette / Dariba (annuelle)
+  BANK_INSTALLMENT      // Mensualité bancaire (mensuelle)
+  PREVENTIVE_MAINTENANCE // Maintenance préventive
+  CORRECTIVE_MAINTENANCE // Maintenance corrective
+  FUEL                  // Carburant
+  EXCEPTIONAL           // Charges exceptionnelles (hors amendes)
+  OTHER                 // Autre
+}
+
+model Charge {
+  id        String         @id @default(cuid())
+  companyId String
+  agencyId  String
+  vehicleId String         // Spec: charge rattachée AU VÉHICULE (obligatoire)
+  bookingId String?        // Optionnel: charge liée à une réservation
+
+  category    ChargeCategory
+  description String
+  amount      Decimal        @db.Decimal(10, 2)
+  date        DateTime
+  recurring   Boolean        @default(false)
+  recurrencePeriod String?   // 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+
+  // Audit
+  createdByUserId String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([agencyId])
+  @@index([vehicleId])
+  @@index([bookingId])
+  @@index([category])
+  @@index([date])
+}
+
+// ============================================
+// V2.1: Device Tokens (FCM push notifications)
+// ============================================
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // 'ios' | 'android' | 'web'
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([isActive])
 }
 
 // Préférences de notification par Company

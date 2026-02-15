@@ -6,7 +6,7 @@ import { AuditService } from '../../common/services/audit.service';
 import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
 import { CreateFineDto } from './dto/create-fine.dto';
 import { UpdateFineDto } from './dto/update-fine.dto';
-import { BusinessEventType } from '@prisma/client';
+import { BookingStatus, BusinessEventType, FineStatus } from '@prisma/client';
 
 @Injectable()
 export class FineService {
@@ -86,12 +86,12 @@ export class FineService {
     });
 
     if (!fine) {
-      throw new NotFoundException('Fine not found');
+      throw new NotFoundException('Amende introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(fine.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour consulter cette amende');
     }
 
     // Remove audit fields from public responses
@@ -99,42 +99,110 @@ export class FineService {
   }
 
   async create(createFineDto: CreateFineDto, user: any) {
-    const { agencyId, bookingId, amount, description, number, location, attachmentUrl } = createFineDto;
+    const {
+      agencyId,
+      bookingId,
+      amount,
+      description,
+      number,
+      location,
+      attachmentUrl,
+      infractionDate: infractionDateStr,
+      registrationNumber,
+      status: statusStr,
+    } = createFineDto;
 
-    if (!agencyId || !bookingId || !amount || !description) {
-      throw new BadRequestException('Missing required fields');
+    if (!agencyId || !amount || !description) {
+      throw new BadRequestException('Champs requis manquants : l\'identifiant agence, le montant et la description sont obligatoires');
+    }
+
+    if (!bookingId && !registrationNumber) {
+      throw new BadRequestException('Le bookingId ou le numéro d\'immatriculation doit être fourni');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
-    // Check if booking exists and belongs to agency
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
+    let resolvedBookingId: string | null = bookingId || null;
+    let resolvedClientId: string | null = null;
+    let resolvedStatus: FineStatus =
+      (statusStr as FineStatus) || FineStatus.RECUE;
 
-    if (!booking || booking.agencyId !== agencyId) {
-      throw new BadRequestException('Booking not found or does not belong to this agency');
+    const infractionDate = infractionDateStr
+      ? new Date(infractionDateStr)
+      : null;
+
+    // Auto-identification: registrationNumber provided but no bookingId
+    if (registrationNumber && !bookingId) {
+      const vehicle = await this.prisma.vehicle.findFirst({
+        where: {
+          agencyId,
+          registrationNumber: { equals: registrationNumber, mode: 'insensitive' },
+          deletedAt: null,
+        },
+      });
+
+      if (vehicle && infractionDate) {
+        const activeBooking = await this.prisma.booking.findFirst({
+          where: {
+            agencyId,
+            vehicleId: vehicle.id,
+            startDate: { lte: infractionDate },
+            endDate: { gte: infractionDate },
+            status: { in: [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.RETURNED] },
+            deletedAt: null,
+          },
+          include: { client: true },
+          orderBy: { startDate: 'desc' },
+        });
+
+        if (activeBooking) {
+          resolvedBookingId = activeBooking.id;
+          resolvedClientId = activeBooking.clientId;
+          resolvedStatus = FineStatus.CLIENT_IDENTIFIE;
+        }
+      }
     }
 
-    // Add audit fields
+    // If bookingId provided (or resolved), validate it exists
+    if (resolvedBookingId) {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: resolvedBookingId },
+      });
+
+      if (!booking || booking.agencyId !== agencyId) {
+        throw new BadRequestException('Réservation introuvable ou n\'appartient pas à cette agence');
+      }
+
+      if (!resolvedClientId) {
+        resolvedClientId = booking.clientId;
+      }
+    }
+
+    const createData = {
+      agencyId,
+      bookingId: resolvedBookingId,
+      amount: parseFloat(amount.toString()),
+      description,
+      number: number || null,
+      location: location || null,
+      attachmentUrl: attachmentUrl || null,
+      infractionDate,
+      registrationNumber: registrationNumber || null,
+      status: resolvedStatus,
+      clientId: resolvedClientId,
+    };
+
     const dataWithAudit = this.auditService.addCreateAuditFields(
-      {
-        agencyId,
-        bookingId,
-        amount: parseFloat(amount.toString()),
-        description,
-        number: number || null,
-        location: location || null,
-        attachmentUrl: attachmentUrl || null,
-      },
-      user.id,
+      createData,
+      user.userId || user.id,
     );
 
     const fine = await this.prisma.fine.create({
-      data: dataWithAudit,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: dataWithAudit as any,
       include: {
         agency: {
           include: { company: true },
@@ -148,7 +216,6 @@ export class FineService {
       },
     });
 
-    // Log business event (async, non-blocking)
     this.businessEventLogService
       .logEvent(
         fine.agencyId,
@@ -157,13 +224,10 @@ export class FineService {
         BusinessEventType.FINE_CREATED,
         null,
         fine,
-        user.id,
+        user.userId || user.id,
       )
-      .catch(() => {
-        // Error already logged in service
-      });
+      .catch(() => {});
 
-    // Remove audit fields from response
     return this.auditService.removeAuditFields(fine);
   }
 
@@ -173,12 +237,12 @@ export class FineService {
     });
 
     if (!fine) {
-      throw new NotFoundException('Fine not found');
+      throw new NotFoundException('Amende introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(fine.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour modifier cette amende');
     }
 
     // Store previous state for event log
@@ -200,9 +264,17 @@ export class FineService {
     if (updateFineDto.attachmentUrl !== undefined) {
       updateData.attachmentUrl = updateFineDto.attachmentUrl || null;
     }
+    if (updateFineDto.status !== undefined) {
+      updateData.status = updateFineDto.status as FineStatus;
+    }
+    if (updateFineDto.infractionDate !== undefined) {
+      updateData.infractionDate = updateFineDto.infractionDate
+        ? new Date(updateFineDto.infractionDate)
+        : null;
+    }
 
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(updateData, user.id);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(updateData, user.userId || user.id);
 
     const updatedFine = await this.prisma.fine.update({
       where: { id },
@@ -229,7 +301,7 @@ export class FineService {
         BusinessEventType.FINE_UPDATED,
         previousState,
         updatedFine,
-        user.id,
+        user.userId || user.id,
       )
       .catch(() => {
         // Error already logged in service
@@ -241,27 +313,25 @@ export class FineService {
 
   async remove(id: string, user: any, reason?: string) {
     const fine = await this.prisma.fine.findFirst({
-      where: this.softDeleteService.addSoftDeleteFilter({ id }),
+      where: { id },
     });
 
     if (!fine) {
-      throw new NotFoundException('Fine not found');
+      throw new NotFoundException('Amende introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(fine.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour supprimer cette amende');
     }
 
     // Store previous state for event log
     const previousState = { ...fine };
 
-    // Add audit fields for soft delete
-    const deleteData = this.auditService.addDeleteAuditFields({}, user.id, reason);
-
-    await this.prisma.fine.update({
+    // Fine model does not support soft delete (no deletedAt field)
+    // Perform hard delete
+    await this.prisma.fine.delete({
       where: { id },
-      data: deleteData,
     });
 
     // Log business event
@@ -272,14 +342,14 @@ export class FineService {
         fine.id,
         BusinessEventType.FINE_DELETED,
         previousState,
-        { ...fine, ...deleteData },
-        user.id,
+        { deleted: true },
+        user.userId || user.id,
       )
       .catch(() => {
         // Error already logged in service
       });
 
-    return { message: 'Fine deleted successfully' };
+    return { message: 'Amende supprimée avec succès' };
   }
 }
 

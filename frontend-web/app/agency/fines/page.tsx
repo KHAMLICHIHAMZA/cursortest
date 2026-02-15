@@ -60,14 +60,14 @@ export default function FinesPage() {
   const filteredFines = fines?.filter(
     (fine) =>
       fine.booking?.vehicle?.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fine.booking?.client?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fine.booking?.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       fine.description.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Afficher le message si le module n'est pas activé
   if (!isLoadingModule && !isModuleActive) {
     return (
-      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
           <ModuleNotIncluded 
             moduleName="FINES"
@@ -83,7 +83,7 @@ export default function FinesPage() {
     const isModuleError = (error as any)?.isModuleError;
     if (isModuleError) {
       return (
-        <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
           <MainLayout>
             <ModuleNotIncluded 
               moduleName="FINES"
@@ -96,7 +96,7 @@ export default function FinesPage() {
   }
 
   return (
-    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+    <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
@@ -145,7 +145,7 @@ export default function FinesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {fine.booking?.client?.firstName} {fine.booking?.client?.lastName}
+                        {fine.booking?.client?.name || '—'}
                       </TableCell>
                       <TableCell>{fine.description}</TableCell>
                       <TableCell className="font-medium">{fine.amount} MAD</TableCell>

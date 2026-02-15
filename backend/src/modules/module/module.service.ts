@@ -26,7 +26,7 @@ export class ModuleService {
    */
   async activateCompanyModule(companyId: string, moduleCode: ModuleCode, user: any) {
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can activate company modules');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut activer les modules de société');
     }
 
     // Vérifier que la Company existe
@@ -35,7 +35,7 @@ export class ModuleService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Vérifier les dépendances
@@ -66,7 +66,7 @@ export class ModuleService {
    */
   async deactivateCompanyModule(companyId: string, moduleCode: ModuleCode, user: any) {
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can deactivate company modules');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut désactiver les modules de société');
     }
 
     const companyModule = await this.prisma.companyModule.findUnique({
@@ -79,7 +79,7 @@ export class ModuleService {
     });
 
     if (!companyModule) {
-      throw new NotFoundException('Company module not found');
+      throw new NotFoundException('Module de société introuvable');
     }
 
     // Vérifier qu'aucun autre module ne dépend de celui-ci
@@ -112,11 +112,11 @@ export class ModuleService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agency not found');
+      throw new NotFoundException('Agence introuvable');
     }
 
     if (user.role !== 'SUPER_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Agency does not belong to your company');
+      throw new ForbiddenException('L\'agence n\'appartient pas à votre société');
     }
 
     // Vérifier que le module est payé au niveau Company
@@ -131,7 +131,7 @@ export class ModuleService {
 
     if (!companyModule || !companyModule.isActive) {
       throw new BadRequestException(
-        `Module ${moduleCode} is not included in your subscription. Please contact support to upgrade your plan.`,
+        `Le module ${moduleCode} n'est pas inclus dans votre abonnement. Veuillez contacter le support pour mettre à niveau votre plan.`,
       );
     }
 
@@ -168,11 +168,11 @@ export class ModuleService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agency not found');
+      throw new NotFoundException('Agence introuvable');
     }
 
     if (user.role !== 'SUPER_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Agency does not belong to your company');
+      throw new ForbiddenException('L\'agence n\'appartient pas à votre société');
     }
 
     const agencyModule = await this.prisma.agencyModule.findUnique({
@@ -185,7 +185,7 @@ export class ModuleService {
     });
 
     if (!agencyModule) {
-      throw new NotFoundException('Agency module not found');
+      throw new NotFoundException('Module d\'agence introuvable');
     }
 
     // Vérifier les dépendances inverses
@@ -210,7 +210,7 @@ export class ModuleService {
   async getCompanyModules(companyId: string, user: any) {
     // Vérifier les permissions
     if (user.role !== 'SUPER_ADMIN' && user.companyId !== companyId) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous ne pouvez consulter que les modules de votre propre société');
     }
 
     return this.prisma.companyModule.findMany({
@@ -228,12 +228,12 @@ export class ModuleService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agency not found');
+      throw new NotFoundException('Agence introuvable');
     }
 
     // Vérifier les permissions
     if (user.role !== 'SUPER_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : cette agence n\'appartient pas à votre société');
     }
 
     // Récupérer les modules Company (payés)
@@ -271,7 +271,7 @@ export class ModuleService {
    */
   async getModuleDependencies(user: any) {
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can view module dependencies');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut consulter les dépendances des modules');
     }
 
     return this.prisma.moduleDependency.findMany({
@@ -304,7 +304,7 @@ export class ModuleService {
 
       if (!companyModule || !companyModule.isActive) {
         throw new BadRequestException(
-          `Module ${moduleCode} requires module ${dep.dependsOnCode} to be activated first.`,
+          `Le module ${moduleCode} nécessite que le module ${dep.dependsOnCode} soit activé au préalable.`,
         );
       }
 
@@ -321,7 +321,7 @@ export class ModuleService {
 
         if (agencyModule && !agencyModule.isActive) {
           throw new BadRequestException(
-            `Module ${moduleCode} requires module ${dep.dependsOnCode} to be activated for this agency.`,
+            `Le module ${moduleCode} nécessite que le module ${dep.dependsOnCode} soit activé pour cette agence.`,
           );
         }
       }
@@ -357,7 +357,7 @@ export class ModuleService {
 
     if (dependentModules.length > 0) {
       throw new BadRequestException(
-        `Cannot deactivate module ${moduleCode}. The following modules depend on it: ${dependentModules.map((m) => m.moduleCode).join(', ')}`,
+        `Impossible de désactiver le module ${moduleCode}. Les modules suivants en dépendent : ${dependentModules.map((m) => m.moduleCode).join(', ')}`,
       );
     }
 
@@ -375,7 +375,7 @@ export class ModuleService {
 
       if (dependentAgencyModules.length > 0) {
         throw new BadRequestException(
-          `Cannot deactivate module ${moduleCode} for this agency. The following modules depend on it: ${dependentAgencyModules.map((m) => m.moduleCode).join(', ')}`,
+          `Impossible de désactiver le module ${moduleCode} pour cette agence. Les modules suivants en dépendent : ${dependentAgencyModules.map((m) => m.moduleCode).join(', ')}`,
         );
       }
     }

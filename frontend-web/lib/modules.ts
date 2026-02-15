@@ -1,6 +1,6 @@
 import { apiClient } from './api/client';
 
-export type ModuleCode = 'VEHICLES' | 'BOOKINGS' | 'INVOICES' | 'MAINTENANCE' | 'FINES' | 'ANALYTICS';
+export type ModuleCode = 'VEHICLES' | 'BOOKINGS' | 'INVOICES' | 'MAINTENANCE' | 'FINES' | 'ANALYTICS' | 'GPS';
 
 export interface ActiveModule {
   moduleCode: ModuleCode;
@@ -67,6 +67,9 @@ export const agencyRouteModuleMap: Record<string, ModuleCode | null> = {
   '/agency/journal': null, // Journal toujours visible
   '/agency/maintenance': 'MAINTENANCE',
   '/agency/fines': 'FINES',
+  '/agency/charges': 'VEHICLES', // Charges & Depenses liees aux vehicules
+  '/agency/kpi': 'BOOKINGS', // KPI necessite au minimum le module Bookings
+  '/agency/gps': 'VEHICLES', // GPS (utilise le module VEHICLES cote backend)
   '/agency/notifications': null, // Notifications toujours visibles
 };
 

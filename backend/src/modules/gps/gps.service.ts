@@ -142,6 +142,10 @@ export class GpsService {
   async findByBooking(bookingId: string): Promise<any[]> {
     return (this.prisma as any).gpsSnapshot.findMany({
       where: { bookingId },
+      include: {
+        vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true, status: true } },
+        booking: { select: { id: true, bookingNumber: true, client: { select: { name: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -152,8 +156,12 @@ export class GpsService {
   async findByVehicle(vehicleId: string): Promise<any[]> {
     return (this.prisma as any).gpsSnapshot.findMany({
       where: { vehicleId },
+      include: {
+        vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true, status: true } },
+        booking: { select: { id: true, bookingNumber: true, client: { select: { name: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
-      take: 100, // Limit results
+      take: 100,
     });
   }
 
@@ -183,6 +191,10 @@ export class GpsService {
 
     return (this.prisma as any).gpsSnapshot.findMany({
       where,
+      include: {
+        vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true, status: true } },
+        booking: { select: { id: true, bookingNumber: true, client: { select: { name: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
       take: options?.limit || 500,
     });

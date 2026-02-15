@@ -212,12 +212,12 @@ export class InvoiceService {
     });
 
     if (!booking) {
-      throw new NotFoundException('Booking not found');
+      throw new NotFoundException('Réservation introuvable');
     }
 
     const companyId = booking.agency?.companyId;
     if (!companyId) {
-      throw new BadRequestException('Booking agency has no company');
+      throw new BadRequestException('L\'agence de la réservation n\'a pas de société');
     }
 
     // ============================================
@@ -382,15 +382,15 @@ export class InvoiceService {
     });
 
     if (!originalInvoice) {
-      throw new NotFoundException('Original invoice not found');
+      throw new NotFoundException('Facture originale introuvable');
     }
 
     if (originalInvoice.type !== InvoiceType.INVOICE) {
-      throw new BadRequestException('Cannot create credit note for non-invoice document');
+      throw new BadRequestException('Impossible de créer un avoir pour un document qui n\'est pas une facture');
     }
 
     if (originalInvoice.status === InvoiceStatus.CANCELLED) {
-      throw new BadRequestException('Cannot create credit note for cancelled invoice');
+      throw new BadRequestException('Impossible de créer un avoir pour une facture annulée');
     }
 
     const issuedAt = this.getMoroccoTime();
@@ -478,7 +478,7 @@ export class InvoiceService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Facture introuvable');
     }
 
     return invoice.payload as unknown as InvoicePayload;
@@ -491,7 +491,7 @@ export class InvoiceService {
     // Vérifier les permissions avec PermissionService
     const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
     const invoices = await this.prisma.invoice.findMany({
@@ -530,13 +530,13 @@ export class InvoiceService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Facture introuvable');
     }
 
     // Vérifier les permissions avec PermissionService
     const hasAccess = await this.permissionService.checkAgencyAccess(invoice.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this invoice');
+      throw new ForbiddenException('Accès refusé à cette facture');
     }
 
     return invoice;
@@ -551,7 +551,7 @@ export class InvoiceService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException('Facture introuvable');
     }
 
     const updatedInvoice = await this.prisma.invoice.update({
