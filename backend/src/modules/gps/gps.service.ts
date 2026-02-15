@@ -43,6 +43,18 @@ export interface CreateGpsSnapshotMissingDto {
 // Roles allowed to create manual snapshots
 const MANUAL_SNAPSHOT_ROLES: string[] = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'];
 
+/**
+ * Helper: enforce that the user can access the given agencyId.
+ */
+function enforceAgencyAccess(user: any, agencyId?: string): void {
+  if (!agencyId) return;
+  if (user.role === 'SUPER_ADMIN') return;
+  if (user.role === 'COMPANY_ADMIN') return;
+  if (user.agencyIds && !user.agencyIds.includes(agencyId)) {
+    throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+  }
+}
+
 @Injectable()
 export class GpsService {
   constructor(
@@ -69,7 +81,7 @@ export class GpsService {
       }
     }
 
-    const snapshot = await (this.prisma as any).gpsSnapshot.create({
+    const snapshot = await this.prisma.gpsSnapshot.create({
       data: {
         agencyId: dto.agencyId,
         bookingId: dto.bookingId || null,
@@ -78,7 +90,7 @@ export class GpsService {
         longitude: dto.longitude,
         accuracy: dto.accuracy || null,
         altitude: dto.altitude || null,
-        reason: dto.reason,
+        reason: dto.reason as any,
         capturedByUserId: userId,
         capturedByRole: userRole,
         deviceInfo: dto.deviceInfo || null,
@@ -110,21 +122,20 @@ export class GpsService {
 
   /**
    * V2: Record GPS missing (when GPS is unavailable)
-   * This allows the action to proceed but records that GPS was unavailable
    */
   async recordGpsMissing(
     dto: CreateGpsSnapshotMissingDto,
     userId: string,
     userRole: string,
   ): Promise<any> {
-    const snapshot = await (this.prisma as any).gpsSnapshot.create({
+    const snapshot = await this.prisma.gpsSnapshot.create({
       data: {
         agencyId: dto.agencyId,
         bookingId: dto.bookingId || null,
         vehicleId: dto.vehicleId || null,
-        latitude: 0, // Default values for missing GPS
+        latitude: 0,
         longitude: 0,
-        reason: dto.reason,
+        reason: dto.reason as any,
         capturedByUserId: userId,
         capturedByRole: userRole,
         isGpsMissing: true,
@@ -137,10 +148,21 @@ export class GpsService {
   }
 
   /**
-   * V2: Get snapshots for a booking
+   * V2: Get snapshots for a booking (scoped by user)
    */
-  async findByBooking(bookingId: string): Promise<any[]> {
-    return (this.prisma as any).gpsSnapshot.findMany({
+  async findByBooking(bookingId: string, user?: any): Promise<any[]> {
+    // If user provided, verify the booking belongs to their company/agency
+    if (user && user.role !== 'SUPER_ADMIN') {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: { agencyId: true, companyId: true },
+      });
+      if (!booking) throw new NotFoundException('Réservation introuvable');
+      if (booking.companyId !== user.companyId) throw new ForbiddenException('Accès refusé');
+      enforceAgencyAccess(user, booking.agencyId);
+    }
+
+    return this.prisma.gpsSnapshot.findMany({
       where: { bookingId },
       include: {
         vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true, status: true } },
@@ -151,10 +173,21 @@ export class GpsService {
   }
 
   /**
-   * V2: Get snapshots for a vehicle
+   * V2: Get snapshots for a vehicle (scoped by user)
    */
-  async findByVehicle(vehicleId: string): Promise<any[]> {
-    return (this.prisma as any).gpsSnapshot.findMany({
+  async findByVehicle(vehicleId: string, user?: any): Promise<any[]> {
+    // If user provided, verify the vehicle belongs to their company/agency
+    if (user && user.role !== 'SUPER_ADMIN') {
+      const vehicle = await this.prisma.vehicle.findUnique({
+        where: { id: vehicleId },
+        select: { agencyId: true, agency: { select: { companyId: true } } },
+      });
+      if (!vehicle) throw new NotFoundException('Véhicule introuvable');
+      if (vehicle.agency.companyId !== user.companyId) throw new ForbiddenException('Accès refusé');
+      enforceAgencyAccess(user, vehicle.agencyId);
+    }
+
+    return this.prisma.gpsSnapshot.findMany({
       where: { vehicleId },
       include: {
         vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true, status: true } },
@@ -166,7 +199,7 @@ export class GpsService {
   }
 
   /**
-   * V2: Get snapshots for an agency
+   * V2: Get snapshots for an agency (scoped by user)
    */
   async findByAgency(
     agencyId: string,
@@ -176,7 +209,12 @@ export class GpsService {
       reason?: GpsSnapshotReasonType;
       limit?: number;
     },
+    user?: any,
   ): Promise<any[]> {
+    if (user) {
+      enforceAgencyAccess(user, agencyId);
+    }
+
     const where: any = { agencyId };
 
     if (options?.reason) {
@@ -189,7 +227,7 @@ export class GpsService {
       if (options.dateTo) where.createdAt.lte = options.dateTo;
     }
 
-    return (this.prisma as any).gpsSnapshot.findMany({
+    return this.prisma.gpsSnapshot.findMany({
       where,
       include: {
         vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true, status: true } },
@@ -201,15 +239,20 @@ export class GpsService {
   }
 
   /**
-   * V2: Get a single snapshot
+   * V2: Get a single snapshot (scoped by user)
    */
-  async findOne(id: string): Promise<any> {
-    const snapshot = await (this.prisma as any).gpsSnapshot.findUnique({
+  async findOne(id: string, user?: any): Promise<any> {
+    const snapshot = await this.prisma.gpsSnapshot.findUnique({
       where: { id },
     });
 
     if (!snapshot) {
       throw new NotFoundException('Snapshot GPS non trouvé');
+    }
+
+    // If user provided, verify agency access
+    if (user && user.role !== 'SUPER_ADMIN') {
+      enforceAgencyAccess(user, snapshot.agencyId);
     }
 
     return snapshot;

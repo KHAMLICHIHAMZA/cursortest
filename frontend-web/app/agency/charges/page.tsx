@@ -59,6 +59,7 @@ export default function ChargesPage() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingCharge, setEditingCharge] = useState<Charge | null>(null);
+  const [deletingCharge, setDeletingCharge] = useState<Charge | null>(null);
 
   // Form state
   const [formVehicleId, setFormVehicleId] = useState('');
@@ -205,8 +206,13 @@ export default function ChargesPage() {
   };
 
   const handleDelete = (charge: Charge) => {
-    if (confirm(`Supprimer cette charge de ${formatAmount(Number(charge.amount))} ?`)) {
-      deleteMutation.mutate(charge.id);
+    setDeletingCharge(charge);
+  };
+
+  const confirmDelete = () => {
+    if (deletingCharge) {
+      deleteMutation.mutate(deletingCharge.id);
+      setDeletingCharge(null);
     }
   };
 
@@ -379,6 +385,38 @@ export default function ChargesPage() {
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {deletingCharge && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-sm bg-card rounded-xl border border-border shadow-xl p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-text">Confirmer la suppression</h3>
+              <p className="text-sm text-text-muted">
+                Voulez-vous vraiment supprimer cette charge de{' '}
+                <span className="font-semibold text-text">{formatAmount(Number(deletingCharge.amount))}</span> ?
+              </p>
+              <p className="text-xs text-text-muted">
+                {CATEGORY_LABELS[deletingCharge.category] || deletingCharge.category}
+                {deletingCharge.description ? ` - ${deletingCharge.description}` : ''}
+              </p>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  onClick={() => setDeletingCharge(null)}
+                  className="px-4 py-2 text-sm rounded-lg border border-border text-text hover:bg-background transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteMutation.isPending}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Create/Edit Modal */}
         {showModal && (

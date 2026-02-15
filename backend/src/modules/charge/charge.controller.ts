@@ -20,7 +20,7 @@ export class ChargeController {
   @Post()
   @ApiOperation({ summary: 'Create a charge' })
   async create(@Body() dto: CreateChargeDto, @CurrentUser() user: any) {
-    return this.chargeService.create(user.companyId, dto, user.userId);
+    return this.chargeService.create(user, dto);
   }
 
   @Get()
@@ -33,7 +33,7 @@ export class ChargeController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.chargeService.findAll(user.companyId, { agencyId, vehicleId, category, startDate, endDate });
+    return this.chargeService.findAll(user, { agencyId, vehicleId, category, startDate, endDate });
   }
 
   @Get('kpi')
@@ -48,7 +48,7 @@ export class ChargeController {
     const now = new Date();
     const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const end = endDate || now.toISOString().slice(0, 10);
-    return this.chargeService.computeKpi(user.companyId, { agencyId, vehicleId, startDate: start, endDate: end });
+    return this.chargeService.computeKpi(user, { agencyId, vehicleId, startDate: start, endDate: end });
   }
 
   @Get('kpi/vehicles')
@@ -62,24 +62,24 @@ export class ChargeController {
     const now = new Date();
     const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const end = endDate || now.toISOString().slice(0, 10);
-    return this.chargeService.vehicleProfitability(user.companyId, { agencyId, startDate: start, endDate: end });
+    return this.chargeService.vehicleProfitability(user, { agencyId, startDate: start, endDate: end });
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a charge' })
   async findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.chargeService.findOne(id, user.companyId);
+    return this.chargeService.findOne(id, user);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a charge' })
   async update(@Param('id') id: string, @Body() dto: Partial<CreateChargeDto>, @CurrentUser() user: any) {
-    return this.chargeService.update(id, user.companyId, dto);
+    return this.chargeService.update(id, user, dto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a charge' })
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.chargeService.delete(id, user.companyId);
+    return this.chargeService.delete(id, user);
   }
 }

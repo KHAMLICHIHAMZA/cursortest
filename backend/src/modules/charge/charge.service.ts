@@ -27,14 +27,54 @@ export interface KpiResult {
   chargesByCategory: Record<string, number>;
 }
 
+/**
+ * Helper: enforce that the user can access the given agencyId.
+ * SUPER_ADMIN / COMPANY_ADMIN: can access any agency in their company.
+ * AGENCY_MANAGER / AGENT: can only access their assigned agencies.
+ */
+function enforceAgencyAccess(user: any, agencyId?: string): void {
+  if (!agencyId) return;
+  if (user.role === 'SUPER_ADMIN') return;
+  if (user.role === 'COMPANY_ADMIN') return; // scoped to company at query level
+  // AGENCY_MANAGER / AGENT: must belong to the agency
+  if (user.agencyIds && !user.agencyIds.includes(agencyId)) {
+    throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+  }
+}
+
+/**
+ * Build a where clause scoped to the user's agencies.
+ */
+function buildAgencyScope(user: any, filters?: { agencyId?: string }): any {
+  if (user.role === 'SUPER_ADMIN') {
+    return filters?.agencyId ? { agencyId: filters.agencyId } : {};
+  }
+  if (user.role === 'COMPANY_ADMIN') {
+    return {
+      companyId: user.companyId,
+      ...(filters?.agencyId ? { agencyId: filters.agencyId } : {}),
+    };
+  }
+  // AGENCY_MANAGER / AGENT
+  if (filters?.agencyId) {
+    enforceAgencyAccess(user, filters.agencyId);
+    return { companyId: user.companyId, agencyId: filters.agencyId };
+  }
+  return {
+    companyId: user.companyId,
+    agencyId: user.agencyIds?.length ? { in: user.agencyIds } : undefined,
+  };
+}
+
 @Injectable()
 export class ChargeService {
   constructor(private prisma: PrismaService) {}
 
-  async create(companyId: string, dto: CreateChargeDto, userId: string) {
-    return (this.prisma as any).charge.create({
+  async create(user: any, dto: CreateChargeDto) {
+    enforceAgencyAccess(user, dto.agencyId);
+    return this.prisma.charge.create({
       data: {
-        companyId,
+        companyId: user.companyId,
         agencyId: dto.agencyId,
         vehicleId: dto.vehicleId,
         bookingId: dto.bookingId || null,
@@ -44,21 +84,20 @@ export class ChargeService {
         date: new Date(dto.date),
         recurring: dto.recurring || false,
         recurrencePeriod: dto.recurrencePeriod || null,
-        createdByUserId: userId,
+        createdByUserId: user.userId,
       },
     });
   }
 
-  async findAll(companyId: string, filters?: {
+  async findAll(user: any, filters?: {
     agencyId?: string;
     vehicleId?: string;
     category?: string;
     startDate?: string;
     endDate?: string;
   }) {
-    const where: any = { companyId };
+    const where: any = buildAgencyScope(user, filters);
 
-    if (filters?.agencyId) where.agencyId = filters.agencyId;
     if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
     if (filters?.category) where.category = filters.category;
     if (filters?.startDate || filters?.endDate) {
@@ -67,7 +106,7 @@ export class ChargeService {
       if (filters.endDate) where.date.lte = new Date(filters.endDate);
     }
 
-    return (this.prisma as any).charge.findMany({
+    return this.prisma.charge.findMany({
       where,
       orderBy: { date: 'desc' },
       include: {
@@ -76,16 +115,17 @@ export class ChargeService {
     });
   }
 
-  async findOne(id: string, companyId: string) {
-    const charge = await (this.prisma as any).charge.findUnique({ where: { id } });
-    if (!charge || charge.companyId !== companyId) {
+  async findOne(id: string, user: any) {
+    const charge = await this.prisma.charge.findUnique({ where: { id } });
+    if (!charge || charge.companyId !== user.companyId) {
       throw new NotFoundException('Charge introuvable');
     }
+    enforceAgencyAccess(user, charge.agencyId);
     return charge;
   }
 
-  async update(id: string, companyId: string, dto: Partial<CreateChargeDto>) {
-    const charge = await this.findOne(id, companyId);
+  async update(id: string, user: any, dto: Partial<CreateChargeDto>) {
+    const charge = await this.findOne(id, user);
     const data: any = {};
     if (dto.category) data.category = dto.category;
     if (dto.description) data.description = dto.description;
@@ -94,41 +134,44 @@ export class ChargeService {
     if (dto.recurring !== undefined) data.recurring = dto.recurring;
     if (dto.recurrencePeriod !== undefined) data.recurrencePeriod = dto.recurrencePeriod;
 
-    return (this.prisma as any).charge.update({ where: { id }, data });
+    return this.prisma.charge.update({ where: { id }, data });
   }
 
-  async delete(id: string, companyId: string) {
-    await this.findOne(id, companyId);
-    return (this.prisma as any).charge.delete({ where: { id } });
+  async delete(id: string, user: any) {
+    await this.findOne(id, user);
+    return this.prisma.charge.delete({ where: { id } });
   }
 
   /**
    * Compute KPIs for a company/agency over a period
    */
-  async computeKpi(companyId: string, options: {
+  async computeKpi(user: any, options: {
     agencyId?: string;
     vehicleId?: string;
     startDate: string;
     endDate: string;
   }): Promise<KpiResult> {
+    enforceAgencyAccess(user, options.agencyId);
+
+    const companyId = user.companyId;
     const start = new Date(options.startDate);
     const end = new Date(options.endDate);
     const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
 
+    const agencyScope = buildAgencyScope(user, { agencyId: options.agencyId });
+
     const whereBooking: any = {
-      companyId,
+      ...agencyScope,
       deletedAt: null,
       startDate: { lte: end },
       endDate: { gte: start },
     };
-    if (options.agencyId) whereBooking.agencyId = options.agencyId;
     if (options.vehicleId) whereBooking.vehicleId = options.vehicleId;
 
     const whereCharge: any = {
-      companyId,
+      ...agencyScope,
       date: { gte: start, lte: end },
     };
-    if (options.agencyId) whereCharge.agencyId = options.agencyId;
     if (options.vehicleId) whereCharge.vehicleId = options.vehicleId;
 
     // Fetch data
@@ -137,7 +180,7 @@ export class ChargeService {
         where: whereBooking,
         select: { id: true, totalPrice: true, startDate: true, endDate: true, vehicleId: true },
       }),
-      (this.prisma as any).charge.findMany({
+      this.prisma.charge.findMany({
         where: whereCharge,
         select: { amount: true, category: true },
       }),
@@ -199,21 +242,29 @@ export class ChargeService {
   /**
    * Profitability per vehicle
    */
-  async vehicleProfitability(companyId: string, options: {
+  async vehicleProfitability(user: any, options: {
     agencyId?: string;
     startDate: string;
     endDate: string;
   }) {
+    enforceAgencyAccess(user, options.agencyId);
+
     const start = new Date(options.startDate);
     const end = new Date(options.endDate);
 
     const vehicleWhere: any = {
-      agency: { companyId },
+      agency: { companyId: user.companyId },
       deletedAt: null,
     };
     if (options.agencyId) vehicleWhere.agencyId = options.agencyId;
+    // Scope to user's agencies for non-admin roles
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN' && user.agencyIds?.length) {
+      if (!options.agencyId) {
+        vehicleWhere.agencyId = { in: user.agencyIds };
+      }
+    }
 
-    const vehicles = await (this.prisma as any).vehicle.findMany({
+    const vehicles = await this.prisma.vehicle.findMany({
       where: vehicleWhere,
       select: {
         id: true, brand: true, model: true, registrationNumber: true,

@@ -50,33 +50,37 @@ export class GpsController {
     @Query('limit') limit: string,
     @CurrentUser() user: any,
   ) {
-    return this.gpsService.findByAgency(agencyId || user.agencyIds?.[0], {
-      reason: reason as any,
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
-    });
+    return this.gpsService.findByAgency(
+      agencyId || user.agencyIds?.[0],
+      {
+        reason: reason as any,
+        dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+        dateTo: dateTo ? new Date(dateTo) : undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      },
+      user,
+    );
   }
 
   @Get(':id')
   @Permissions('gps:read')
   @ApiOperation({ summary: 'Get a GPS snapshot by ID' })
-  async findOne(@Param('id') id: string) {
-    return this.gpsService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.gpsService.findOne(id, user);
   }
 
   @Get('booking/:bookingId')
   @Permissions('gps:read')
   @ApiOperation({ summary: 'Get GPS snapshots for a booking' })
-  async findByBooking(@Param('bookingId') bookingId: string) {
-    return this.gpsService.findByBooking(bookingId);
+  async findByBooking(@Param('bookingId') bookingId: string, @CurrentUser() user: any) {
+    return this.gpsService.findByBooking(bookingId, user);
   }
 
   @Get('vehicle/:vehicleId')
   @Permissions('gps:read')
   @ApiOperation({ summary: 'Get GPS snapshots for a vehicle' })
-  async findByVehicle(@Param('vehicleId') vehicleId: string) {
-    return this.gpsService.findByVehicle(vehicleId);
+  async findByVehicle(@Param('vehicleId') vehicleId: string, @CurrentUser() user: any) {
+    return this.gpsService.findByVehicle(vehicleId, user);
   }
 
   @Post()

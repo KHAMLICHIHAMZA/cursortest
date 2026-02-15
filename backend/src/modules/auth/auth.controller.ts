@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -14,6 +15,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 tentatives par minute max
   @ApiOperation({ summary: 'Login' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
@@ -40,6 +42,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { ttl: 60000, limit: 3 } }) // 3 tentatives par minute max
   @ApiOperation({ summary: 'Send password reset email' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);
