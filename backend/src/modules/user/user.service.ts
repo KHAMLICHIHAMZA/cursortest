@@ -52,7 +52,7 @@ export class UserService {
         orderBy: { createdAt: 'desc' },
       });
     } else {
-      throw new ForbiddenException('Insufficient permissions');
+      throw new ForbiddenException('Permissions insuffisantes : seuls SUPER_ADMIN et COMPANY_ADMIN peuvent lister les utilisateurs');
     }
 
     // Remove audit fields from public responses
@@ -96,7 +96,7 @@ export class UserService {
       });
 
       if (!targetUser || targetUser.companyId !== user.companyId) {
-        throw new ForbiddenException('Access denied');
+        throw new ForbiddenException('Accès refusé');
       }
 
       const userWithRelations = await this.prisma.user.findUnique({
@@ -112,30 +112,30 @@ export class UserService {
       });
 
       if (!userWithRelations) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException('Utilisateur introuvable');
       }
 
       // Remove audit fields from public responses
       return this.auditService.removeAuditFields(userWithRelations);
     }
 
-    throw new ForbiddenException('Insufficient permissions');
+    throw new ForbiddenException('Permissions insuffisantes');
   }
 
   async create(createUserDto: CreateUserDto, user: any) {
     const { email, name, role, companyId, agencyIds } = createUserDto;
 
     if (!email || !name || !role) {
-      throw new BadRequestException('Email, name, and role are required');
+      throw new BadRequestException('L\'email, le nom et le rôle sont requis');
     }
 
     const validRoles = ['COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT'];
     if (user.role !== 'SUPER_ADMIN' && !validRoles.includes(role)) {
-      throw new BadRequestException('Invalid role');
+      throw new BadRequestException('Rôle invalide');
     }
 
     if (user.role === 'COMPANY_ADMIN' && !['AGENCY_MANAGER', 'AGENT'].includes(role)) {
-      throw new ForbiddenException('Company Admin cannot create this role');
+      throw new ForbiddenException('L\'administrateur de société ne peut pas créer ce rôle');
     }
 
     const existingUser = await this.prisma.user.findUnique({
@@ -143,14 +143,14 @@ export class UserService {
     });
 
     if (existingUser) {
-      throw new BadRequestException('User with this email already exists');
+      throw new BadRequestException('Un utilisateur avec cet email existe déjà');
     }
 
     let targetCompanyId = companyId || user.companyId;
 
     if (user.role === 'COMPANY_ADMIN') {
       if (companyId && companyId !== user.companyId) {
-        throw new ForbiddenException('Cannot create user for another company');
+        throw new ForbiddenException('Impossible de créer un utilisateur pour une autre société');
       }
       targetCompanyId = user.companyId!;
     }
@@ -161,7 +161,7 @@ export class UserService {
       });
 
       if (!company || !company.isActive) {
-        throw new BadRequestException('Company not found or inactive');
+        throw new BadRequestException('Société introuvable ou inactive');
       }
     }
 
@@ -174,7 +174,7 @@ export class UserService {
       });
 
       if (agencies.length !== agencyIds.length) {
-        throw new BadRequestException('Some agencies do not belong to the company');
+        throw new BadRequestException('Certaines agences n\'appartiennent pas à la société');
       }
     }
 
@@ -238,7 +238,7 @@ export class UserService {
     });
 
     if (!userWithRelations) {
-      throw new Error('Failed to retrieve created user');
+      throw new Error('Impossible de récupérer l\'utilisateur après création. Veuillez réessayer.');
     }
 
     // Log business event (User doesn't have agencyId, so we use null)
@@ -268,11 +268,11 @@ export class UserService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Utilisateur introuvable');
     }
 
     if (user.role === 'COMPANY_ADMIN' && targetUser.companyId !== user.companyId) {
-      throw new ForbiddenException('Cannot update user from another company');
+      throw new ForbiddenException('Impossible de mettre à jour un utilisateur d\'une autre société');
     }
 
     // Store previous state for event log
@@ -282,10 +282,17 @@ export class UserService {
     if (updateUserDto.name !== undefined) updateData.name = updateUserDto.name;
     if (updateUserDto.role !== undefined) {
       if (user.role === 'COMPANY_ADMIN') {
-        if (!['AGENCY_MANAGER', 'AGENT'].includes(updateUserDto.role)) {
-          throw new ForbiddenException('Company Admin cannot assign this role');
+        // Si le rôle envoyé est le même que l'actuel, on ignore (pas de changement)
+        if (updateUserDto.role === targetUser.role) {
+          // Pas de changement de rôle, on ne fait rien
+        } else if (!['AGENCY_MANAGER', 'AGENT'].includes(updateUserDto.role)) {
+          throw new ForbiddenException(
+            `Vous ne pouvez pas attribuer le rôle "${updateUserDto.role}". ` +
+            `Les rôles autorisés sont : Gestionnaire d'agence (AGENCY_MANAGER) et Agent (AGENT).`
+          );
+        } else {
+          updateData.role = updateUserDto.role;
         }
-        updateData.role = updateUserDto.role;
       } else if (user.role === 'SUPER_ADMIN') {
         updateData.role = updateUserDto.role;
       }
@@ -328,7 +335,7 @@ export class UserService {
     });
 
     if (!updatedUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Utilisateur introuvable');
     }
 
     // Log business event
@@ -355,11 +362,11 @@ export class UserService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Utilisateur introuvable');
     }
 
     if (user.role === 'COMPANY_ADMIN' && targetUser.companyId !== user.companyId) {
-      throw new ForbiddenException('Cannot reset password for user from another company');
+      throw new ForbiddenException('Impossible de réinitialiser le mot de passe pour un utilisateur d\'une autre société');
     }
 
     const resetToken = this.generateResetToken();
@@ -380,12 +387,12 @@ export class UserService {
       console.error('Error sending reset email:', emailError);
     }
 
-    return { message: 'Password reset email sent' };
+    return { message: 'Email de réinitialisation du mot de passe envoyé' };
   }
 
   async remove(id: string, user: any, reason?: string) {
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can delete users');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut supprimer des utilisateurs');
     }
 
     const targetUser = await this.prisma.user.findFirst({
@@ -393,7 +400,7 @@ export class UserService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Utilisateur introuvable');
     }
 
     // Store previous state for event log
@@ -427,6 +434,6 @@ export class UserService {
       )
       .catch((err) => console.error('Error logging user deletion event:', err));
 
-    return { message: 'User deleted successfully' };
+    return { message: 'Utilisateur supprimé avec succès' };
   }
 }

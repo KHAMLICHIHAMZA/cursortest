@@ -113,12 +113,12 @@ describe('SaaS E2E Tests', () => {
     const superAdminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'e2e-superadmin@test.com', password: 'test123' });
-    superAdminToken = superAdminLogin.body.access_token;
+    superAdminToken = superAdminLogin.body.accessToken || superAdminLogin.body.access_token;
 
     const companyAdminLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'e2e-companyadmin@test.com', password: 'test123' });
-    companyAdminToken = companyAdminLogin.body.access_token;
+    companyAdminToken = companyAdminLogin.body.accessToken || companyAdminLogin.body.access_token;
   });
 
   afterAll(async () => {
@@ -430,6 +430,13 @@ describe('SaaS E2E Tests', () => {
           isActive: true,
         },
       });
+      // S'assurer que l'agence n'a pas désactivé le module VEHICLES (override)
+      await prisma.agencyModule.deleteMany({
+        where: {
+          agencyId,
+          moduleCode: 'VEHICLES',
+        },
+      });
 
       // Créer un utilisateur avec permission READ
       const readUserPassword = await hashPassword('test123');
@@ -455,7 +462,7 @@ describe('SaaS E2E Tests', () => {
       const loginResponse = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({ email: 'e2e-readuser@test.com', password: 'test123' });
-      const readUserToken = loginResponse.body.accessToken;
+      const readUserToken = loginResponse.body.accessToken || loginResponse.body.access_token;
 
       // Devrait pouvoir lire
       const getResponse = await request(app.getHttpServer())
@@ -534,7 +541,7 @@ describe('SaaS E2E Tests', () => {
       const loginResponse = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send({ email: 'e2e-writeuser@test.com', password: 'test123' });
-      const writeUserToken = loginResponse.body.accessToken;
+      const writeUserToken = loginResponse.body.accessToken || loginResponse.body.access_token;
 
       // Créer un véhicule pour tester la suppression
       const vehicle = await prisma.vehicle.create({

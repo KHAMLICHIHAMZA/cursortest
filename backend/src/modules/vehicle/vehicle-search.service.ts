@@ -23,7 +23,7 @@ function loadVehicleDatabase() {
     }
   }
 
-  throw new Error(`Vehicle database not found. Tried: ${possiblePaths.join(', ')}`);
+  throw new Error(`Base de données véhicules introuvable. Chemins vérifiés : ${possiblePaths.join(', ')}`);
 }
 
 const vehicleDatabase = loadVehicleDatabase();

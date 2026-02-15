@@ -39,7 +39,7 @@ export class SubscriptionService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found');
+      throw new NotFoundException('Société introuvable');
     }
 
     // Vérifier qu'il n'y a pas déjà un abonnement actif
@@ -48,7 +48,7 @@ export class SubscriptionService {
     });
 
     if (existingSubscription && existingSubscription.status === SubscriptionStatus.ACTIVE) {
-      throw new BadRequestException('Company already has an active subscription');
+      throw new BadRequestException('La société a déjà un abonnement actif');
     }
 
     // Vérifier que le Plan existe
@@ -60,7 +60,7 @@ export class SubscriptionService {
     });
 
     if (!plan || !plan.isActive) {
-      throw new NotFoundException('Plan not found or inactive');
+      throw new NotFoundException('Plan tarifaire introuvable ou inactif. Veuillez sélectionner un plan valide.');
     }
 
     // Calculer la date de fin selon la périodicité
@@ -161,7 +161,7 @@ export class SubscriptionService {
       });
     }
 
-    throw new ForbiddenException('Insufficient permissions');
+    throw new ForbiddenException('Permissions insuffisantes pour consulter les abonnements. Seuls SUPER_ADMIN et COMPANY_ADMIN y ont accès.');
   }
 
   /**
@@ -194,12 +194,12 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
     }
 
     // Vérifier les permissions
     if (user.role !== 'SUPER_ADMIN' && subscription.companyId !== user.companyId) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : cet abonnement appartient à une autre société');
     }
 
     return subscription;
@@ -214,12 +214,12 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
     }
 
     // Vérifier les permissions (SUPER_ADMIN uniquement)
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can update subscriptions');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut mettre à jour les abonnements');
     }
 
     const dataWithAudit = this.auditService.addUpdateAuditFields(
@@ -260,11 +260,11 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
     }
 
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can suspend subscriptions');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut suspendre les abonnements');
     }
 
     // Mettre à jour l'abonnement
@@ -298,15 +298,15 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
     }
 
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can restore subscriptions');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut restaurer les abonnements');
     }
 
     if (subscription.status !== SubscriptionStatus.SUSPENDED) {
-      throw new BadRequestException('Subscription is not suspended');
+      throw new BadRequestException('Cet abonnement n\'est pas suspendu. Seuls les abonnements suspendus peuvent être restaurés.');
     }
 
     // Vérifier que la suspension date de moins de 90 jours
@@ -317,7 +317,7 @@ export class SubscriptionService {
 
       if (daysSinceSuspension > 90) {
         throw new BadRequestException(
-          'Subscription cannot be restored. Suspension period exceeded 90 days.',
+          'L\'abonnement ne peut pas être restauré. La période de suspension a dépassé 90 jours.',
         );
       }
     }
@@ -353,11 +353,11 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
     }
 
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can renew subscriptions');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut renouveler les abonnements');
     }
 
     const newStartDate = new Date();
@@ -399,11 +399,11 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
     }
 
     if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only SUPER_ADMIN can cancel subscriptions');
+      throw new ForbiddenException('Seul SUPER_ADMIN peut annuler les abonnements');
     }
 
     return this.prisma.subscription.update({
@@ -487,7 +487,7 @@ export class SubscriptionService {
           data: {
             status: CompanyStatus.SUSPENDED,
             suspendedAt: now,
-            suspendedReason: 'Subscription expired',
+            suspendedReason: 'Abonnement expiré',
           },
         });
       }

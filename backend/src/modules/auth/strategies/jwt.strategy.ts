@@ -31,19 +31,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Session invalide ou compte désactivé. Veuillez vous reconnecter.');
     }
 
-    // Vérifier que la company est active (vérifier isActive ET status SaaS)
-    if (user.companyId && user.company) {
-      if (!user.company.isActive) {
-        throw new UnauthorizedException('Company is inactive');
-      }
-      // Vérifier aussi le statut SaaS (si défini)
-      if (user.company.status && user.company.status !== 'ACTIVE') {
-        throw new UnauthorizedException('Company is suspended or deleted');
-      }
-    }
+    // Note: Les règles métier SaaS (company suspended/inactive, etc.) sont gérées
+    // par des guards dédiés (RequireActiveCompanyGuard) pour retourner 403 (pas 401).
 
     return {
       userId: user.id,

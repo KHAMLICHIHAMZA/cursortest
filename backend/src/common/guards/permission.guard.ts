@@ -46,7 +46,7 @@ export class PermissionGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      throw new ForbiddenException('Utilisateur non authentifié');
     }
 
     const userRole = user.role as Role;
@@ -66,7 +66,7 @@ export class PermissionGuard implements CanActivate {
           // Si la vérification UserAgency a donné un résultat (true ou false), l'utiliser
           if (!hasUserAgencyPermission) {
             throw new ForbiddenException(
-              `Insufficient permissions. Required: ${requiredPermissions.join(', ')}`,
+              `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
             );
           }
           return true;
@@ -80,7 +80,7 @@ export class PermissionGuard implements CanActivate {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        `Insufficient permissions. Required: ${requiredPermissions.join(', ')}`,
+        `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
       );
     }
 
@@ -143,22 +143,28 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    // AGENT permissions
+    // AGENT permissions (opérationnel uniquement)
+    // Spec: AGENT peut gérer locations et clients. Pas d'accès aux amendes, charges, maintenance, KPI, analytics.
     if (userRole === 'AGENT') {
-      // Agents can read everything
-      if (requiredPermissions.some((p) => p.endsWith(':read'))) {
+      // Modules INTERDITS pour AGENT (spec: Agents n'ont pas accès)
+      const forbiddenModules = ['fines', 'maintenance', 'charges', 'analytics', 'journal', 'invoices', 'contracts', 'gps'];
+      if (requiredPermissions.some((p) => forbiddenModules.some(m => p.startsWith(`${m}:`)))) {
+        return false;
+      }
+
+      // Agents can read: clients, bookings, vehicles (lecture seule flotte), planning
+      const allowedRead = ['clients:read', 'bookings:read', 'vehicles:read', 'planning:read'];
+      if (requiredPermissions.some((p) => p.endsWith(':read') && allowedRead.includes(p))) {
         return true;
       }
 
-      // Agents can create/update: clients, bookings, fines
+      // Agents can create/update: clients, bookings
       const allowedCreateUpdate = [
         'clients:create',
+        'clients:update',
         'bookings:create',
         'bookings:update',
-        'fines:create',
-        'fines:update',
       ];
-
       if (requiredPermissions.some((p) => allowedCreateUpdate.includes(p))) {
         return true;
       }
@@ -168,19 +174,13 @@ export class PermissionGuard implements CanActivate {
         return false;
       }
 
-      // Agents cannot access vehicles or maintenance
-      if (
-        requiredPermissions.some(
-          (p) => p.startsWith('vehicles:') || p.startsWith('maintenance:'),
-        )
-      ) {
+      // Agents cannot create/update vehicles
+      if (requiredPermissions.some((p) => p.startsWith('vehicles:') && !p.endsWith(':read'))) {
         return false;
       }
 
-      // Agents cannot access analytics
-      if (requiredPermissions.some((p) => p.startsWith('analytics:'))) {
-        return false;
-      }
+      // Default deny for AGENT
+      return false;
     }
 
     // SUPER_ADMIN and COMPANY_ADMIN have full access

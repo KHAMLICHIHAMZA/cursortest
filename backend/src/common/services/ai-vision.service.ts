@@ -134,7 +134,7 @@ export class AIVisionService implements IAIVisionService {
         }),
       }).then(async (res) => {
         if (!res.ok) {
-          throw new Error(`OpenAI API error: ${res.statusText}`);
+          throw new Error(`Erreur API OpenAI : ${res.statusText}`);
         }
         const data = await res.json();
         // Parse the response and extract data
@@ -211,7 +211,7 @@ export class AIVisionService implements IAIVisionService {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Google Vision API error: ${errorData.error?.message || response.statusText}`);
+        throw new Error(`Erreur API Google Vision : ${errorData.error?.message || response.statusText}`);
       }
       
       const data = await response.json();

@@ -18,11 +18,14 @@ enum Role {
 }
 
 enum VehicleStatus {
-  AVAILABLE
-  RENTED
-  MAINTENANCE
-  UNAVAILABLE
-  TEMP_UNAVAILABLE // Temporairement indisponible (ajout pour compléter les états métier)
+  AVAILABLE         // Disponible
+  RESERVED          // Réservé (booking CONFIRMED, pas encore livré)
+  RENTED            // Loué (en location active)
+  IN_DELIVERY       // En livraison (check-in en cours) - spec
+  IN_RECOVERY       // En récupération (check-out en cours) - spec
+  MAINTENANCE       // En maintenance
+  UNAVAILABLE       // Non disponible
+  TEMP_UNAVAILABLE  // Temporairement indisponible
 }
 
 enum BookingStatus {
@@ -98,6 +101,25 @@ enum InvoiceStatus {
   ISSUED
   PAID
   CANCELLED
+}
+
+// V2: Invoice type (facture / avoir)
+enum InvoiceType {
+  INVOICE
+  CREDIT_NOTE
+}
+
+// V2: BookingNumber mode (AUTO/MANUAL) configuré au niveau Company
+enum BookingNumberMode {
+  AUTO
+  MANUAL
+}
+
+// V2: Outbox interne pour Domain Events (backbone)
+enum OutboxEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
 }
 
 enum PaymentStatus {
@@ -244,6 +266,9 @@ model Company {
   currency String @default("MAD") // Devise par Company (ex: MAD, EUR, USD)
   maxAgencies Int? @default(5) // Null = illimité
 
+  // V2: BookingNumber
+  bookingNumberMode BookingNumberMode @default(AUTO)
+
   // Branding
   logoUrl        String?
   secondaryColor String? // Couleur secondaire pour branding
@@ -262,6 +287,10 @@ model Company {
   updatedAt DateTime @updatedAt
 
   agencies                Agency[]
+  bookings                Booking[]
+  bookingNumberSequences  BookingNumberSequence[]
+  invoices                Invoice[]
+  invoiceNumberSequences  InvoiceNumberSequence[]
   users                   User[]
   businessRules           BusinessRule[]
   auditLogs               AuditLog[]
@@ -270,6 +299,7 @@ model Company {
   companyModules          CompanyModule[]
   notificationPreferences NotificationPreference[]
   PaymentSaas             PaymentSaas[]
+  charges                 Charge[]
 
   @@index([slug])
   @@index([isActive])
@@ -321,6 +351,7 @@ model Agency {
   businessEventLogs BusinessEventLog[]
   agencyModules     AgencyModule[]
   invoices          Invoice[]
+  charges           Charge[]
 
   @@index([companyId])
   @@index([status])
@@ -358,6 +389,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   refreshTokens       RefreshToken[]
   auditLogs           AuditLog[]
+  inAppNotifications  InAppNotification[]
+  deviceTokens        DeviceToken[]
 
   @@index([email])
   @@index([companyId])
@@ -403,6 +436,10 @@ model Vehicle {
   horsepower         Int? // Puissance en CV
   color              String? // Couleur du véhicule
 
+  // GPS Tracker (boitier physique type mini GPS / AirTag)
+  gpsTrackerId    String?   // Identifiant / numero de serie du tracker
+  gpsTrackerLabel String?   // Description (ex: "Mini GPS noir coffre")
+
   // Audit fields (auto-populated by backend, never editable from frontend)
   createdByUserId String?
   updatedByUserId String?
@@ -421,6 +458,8 @@ model Vehicle {
   documents      Document[]
   incidents      Incident[]
   planningEvents PlanningEvent[]
+  gpsSnapshots   GpsSnapshot[]
+  charges        Charge[]
 
   @@index([agencyId])
   @@index([status])
@@ -491,12 +530,16 @@ model Client {
 model Booking {
   id         String        @id @default(cuid())
   agencyId   String
+  companyId  String
   vehicleId  String
   clientId   String
   startDate  DateTime
   endDate    DateTime
   totalPrice Float
   status     BookingStatus @default(DRAFT)
+
+  // V2: BookingNumber (unique par Company)
+  bookingNumber String
 
   // Prolongation
   originalEndDate DateTime? // Date de fin originale si prolongation
@@ -538,6 +581,7 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   agency         Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   fines          Fine[]
@@ -546,14 +590,37 @@ model Booking {
   documents      Document[]
   planningEvents PlanningEvent[]
   invoices       Invoice[]
+  contracts      Contract[]
+  gpsSnapshots   GpsSnapshot[]
 
   @@index([agencyId])
+  @@index([companyId])
   @@index([vehicleId])
   @@index([clientId])
   @@index([status])
   @@index([startDate])
   @@index([endDate])
   @@index([deletedAt])
+
+  @@unique([companyId, bookingNumber])
+}
+
+// V2: séquence BookingNumber par Company + année (reset annuel)
+model BookingNumberSequence {
+  id String @id @default(cuid())
+
+  companyId String
+  year      Int
+  lastValue Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, year])
+  @@index([companyId])
+  @@index([year])
 }
 
 // ============================================
@@ -673,18 +740,38 @@ model Incident {
 }
 
 // ============================================
-// FINE MODELS (Legacy - maintenant dans Incident)
+// FINE (AMENDES) MODELS
 // ============================================
 
+// Statuts amendes selon spec: reçue → client identifié → transmise → contestée → clôturée
+enum FineStatus {
+  RECUE             // Amende reçue par l'agence
+  CLIENT_IDENTIFIE  // Client responsable identifié automatiquement
+  TRANSMISE         // Amende transmise au client
+  CONTESTEE         // Client conteste l'amende
+  CLOTUREE          // Amende traitée (payée ou annulée)
+}
+
 model Fine {
-  id            String  @id @default(cuid())
-  agencyId      String
-  bookingId     String
-  amount        Float
-  description   String
-  number        String? // Numéro de l'amende
-  location      String? // Lieu de l'amende
-  attachmentUrl String? // URL de la pièce jointe
+  id                  String     @id @default(cuid())
+  agencyId            String
+  bookingId           String?    // Peut être null si auto-identification échoue
+  amount              Float
+  description         String
+  number              String?    // Référence de l'amende (numéro officiel)
+  location            String?    // Lieu de l'infraction
+  attachmentUrl       String?    // URL de la pièce jointe
+  
+  // Champs spec amendes (saisie minimale)
+  infractionDate      DateTime?  // Date d'infraction (spec: donnée minimale)
+  registrationNumber  String?    // N° immatriculation (spec: donnée minimale pour auto-identification)
+  
+  // Statut selon spec
+  status              FineStatus @default(RECUE)
+  
+  // Client identifié automatiquement
+  clientId            String?    // Client principal identifié
+  secondaryDriverId   String?    // Conducteur secondaire si existant
 
   // Audit fields (auto-populated by backend, never editable from frontend)
   createdByUserId String?
@@ -695,11 +782,14 @@ model Fine {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  agency  Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
   @@index([bookingId])
+  @@index([status])
+  @@index([infractionDate])
+  @@index([registrationNumber])
 }
 
 // ============================================
@@ -783,24 +873,346 @@ model Payment {
 
 model Invoice {
   id           String        @id @default(cuid())
+  companyId    String
   agencyId     String
   bookingId    String
-  invoiceNumber String       @unique // Numéro incrémental par agence
+  invoiceNumber String       @unique // V2: séquence par company + reset annuel
+  type         InvoiceType   @default(INVOICE)
+  year         Int
+  sequence     Int
   issuedAt     DateTime
   totalAmount  Decimal       @db.Decimal(10, 2)
   status       InvoiceStatus @default(ISSUED)
 
+  // V2: payload figé (source de vérité pour rendu PDF)
+  payload Json
+
+  // V2: relations de correction
+  originalInvoiceId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  originalInvoice Invoice? @relation("InvoiceCorrections", fields: [originalInvoiceId], references: [id], onDelete: SetNull)
+  correctiveInvoices Invoice[] @relation("InvoiceCorrections")
 
+  @@index([companyId])
   @@index([agencyId])
   @@index([bookingId])
   @@index([invoiceNumber])
+  @@index([type])
+  @@index([year])
+  @@index([sequence])
   @@index([status])
   @@index([issuedAt])
+
+  @@unique([companyId, year, sequence])
+}
+
+// V2: séquence InvoiceNumber par Company + année (reset annuel)
+model InvoiceNumberSequence {
+  id String @id @default(cuid())
+
+  companyId String
+  year      Int
+  lastValue Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, year])
+  @@index([companyId])
+  @@index([year])
+}
+
+// ============================================
+// V2 OUTBOX EVENTS (DOMAIN EVENTS BACKBONE)
+// ============================================
+model OutboxEvent {
+  id String @id @default(cuid())
+
+  // Aggregate
+  aggregateType String
+  aggregateId   String
+
+  // Event
+  eventType String
+  payload   Json
+
+  // Optional deduplication / idempotency key
+  deduplicationKey String? @unique
+
+  // Processing
+  status      OutboxEventStatus @default(PENDING)
+  attempts    Int              @default(0)
+  availableAt DateTime         @default(now())
+  processedAt DateTime?
+  lastError   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([aggregateType, aggregateId])
+  @@index([status, availableAt])
+  @@index([eventType])
+}
+
+// ============================================
+// V2 CONTRACT MODELS
+// ============================================
+
+enum ContractStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  SIGNED
+  EXPIRED
+  CANCELLED
+}
+
+enum SignerType {
+  CLIENT
+  AGENT
+}
+
+model Contract {
+  id        String         @id @default(cuid())
+  bookingId String
+  agencyId  String
+  companyId String
+
+  // Template versioning
+  templateId      String?
+  templateVersion Int      @default(1)
+
+  // Status
+  status ContractStatus @default(DRAFT)
+
+  // Content (frozen at creation)
+  payload Json
+
+  // Signatures
+  clientSignedAt    DateTime?
+  clientSignature   String?   @db.Text // Base64 encoded signature image
+  clientSignedDevice String?  // Device info for audit
+
+  agentSignedAt    DateTime?
+  agentSignature   String?   @db.Text // Base64 encoded signature image
+  agentSignedDevice String?  // Device info for audit
+  agentUserId      String?   // Agent who signed
+
+  // Version control
+  version         Int       @default(1)
+  previousVersion String?   // ID of previous contract version
+  versionReason   String?   // Reason for new version
+
+  // Timestamps
+  effectiveAt DateTime? // Becomes effective at check-in
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([agencyId])
+  @@index([companyId])
+  @@index([status])
+  @@index([version])
+}
+
+model ContractTemplate {
+  id        String @id @default(cuid())
+  companyId String
+  name      String
+  content   String @db.Text // Template content (Handlebars/HTML)
+  version   Int    @default(1)
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+// ============================================
+// V2 JOURNAL D'AGENCE (PROJECTION)
+// ============================================
+
+enum JournalEntryType {
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_CANCELLED
+  CHECK_IN
+  CHECK_OUT
+  INVOICE_ISSUED
+  CREDIT_NOTE_ISSUED
+  CONTRACT_CREATED
+  CONTRACT_SIGNED
+  INCIDENT_REPORTED
+  INCIDENT_RESOLVED
+  GPS_SNAPSHOT
+  MANUAL_NOTE
+  SYSTEM_EVENT
+}
+
+model JournalEntry {
+  id        String           @id @default(cuid())
+  agencyId  String
+  companyId String
+
+  // Entry type
+  type      JournalEntryType
+  title     String
+  content   String           @db.Text
+
+  // Relations (optional)
+  bookingId       String?
+  bookingNumber   String?
+  vehicleId       String?
+  userId          String?      // Who triggered
+  contractId      String?
+  invoiceId       String?
+  incidentId      String?
+
+  // Metadata
+  metadata  Json?
+
+  // For manual notes (only managers can edit)
+  isManualNote Boolean @default(false)
+  editedAt     DateTime?
+  editedBy     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([agencyId])
+  @@index([companyId])
+  @@index([type])
+  @@index([bookingId])
+  @@index([bookingNumber])
+  @@index([vehicleId])
+  @@index([createdAt])
+}
+
+// ============================================
+// V2 GPS SNAPSHOTS (ECO-FRIENDLY)
+// ============================================
+
+enum GpsSnapshotReason {
+  CHECK_IN
+  CHECK_OUT
+  INCIDENT
+  MANUAL
+}
+
+model GpsSnapshot {
+  id        String           @id @default(cuid())
+  agencyId  String
+  bookingId String?
+  vehicleId String?
+
+  // Location data
+  latitude  Float
+  longitude Float
+  accuracy  Float?           // Accuracy in meters
+  altitude  Float?
+
+  // Reason
+  reason    GpsSnapshotReason
+
+  // For manual captures
+  capturedByUserId String?
+  capturedByRole   String?  // Role at the time of capture
+
+  // If GPS was unavailable
+  isGpsMissing     Boolean @default(false)
+  gpsMissingReason String? // 'permissionDenied' | 'offline' | 'deviceUnsupported'
+
+  // Metadata
+  deviceInfo String?
+  mileage    Int?      // Kilométrage at snapshot time
+
+  createdAt DateTime @default(now())
+
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([bookingId])
+  @@index([vehicleId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
+// ============================================
+// V2 IN-APP NOTIFICATIONS
+// ============================================
+
+enum InAppNotificationStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  READ
+}
+
+enum InAppNotificationType {
+  CONTRACT_TO_SIGN
+  INVOICE_AVAILABLE
+  BOOKING_LATE
+  CHECK_OUT_REMINDER
+  INCIDENT_REPORTED
+  SYSTEM_ALERT
+  ADMIN_ANNOUNCEMENT
+}
+
+model InAppNotification {
+  id        String                   @id @default(cuid())
+  userId    String                   // Recipient user
+  companyId String?
+  agencyId  String?
+
+  // Notification type
+  type      InAppNotificationType
+  status    InAppNotificationStatus  @default(DRAFT)
+
+  // Content
+  title     String
+  message   String                   @db.Text
+  actionUrl String?                  // Deep link or URL
+
+  // Relations
+  bookingId   String?
+  contractId  String?
+  invoiceId   String?
+
+  // Scheduling
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  readAt      DateTime?
+
+  // Metadata
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([agencyId])
+  @@index([type])
+  @@index([status])
+  @@index([sentAt])
+  @@index([readAt])
 }
 
 // ============================================
@@ -1192,6 +1604,75 @@ model ModuleDependency {
   @@unique([moduleCode, dependsOnCode])
   @@index([moduleCode])
   @@index([dependsOnCode])
+}
+
+// ============================================
+// V2.1: Charges & KPI
+// ============================================
+
+// Types de charges selon spec: assurance, vignette/dariba, mensualité bancaire,
+// maintenance préventive/corrective, charges exceptionnelles
+enum ChargeCategory {
+  INSURANCE             // Assurance (annuelle)
+  VIGNETTE              // Vignette / Dariba (annuelle)
+  BANK_INSTALLMENT      // Mensualité bancaire (mensuelle)
+  PREVENTIVE_MAINTENANCE // Maintenance préventive
+  CORRECTIVE_MAINTENANCE // Maintenance corrective
+  FUEL                  // Carburant
+  EXCEPTIONAL           // Charges exceptionnelles (hors amendes)
+  OTHER                 // Autre
+}
+
+model Charge {
+  id        String         @id @default(cuid())
+  companyId String
+  agencyId  String
+  vehicleId String         // Spec: charge rattachée AU VÉHICULE (obligatoire)
+  bookingId String?        // Optionnel: charge liée à une réservation
+
+  category    ChargeCategory
+  description String
+  amount      Decimal        @db.Decimal(10, 2)
+  date        DateTime
+  recurring   Boolean        @default(false)
+  recurrencePeriod String?   // 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+
+  // Audit
+  createdByUserId String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([agencyId])
+  @@index([vehicleId])
+  @@index([bookingId])
+  @@index([category])
+  @@index([date])
+}
+
+// ============================================
+// V2.1: Device Tokens (FCM push notifications)
+// ============================================
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // 'ios' | 'android' | 'web'
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([isActive])
 }
 
 // Préférences de notification par Company

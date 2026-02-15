@@ -7,9 +7,10 @@ import { BusinessEventLogModule } from '../business-event-log/business-event-log
 import { AuditModule } from '../audit/audit.module';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { ServicesModule } from '../../common/services/services.module';
+import { ContractModule } from '../contract/contract.module';
 
 @Module({
-  imports: [PrismaModule, PlanningModule, BusinessEventLogModule, AuditModule, InvoiceModule, ServicesModule],
+  imports: [PrismaModule, PlanningModule, BusinessEventLogModule, AuditModule, InvoiceModule, ServicesModule, ContractModule],
   controllers: [BookingController],
   providers: [BookingService],
   exports: [BookingService],

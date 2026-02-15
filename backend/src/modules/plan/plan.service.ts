@@ -35,7 +35,7 @@ export class PlanService {
     });
 
     if (existing) {
-      throw new BadRequestException('Plan with this name already exists');
+      throw new BadRequestException('Un plan avec ce nom existe déjà');
     }
 
     // Créer le plan
@@ -109,7 +109,7 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan not found');
+      throw new NotFoundException('Plan introuvable');
     }
 
     return plan;
@@ -124,7 +124,7 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan not found');
+      throw new NotFoundException('Plan introuvable');
     }
 
     const dataWithAudit = this.auditService.addUpdateAuditFields(
@@ -158,13 +158,13 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan not found');
+      throw new NotFoundException('Plan introuvable');
     }
 
     // Vérifier qu'aucun abonnement n'utilise ce plan
     if (plan._count.subscriptions > 0) {
       throw new BadRequestException(
-        'Cannot delete plan that is used by active subscriptions',
+        'Impossible de supprimer un plan utilisé par des abonnements actifs',
       );
     }
 

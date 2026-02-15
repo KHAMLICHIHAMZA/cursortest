@@ -28,7 +28,7 @@ export class PaymentService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new NotFoundException('Booking not found');
+      throw new NotFoundException('Réservation introuvable');
     }
 
     // Calculer le montant à payer
@@ -94,7 +94,7 @@ export class PaymentService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new NotFoundException('Booking not found');
+      throw new NotFoundException('Réservation introuvable');
     }
 
     const paymentAmount = isDeposit && depositAmount ? depositAmount : amount;
@@ -131,7 +131,7 @@ export class PaymentService {
       const verification = await this.cmiService.verifyCallback(data);
 
       if (!verification.valid) {
-        throw new BadRequestException('Invalid callback signature');
+        throw new BadRequestException('Signature de rappel invalide');
       }
 
       // Trouver le paiement (orderId = PAY-{paymentId})
@@ -145,7 +145,7 @@ export class PaymentService {
       });
 
       if (!payment) {
-        throw new NotFoundException('Payment not found');
+        throw new NotFoundException('Paiement introuvable');
       }
 
       // Mettre à jour le statut
@@ -190,7 +190,7 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Paiement introuvable. Vérifiez l\'identifiant du paiement.');
     }
 
     if (action === 'hold') {
@@ -246,7 +246,7 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Paiement introuvable. Vérifiez l\'identifiant du paiement.');
     }
 
     return payment;

@@ -18,6 +18,34 @@ export class VehicleService {
     private businessEventLogService: BusinessEventLogService,
   ) {}
 
+  /**
+   * Spec: Alertes âge véhicule (informatives, non bloquantes)
+   * - 6 mois avant 5 ans : alerte préventive
+   * - À 5 ans exact : alerte d'atteinte de l'âge limite
+   */
+  private computeVehicleAlerts(vehicle: any): { type: string; message: string }[] {
+    const alerts: { type: string; message: string }[] = [];
+    if (!vehicle.year) return alerts;
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const vehicleAge = currentYear - vehicle.year + currentMonth / 12;
+
+    if (vehicleAge >= 5) {
+      alerts.push({
+        type: 'AGE_LIMIT_REACHED',
+        message: `Véhicule a atteint ${Math.floor(vehicleAge)} ans (limite 5 ans dépassée)`,
+      });
+    } else if (vehicleAge >= 4.5) {
+      alerts.push({
+        type: 'AGE_WARNING_6_MONTHS',
+        message: `Véhicule atteindra 5 ans dans ${Math.ceil((5 - vehicleAge) * 12)} mois`,
+      });
+    }
+
+    return alerts;
+  }
+
   async findAll(user: any, agencyId?: string) {
     const agencyFilter = this.permissionService.buildAgencyFilter(user, agencyId);
     if (!agencyFilter) return [];
@@ -57,22 +85,25 @@ export class VehicleService {
     });
 
     if (!vehicle) {
-      throw new NotFoundException('Vehicle not found');
+      throw new NotFoundException('Véhicule introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(vehicle.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce véhicule');
     }
 
-    // Remove audit fields from public responses
-    return this.auditService.removeAuditFields(vehicle);
+    // Remove audit fields and add vehicle age alerts
+    return {
+      ...this.auditService.removeAuditFields(vehicle),
+      alerts: this.computeVehicleAlerts(vehicle),
+    };
   }
 
   async create(createVehicleDto: CreateVehicleDto, user: any) {
     const hasAccess = await this.permissionService.checkAgencyAccess(createVehicleDto.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé : vous n\'êtes pas rattaché(e) à cette agence');
     }
 
     const existingVehicle = await this.prisma.vehicle.findFirst({
@@ -152,12 +183,12 @@ export class VehicleService {
     });
 
     if (!vehicle) {
-      throw new NotFoundException('Vehicle not found');
+      throw new NotFoundException('Véhicule introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(vehicle.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce véhicule');
     }
 
     if (updateVehicleDto.registrationNumber && updateVehicleDto.registrationNumber !== vehicle.registrationNumber) {
@@ -222,12 +253,12 @@ export class VehicleService {
     });
 
     if (!vehicle) {
-      throw new NotFoundException('Vehicle not found');
+      throw new NotFoundException('Véhicule introuvable');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(vehicle.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce véhicule');
     }
 
     // Store previous state for event log
@@ -256,6 +287,6 @@ export class VehicleService {
         // Error already logged in service
       });
 
-    return { message: 'Vehicle deleted successfully' };
+    return { message: 'Véhicule supprimé avec succès' };
   }
 }

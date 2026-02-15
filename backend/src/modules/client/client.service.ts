@@ -104,12 +104,12 @@ export class ClientService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('Client introuvable. Vérifiez l\'identifiant du client.');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(client.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce client');
     }
 
     // Remove audit fields from public responses
@@ -119,7 +119,7 @@ export class ClientService {
   async create(createClientDto: CreateClientDto, user: any) {
     const hasAccess = await this.permissionService.checkAgencyAccess(createClientDto.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied to this agency');
+      throw new ForbiddenException('Accès refusé à cette agence');
     }
 
     // Vérifier les doublons par email (si email fourni)
@@ -191,12 +191,12 @@ export class ClientService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('Client introuvable. Vérifiez l\'identifiant du client.');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(client.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce client');
     }
 
     const updateData: any = {};
@@ -278,12 +278,12 @@ export class ClientService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('Client introuvable. Vérifiez l\'identifiant du client.');
     }
 
     const hasAccess = await this.permissionService.checkAgencyAccess(client.agencyId, user);
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce client');
     }
 
     // Store previous state for event log
@@ -312,7 +312,7 @@ export class ClientService {
         // Error already logged in service
       });
 
-    return { message: 'Client deleted successfully' };
+    return { message: 'Client supprimé avec succès' };
   }
 
   async analyzeLicenseImage(imageUrl: string): Promise<{
@@ -420,14 +420,14 @@ Si certaines informations ne sont pas visibles, utilise null ou une chaîne vide
     });
 
     if (!response.ok) {
-      throw new Error(`Vision API error: ${response.statusText}`);
+      throw new Error(`Erreur API Vision : ${response.statusText}`);
     }
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content;
 
     if (!content) {
-      throw new Error('No response from Vision API');
+      throw new Error('Aucune réponse de l\'API Vision. Le service de reconnaissance est peut-être indisponible.');
     }
 
     // Parser le JSON de la réponse

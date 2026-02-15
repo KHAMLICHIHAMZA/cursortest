@@ -78,7 +78,7 @@ export class UploadController {
   })
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-      throw new BadRequestException('No file uploaded');
+      throw new BadRequestException('Aucun fichier téléchargé');
     }
 
     // Construire l'URL relative (sera servie par le middleware static)
