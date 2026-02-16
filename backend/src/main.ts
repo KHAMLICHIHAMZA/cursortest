@@ -21,6 +21,12 @@ async function bootstrap() {
     (value): value is string => Boolean(value),
   );
 
+  const isOriginAllowed = (origin: string): boolean => {
+    if (allowedOrigins.includes(origin)) return true;
+    if (origin.endsWith('.vercel.app')) return true;
+    return false;
+  };
+
   if (!isDev) {
     const requiredEnv = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'FRONTEND_URL'];
     const missingEnv = requiredEnv.filter((key) => !process.env[key]);
@@ -37,7 +43,7 @@ async function bootstrap() {
     // Debug: log all incoming requests
 
     if (req.method === 'OPTIONS') {
-      if (isDev || (origin && allowedOrigins.includes(origin))) {
+      if (isDev || (origin && isOriginAllowed(origin))) {
         // Répondre aux preflight requests
         res.header('Access-Control-Allow-Origin', origin || '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -65,7 +71,7 @@ async function bootstrap() {
       if (process.env.DEBUG_CORS === 'true') {
         console.log(`[Backend] ✅ Headers CORS ajoutés (dev) pour ${req.method} ${req.path} depuis ${origin || 'unknown'} -> ${allowedOrigin}`);
       }
-    } else if (origin && allowedOrigins.includes(origin)) {
+    } else if (origin && isOriginAllowed(origin)) {
       // En production, seulement si origin est présent
       res.header('Access-Control-Allow-Origin', origin);
       res.header('Access-Control-Allow-Credentials', 'true');
@@ -89,9 +95,15 @@ async function bootstrap() {
       optionsSuccessStatus: 204,
     });
   } else {
-    // En production, autoriser uniquement les origines spécifiées
+    // En production, autoriser les origines spécifiées + sous-domaines Vercel
     app.enableCors({
-      origin: allowedOrigins.length ? allowedOrigins : false,
+      origin: (origin, callback) => {
+        if (!origin || isOriginAllowed(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Accept-Language'],
@@ -103,7 +115,7 @@ async function bootstrap() {
   app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
     // Définir les en-têtes CORS - autoriser les deux frontends
     const origin = req.headers.origin;
-    if (isDev || (origin && allowedOrigins.includes(origin))) {
+    if (isDev || (origin && isOriginAllowed(origin))) {
       res.header('Access-Control-Allow-Origin', origin);
     }
     res.header('Access-Control-Allow-Credentials', 'true');
