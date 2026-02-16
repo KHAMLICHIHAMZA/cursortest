@@ -14,15 +14,15 @@ async function bootstrap() {
   const isDev = nodeEnv === 'development';
 
   const frontendUrl = process.env.FRONTEND_URL || (isDev ? 'http://localhost:3001' : undefined);
-  const frontendAgencyUrl = process.env.FRONTEND_AGENCY_URL || (isDev ? 'http://localhost:8080' : undefined);
-  const frontendAdminUrl = process.env.FRONTEND_ADMIN_URL || (isDev ? 'http://localhost:5173' : undefined);
+  const frontendAgencyUrl = process.env.FRONTEND_AGENCY_URL || frontendUrl || (isDev ? 'http://localhost:8080' : undefined);
+  const frontendAdminUrl = process.env.FRONTEND_ADMIN_URL || frontendUrl || (isDev ? 'http://localhost:5173' : undefined);
   const mobileWebUrl = process.env.MOBILE_WEB_URL || (isDev ? 'http://localhost:8081' : undefined);
   const allowedOrigins = [frontendUrl, frontendAgencyUrl, frontendAdminUrl, mobileWebUrl].filter(
     (value): value is string => Boolean(value),
   );
 
   if (!isDev) {
-    const requiredEnv = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'FRONTEND_URL', 'FRONTEND_AGENCY_URL'];
+    const requiredEnv = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'FRONTEND_URL'];
     const missingEnv = requiredEnv.filter((key) => !process.env[key]);
     if (missingEnv.length > 0) {
       throw new Error(`Variables d'environnement manquantes : ${missingEnv.join(', ')}. Vérifiez votre fichier .env.`);
