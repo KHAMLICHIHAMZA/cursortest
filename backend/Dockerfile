@@ -41,6 +41,10 @@ RUN npx prisma generate
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
+# Copy data files needed at runtime
+COPY src/data ./src/data
+COPY data ./data
+
 # Create uploads directory
 RUN mkdir -p uploads
 
