@@ -66,9 +66,7 @@ export class EmailService {
         },
       });
 
-      if (process.env.NODE_ENV === 'production') {
-        throw error;
-      }
+      // Log l'erreur mais ne pas crasher l'app
     }
   }
 

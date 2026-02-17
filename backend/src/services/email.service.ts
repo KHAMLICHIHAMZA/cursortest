@@ -40,12 +40,10 @@ export const sendWelcomeEmail = async (
 
   try {
     await transporter.sendMail(mailOptions);
+    logger.log(`Welcome email sent to ${email}`);
   } catch (error) {
-    logger.error('Error sending email:', error);
-    // En développement, on peut continuer même si l'email échoue
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
-    }
+    logger.error(`Failed to send welcome email to ${email}:`, error);
+    // Ne pas crasher l'app si l'email echoue - le compte est quand meme cree
   }
 };
 
@@ -79,11 +77,10 @@ export const sendPasswordResetEmail = async (
 
   try {
     await transporter.sendMail(mailOptions);
+    logger.log(`Password reset email sent to ${email}`);
   } catch (error) {
-    logger.error('Error sending email:', error);
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
-    }
+    logger.error(`Failed to send password reset email to ${email}:`, error);
+    // Ne pas crasher l'app si l'email echoue - le token est quand meme cree en DB
   }
 };
 
