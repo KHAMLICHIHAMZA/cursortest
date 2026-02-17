@@ -287,7 +287,9 @@ export class AuthService {
     });
 
     const resetBaseUrl = this.getResetBaseUrl(client);
-    await sendPasswordResetEmail(user.email, user.name, resetToken, resetBaseUrl);
+    sendPasswordResetEmail(user.email, user.name, resetToken, resetBaseUrl).catch((err) =>
+      console.error('Error sending password reset email:', err),
+    );
 
     return { message: 'Email de réinitialisation envoyé' };
   }

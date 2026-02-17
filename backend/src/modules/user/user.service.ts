@@ -204,11 +204,9 @@ export class UserService {
       },
     });
 
-    try {
-      await sendWelcomeEmail(email, name, resetToken);
-    } catch (emailError) {
-      console.error('Error sending welcome email:', emailError);
-    }
+    sendWelcomeEmail(email, name, resetToken).catch((emailError) =>
+      console.error('Error sending welcome email:', emailError),
+    );
 
     const userWithRelations = await this.prisma.user.findUnique({
       where: { id: newUser.id },
@@ -385,11 +383,9 @@ export class UserService {
       },
     });
 
-    try {
-      await sendWelcomeEmail(targetUser.email, targetUser.name, resetToken);
-    } catch (emailError) {
-      console.error('Error sending reset email:', emailError);
-    }
+    sendWelcomeEmail(targetUser.email, targetUser.name, resetToken).catch((emailError) =>
+      console.error('Error sending reset email:', emailError),
+    );
 
     return { message: 'Email de réinitialisation du mot de passe envoyé' };
   }
