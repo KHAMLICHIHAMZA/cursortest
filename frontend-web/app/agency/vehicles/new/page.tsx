@@ -240,7 +240,7 @@ export default function NewVehiclePage() {
           {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand.message}</p>}
           {errors.model && <p className="text-red-500 text-sm mt-1">{errors.model.message}</p>}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="year" className="block text-sm font-medium text-text mb-2">
                 Année
@@ -268,7 +268,7 @@ export default function NewVehiclePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="fuel" className="block text-sm font-medium text-text mb-2">
                 Carburant
@@ -356,7 +356,7 @@ export default function NewVehiclePage() {
             {errors.dailyRate && <p className="text-red-500 text-sm mt-1">{errors.dailyRate.message}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="mileage" className="block text-sm font-medium text-text mb-2">
                 Kilometrage
@@ -427,7 +427,7 @@ export default function NewVehiclePage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label htmlFor="monthlyPayment" className="block text-sm font-medium text-text mb-2">
                       Mensualité (MAD)
@@ -477,7 +477,7 @@ export default function NewVehiclePage() {
             )}
 
             {/* 3. Prix d'achat (calculé dynamiquement si crédit/mixte, sinon saisie manuelle) */}
-            <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="purchasePrice" className="block text-sm font-medium text-text mb-2">
                   Prix d'achat (MAD)

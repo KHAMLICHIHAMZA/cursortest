@@ -219,7 +219,7 @@ export default function EditCompanyPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="maxAgencies" className="block text-sm font-medium text-text mb-2">
                   Nombre max d&apos;agences

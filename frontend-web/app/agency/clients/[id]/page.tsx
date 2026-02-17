@@ -328,7 +328,7 @@ export default function EditClientPage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-text mb-2">
                   Prénom
@@ -400,7 +400,7 @@ export default function EditClientPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="dateOfBirth" className="block text-sm font-medium text-text mb-2">
                   Date de naissance
@@ -521,7 +521,7 @@ export default function EditClientPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="licenseExpiryDate" className="block text-sm font-medium text-text mb-2">
                   Date de validité du permis
@@ -635,7 +635,7 @@ export default function EditClientPage() {
               </div>
 
               {watch('idCardType') && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="idCardNumber" className="block text-sm font-medium text-text mb-2">
                       Numéro du document <span className="text-red-500">*</span>

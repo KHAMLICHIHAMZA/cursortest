@@ -26,10 +26,18 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   background-color: var(--background);
   color: var(--text);
+  font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  html, body {
+    font-size: 14px;
+  }
 }
 
 body {
   min-height: 100vh;
+  -webkit-text-size-adjust: 100%;
 }
 
 a {
@@ -37,12 +45,28 @@ a {
   text-decoration: none;
 }
 
+/* Responsive tables */
+@layer utilities {
+  .table-responsive {
+    @apply w-full overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0;
+  }
+}
+
 /* RTL Support */
 [dir='rtl'] {
   direction: rtl;
 }
 
-/* FullCalendar styles removed - replaced by PlanningBoard */
+/* Mobile touch targets */
+@media (max-width: 768px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
 
 
 

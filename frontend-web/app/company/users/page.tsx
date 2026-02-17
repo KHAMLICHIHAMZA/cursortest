@@ -96,7 +96,7 @@ export default function CompanyUsersPage() {
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Utilisateurs</h1>
               <p className="text-text-muted">Gérer les utilisateurs de votre entreprise</p>

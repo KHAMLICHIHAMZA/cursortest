@@ -106,10 +106,10 @@ export default function AgencyKpiPage() {
           </h1>
           <p className="text-text-muted mt-1">Indicateurs cles de performance</p>
         </div>
-        <div className="flex gap-3 items-center">
-          <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full sm:w-40" />
           <span className="text-text-muted">a</span>
-          <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
+          <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full sm:w-40" />
         </div>
       </div>
 

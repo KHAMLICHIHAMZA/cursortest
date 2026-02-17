@@ -275,7 +275,7 @@ export default function ChargesPage() {
       <MainLayout>
         <div className="max-w-[1600px] mx-auto space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-text mb-1">Charges & Depenses</h1>
               <p className="text-text-muted text-sm">
@@ -284,7 +284,7 @@ export default function ChargesPage() {
             </div>
             <button
               onClick={openNewModal}
-              className="px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-lg"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-lg"
             >
               + Nouvelle charge
             </button>
@@ -578,7 +578,7 @@ export default function ChargesPage() {
                 </div>
 
                 {/* Montant + Date */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-text mb-1">Montant (MAD) *</label>
                     <input

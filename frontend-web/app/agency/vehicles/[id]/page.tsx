@@ -339,7 +339,7 @@ export default function EditVehiclePage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="brand" className="block text-sm font-medium text-text mb-2">
                   Marque *
@@ -377,7 +377,7 @@ export default function EditVehiclePage() {
               {errors.registrationNumber && <p className="text-red-500 text-sm mt-1">{errors.registrationNumber.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="year" className="block text-sm font-medium text-text mb-2">
                   Année
@@ -407,7 +407,7 @@ export default function EditVehiclePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="horsepower" className="block text-sm font-medium text-text mb-2">
                   Puissance (CV)
@@ -436,7 +436,7 @@ export default function EditVehiclePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="mileage" className="block text-sm font-medium text-text mb-2">
                   Kilometrage
@@ -467,7 +467,7 @@ export default function EditVehiclePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="fuel" className="block text-sm font-medium text-text mb-2">
                   Carburant
@@ -554,7 +554,7 @@ export default function EditVehiclePage() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label htmlFor="monthlyPayment" className="block text-sm font-medium text-text mb-2">
                         Mensualité (MAD)
@@ -604,7 +604,7 @@ export default function EditVehiclePage() {
               )}
 
               {/* 3. Prix d'achat (calculé dynamiquement si crédit/mixte) */}
-              <div className="mt-4 grid grid-cols-3 gap-4">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="purchasePrice" className="block text-sm font-medium text-text mb-2">
                     Prix d'achat (MAD)

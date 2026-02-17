@@ -113,14 +113,14 @@ export default function BookingsPage() {
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Locations</h1>
               <p className="text-text-muted">Gérer les réservations et locations</p>
             </div>
             {isModuleActive && (
-              <Link href="/agency/bookings/new">
-                <Button variant="primary">
+              <Link href="/agency/bookings/new" className="w-full sm:w-auto block">
+                <Button variant="primary" className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouvelle réservation
                 </Button>
