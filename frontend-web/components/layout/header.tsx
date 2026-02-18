@@ -4,6 +4,7 @@ import { Bell, Search, User, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSearch } from '@/contexts/search-context';
+import Link from 'next/link';
 
 interface HeaderProps {
   userName?: string;
@@ -43,7 +44,7 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
         </Button>
 
         {/* User info - hidden on mobile, visible on md+ */}
-        <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg bg-background border border-border">
+        <Link href="/company/profile" className="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg bg-background border border-border hover:border-primary/50 transition-colors cursor-pointer">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
             <User className="w-4 h-4 text-white" />
           </div>
@@ -51,12 +52,12 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
             <span className="text-sm font-medium text-text">{userName || 'Utilisateur'}</span>
             <span className="text-xs text-text-muted">{userRole || 'Rôle'}</span>
           </div>
-        </div>
+        </Link>
 
         {/* User avatar only - mobile */}
-        <div className="md:hidden w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+        <Link href="/company/profile" className="md:hidden w-8 h-8 rounded-full bg-primary flex items-center justify-center">
           <User className="w-4 h-4 text-white" />
-        </div>
+        </Link>
       </div>
     </header>
   );

@@ -446,4 +446,28 @@ export class UserService {
 
     return { message: 'Utilisateur supprimé avec succès' };
   }
+
+  async updateProfile(userId: string, data: { name?: string }) {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name: data.name },
+    });
+    return this.auditService.removeAuditFields(updated);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) throw new ForbiddenException('Mot de passe actuel incorrect');
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Mot de passe modifié avec succès' };
+  }
 }

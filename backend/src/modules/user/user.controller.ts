@@ -32,6 +32,24 @@ export class UserController {
     return this.userService.findAll(user);
   }
 
+  @Patch('me')
+  @ApiOperation({ summary: 'Update own profile' })
+  async updateMe(
+    @Body() body: { name?: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.userService.updateProfile(user.userId, body);
+  }
+
+  @Patch('me/password')
+  @ApiOperation({ summary: 'Change own password' })
+  async changePassword(
+    @Body() body: { currentPassword: string; newPassword: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.userService.changePassword(user.userId, body.currentPassword, body.newPassword);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID' })
   async findOne(@Param('id') id: string, @CurrentUser() user: any) {
