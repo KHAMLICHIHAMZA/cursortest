@@ -179,10 +179,11 @@ class ApiService {
         const MODULE_403_MSG = "Ce module n'est pas activé pour votre compte.";
         const isCheckInOut =
           requestUrl.includes('/checkin') || requestUrl.includes('/checkout');
+        const errData = error.response?.data as { message?: string; error?: string } | undefined;
         const isModule403 =
           error.response?.status === 403 &&
           /module|not included|non inclus/i.test(
-            String(error.response?.data?.message || error.response?.data?.error || ''),
+            String(errData?.message || errData?.error || ''),
           );
         if (isModule403 && !isCheckInOut) {
           if (Platform.OS === 'web') {
@@ -219,6 +220,26 @@ class ApiService {
 
   getClient(): AxiosInstance {
     return this.client;
+  }
+
+  get<T = any>(url: string, config?: Parameters<AxiosInstance['get']>[1]) {
+    return this.client.get<T>(url, config);
+  }
+
+  post<T = any>(url: string, data?: any, config?: Parameters<AxiosInstance['post']>[2]) {
+    return this.client.post<T>(url, data, config);
+  }
+
+  patch<T = any>(url: string, data?: any, config?: Parameters<AxiosInstance['patch']>[2]) {
+    return this.client.patch<T>(url, data, config);
+  }
+
+  put<T = any>(url: string, data?: any, config?: Parameters<AxiosInstance['put']>[2]) {
+    return this.client.put<T>(url, data, config);
+  }
+
+  delete<T = any>(url: string, config?: Parameters<AxiosInstance['delete']>[1]) {
+    return this.client.delete<T>(url, config);
   }
 }
 

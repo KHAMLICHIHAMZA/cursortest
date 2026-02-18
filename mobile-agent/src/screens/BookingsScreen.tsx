@@ -339,7 +339,7 @@ export const BookingsScreen: React.FC = () => {
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: { title: string; key: string } }) => {
+  const renderSectionHeader = ({ section }: { section: { title: string; key: string; data: AgentTask[] } }) => {
     const isOverdue = section.key === 'overdue';
     return (
       <View style={[styles.sectionHeader, isOverdue && styles.sectionHeaderOverdue]}>

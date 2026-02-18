@@ -1,28 +1,35 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, SetMetadata } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { Role } from '@prisma/client';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  SetMetadata,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { Role } from "@prisma/client";
 
 /**
  * Permission decorator metadata key
  */
-export const PERMISSIONS_KEY = 'permissions';
+export const PERMISSIONS_KEY = "permissions";
 
 /**
  * Permission decorator
  * Use this to specify required permissions on controllers/methods
- * 
+ *
  * @example
  * @Permissions('vehicles:create')
  * @Post()
  * createVehicle() { ... }
  */
-export const Permissions = (...permissions: string[]) => SetMetadata(PERMISSIONS_KEY, permissions);
+export const Permissions = (...permissions: string[]) =>
+  SetMetadata(PERMISSIONS_KEY, permissions);
 
 /**
  * Permission-based access control guard
- * 
+ *
  * Enforces role-based permissions on endpoints.
- * 
+ *
  * Role permissions:
  * - AGENCY_MANAGER: Full CRUD on all modules, can delete, can access analytics
  * - AGENT: Read access on all, can create/update Clients/Bookings/Fines, cannot delete
@@ -46,32 +53,48 @@ export class PermissionGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Utilisateur non authentifié');
+      throw new ForbiddenException("Utilisateur non authentifié");
     }
 
     const userRole = user.role as Role;
 
     // AGENT role-based restrictions ALWAYS apply first, regardless of UserAgency permissions.
     // This prevents FULL UserAgency permission from bypassing AGENT module restrictions.
-    if (userRole === 'AGENT') {
-      const forbiddenModules = ['fines', 'maintenance', 'charges', 'analytics', 'journal', 'invoices', 'contracts', 'gps'];
-      if (requiredPermissions.some((p) => forbiddenModules.some(m => p.startsWith(`${m}:`)))) {
+    if (userRole === "AGENT") {
+      const forbiddenModules = [
+        "fines",
+        "maintenance",
+        "charges",
+        "analytics",
+        "journal",
+        "invoices",
+        "contracts",
+        "gps",
+      ];
+      if (
+        requiredPermissions.some((p) =>
+          forbiddenModules.some((m) => p.startsWith(`${m}:`)),
+        )
+      ) {
         throw new ForbiddenException(
-          `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
+          `Permissions insuffisantes. Requis : ${requiredPermissions.join(", ")}`,
         );
       }
-      if (requiredPermissions.some((p) => p.startsWith('vehicles:') && !p.endsWith(':read'))) {
-        throw new ForbiddenException(
-          `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
-        );
-      }
+      // vehicles:create/update/delete: do NOT throw here; let UserAgency (WRITE/FULL) grant
+      // access when agencyId is present. If no UserAgency grants it, checkPermissions will deny.
     }
 
-    // Si l'utilisateur a des permissions UserAgency (READ/WRITE/FULL), les vérifier d'abord
+    // Si l'utilisateur a des permissions UserAgency (READ/WRITE/FULL), les vérifier
+    // (après les modules interdits AGENT, pour que WRITE/FULL puisse autoriser vehicles:create)
     // Les permissions UserAgency surchargent les permissions basiques du rôle
-    const agencyId = request.params?.agencyId || request.body?.agencyId || request.query?.agencyId;
+    const agencyId =
+      request.params?.agencyId ||
+      request.body?.agencyId ||
+      request.query?.agencyId;
     if (agencyId && user.userAgencies) {
-      const userAgency = user.userAgencies.find((ua: any) => ua.agencyId === agencyId);
+      const userAgency = user.userAgencies.find(
+        (ua: any) => ua.agencyId === agencyId,
+      );
       if (userAgency) {
         // Vérifier les permissions UserAgency
         const hasUserAgencyPermission = this.checkUserAgencyPermissions(
@@ -82,7 +105,7 @@ export class PermissionGuard implements CanActivate {
           // Si la vérification UserAgency a donné un résultat (true ou false), l'utiliser
           if (!hasUserAgencyPermission) {
             throw new ForbiddenException(
-              `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
+              `Permissions insuffisantes. Requis : ${requiredPermissions.join(", ")}`,
             );
           }
           return true;
@@ -96,7 +119,7 @@ export class PermissionGuard implements CanActivate {
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        `Permissions insuffisantes. Requis : ${requiredPermissions.join(', ')}`,
+        `Permissions insuffisantes. Requis : ${requiredPermissions.join(", ")}`,
       );
     }
 
@@ -112,34 +135,34 @@ export class PermissionGuard implements CanActivate {
     requiredPermissions: string[],
   ): boolean | null {
     // FULL : Toutes les permissions
-    if (userAgencyPermission === 'FULL') {
+    if (userAgencyPermission === "FULL") {
       return true;
     }
 
     // READ : Seulement les permissions de lecture
-    if (userAgencyPermission === 'READ') {
-      if (requiredPermissions.some((p) => p.endsWith(':read'))) {
+    if (userAgencyPermission === "READ") {
+      if (requiredPermissions.some((p) => p.endsWith(":read"))) {
         return true;
       }
       return false;
     }
 
     // WRITE : Lecture + Écriture (pas de suppression)
-    if (userAgencyPermission === 'WRITE') {
+    if (userAgencyPermission === "WRITE") {
       // Permissions de lecture autorisées
-      if (requiredPermissions.some((p) => p.endsWith(':read'))) {
+      if (requiredPermissions.some((p) => p.endsWith(":read"))) {
         return true;
       }
       // Permissions de création/mise à jour autorisées
       if (
         requiredPermissions.some(
-          (p) => p.endsWith(':create') || p.endsWith(':update'),
+          (p) => p.endsWith(":create") || p.endsWith(":update"),
         )
       ) {
         return true;
       }
       // Permissions de suppression refusées
-      if (requiredPermissions.some((p) => p.endsWith(':delete'))) {
+      if (requiredPermissions.some((p) => p.endsWith(":delete"))) {
         return false;
       }
       // Pour les autres permissions, continuer avec la vérification basique du rôle
@@ -153,45 +176,74 @@ export class PermissionGuard implements CanActivate {
   /**
    * Check if user role has required permissions
    */
-  private checkPermissions(userRole: Role, requiredPermissions: string[]): boolean {
+  private checkPermissions(
+    userRole: Role,
+    requiredPermissions: string[],
+  ): boolean {
     // AGENCY_MANAGER has all permissions
-    if (userRole === 'AGENCY_MANAGER') {
+    if (userRole === "AGENCY_MANAGER") {
       return true;
     }
 
     // AGENT permissions (opérationnel uniquement)
     // Spec: AGENT peut gérer locations et clients. Pas d'accès aux amendes, charges, maintenance, KPI, analytics.
-    if (userRole === 'AGENT') {
+    if (userRole === "AGENT") {
       // Modules INTERDITS pour AGENT (spec: Agents n'ont pas accès)
-      const forbiddenModules = ['fines', 'maintenance', 'charges', 'analytics', 'journal', 'invoices', 'contracts', 'gps'];
-      if (requiredPermissions.some((p) => forbiddenModules.some(m => p.startsWith(`${m}:`)))) {
+      const forbiddenModules = [
+        "fines",
+        "maintenance",
+        "charges",
+        "analytics",
+        "journal",
+        "invoices",
+        "contracts",
+        "gps",
+      ];
+      if (
+        requiredPermissions.some((p) =>
+          forbiddenModules.some((m) => p.startsWith(`${m}:`)),
+        )
+      ) {
         return false;
       }
 
       // Agents can read: clients, bookings, vehicles (lecture seule flotte), planning
-      const allowedRead = ['clients:read', 'bookings:read', 'vehicles:read', 'planning:read'];
-      if (requiredPermissions.some((p) => p.endsWith(':read') && allowedRead.includes(p))) {
+      const allowedRead = [
+        "clients:read",
+        "bookings:read",
+        "vehicles:read",
+        "planning:read",
+      ];
+      if (
+        requiredPermissions.some(
+          (p) => p.endsWith(":read") && allowedRead.includes(p),
+        )
+      ) {
         return true;
       }
 
       // Agents can create/update: clients, bookings
       const allowedCreateUpdate = [
-        'clients:create',
-        'clients:update',
-        'bookings:create',
-        'bookings:update',
+        "clients:create",
+        "clients:update",
+        "bookings:create",
+        "bookings:update",
       ];
       if (requiredPermissions.some((p) => allowedCreateUpdate.includes(p))) {
         return true;
       }
 
       // Agents cannot delete anything
-      if (requiredPermissions.some((p) => p.endsWith(':delete'))) {
+      if (requiredPermissions.some((p) => p.endsWith(":delete"))) {
         return false;
       }
 
       // Agents cannot create/update vehicles
-      if (requiredPermissions.some((p) => p.startsWith('vehicles:') && !p.endsWith(':read'))) {
+      if (
+        requiredPermissions.some(
+          (p) => p.startsWith("vehicles:") && !p.endsWith(":read"),
+        )
+      ) {
         return false;
       }
 
@@ -200,12 +252,10 @@ export class PermissionGuard implements CanActivate {
     }
 
     // SUPER_ADMIN and COMPANY_ADMIN have full access
-    if (userRole === 'SUPER_ADMIN' || userRole === 'COMPANY_ADMIN') {
+    if (userRole === "SUPER_ADMIN" || userRole === "COMPANY_ADMIN") {
       return true;
     }
 
     return false;
   }
 }
-
-

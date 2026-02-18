@@ -87,6 +87,7 @@ export interface CheckInInput {
   driverLicensePhoto: string;
   driverLicenseExpiry: string;
   identityDocument?: string;
+  depositDocument?: string;
   extractionStatus?: ExtractionStatus;
   depositStatusCheckIn?: DepositStatusCheckIn; // Statut au check-in uniquement (PENDING ou COLLECTED)
   signature: string;
@@ -106,7 +107,7 @@ export interface CheckOutInput {
   cashCollected?: boolean;
   cashAmount?: number;
   cashReceipt?: string;
-  returnSignature: string;
+  returnSignature?: string; // required on mobile, optional on web
   returnedAt?: string;
 }
 
