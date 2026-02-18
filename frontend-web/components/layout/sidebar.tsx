@@ -207,9 +207,22 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
     return [];
   };
 
+  const agencyLinks4CompanyAdmin = getCompanyAdminAgencyLinks();
+  
+  const getFilteredCompanyAdminLinks = () => {
+    if (agencyLinks4CompanyAdmin.length === 0) return companyAdminLinks;
+    
+    const agencyHrefs = new Set(agencyLinks4CompanyAdmin.map(l => l.href));
+    return companyAdminLinks.filter(link => {
+      if (link.href === '/company/planning' && agencyHrefs.has('/agency/planning')) return false;
+      if (link.href === '/company/analytics' && agencyHrefs.has('/agency/kpi')) return false;
+      return true;
+    });
+  };
+
   const companyAdminWithAgencyLinks = [
-    ...companyAdminLinks,
-    ...getCompanyAdminAgencyLinks(),
+    ...getFilteredCompanyAdminLinks(),
+    ...agencyLinks4CompanyAdmin,
   ];
 
   const allLinks = isAdmin ? adminLinks : isCompanyAdmin ? companyAdminWithAgencyLinks : agencyLinks;
