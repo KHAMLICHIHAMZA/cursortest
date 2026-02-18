@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Resend } from 'resend';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationChannel, NotificationType } from '@prisma/client';
@@ -7,21 +8,40 @@ import { NotificationChannel, NotificationType } from '@prisma/client';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
+  private resend: Resend | null = null;
+  private useResend: boolean;
 
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST') || 'smtp.gmail.com',
-      port: parseInt(this.configService.get<string>('SMTP_PORT') || '587'),
-      secure: false,
-      auth: {
-        user: this.configService.get<string>('SMTP_USER') || '',
-        pass: this.configService.get<string>('SMTP_PASS') || '',
-      },
-    });
+    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
+    this.useResend = !!resendApiKey;
+
+    if (this.useResend) {
+      this.resend = new Resend(resendApiKey);
+      this.logger.log('Email provider: Resend');
+    } else {
+      this.transporter = nodemailer.createTransport({
+        host: this.configService.get<string>('SMTP_HOST') || 'smtp.gmail.com',
+        port: parseInt(this.configService.get<string>('SMTP_PORT') || '587'),
+        secure: false,
+        auth: {
+          user: this.configService.get<string>('SMTP_USER') || '',
+          pass: this.configService.get<string>('SMTP_PASS') || '',
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+      });
+      this.logger.log('Email provider: SMTP');
+    }
+  }
+
+  private getFromAddress(): string {
+    if (this.useResend) return 'MalocAuto <onboarding@resend.dev>';
+    return this.configService.get<string>('SMTP_FROM') || 'noreply@malocauto.com';
   }
 
   async sendEmail(
@@ -31,14 +51,25 @@ export class EmailService {
     type: NotificationType = NotificationType.TRANSACTIONAL,
   ): Promise<void> {
     try {
-      await this.transporter.sendMail({
-        from: this.configService.get<string>('SMTP_FROM') || 'noreply@malocauto.com',
-        to,
-        subject,
-        html,
-      });
+      if (this.useResend && this.resend) {
+        const { error } = await this.resend.emails.send({
+          from: this.getFromAddress(),
+          to,
+          subject,
+          html,
+        });
+        if (error) throw new Error(error.message);
+      } else if (this.transporter) {
+        await this.transporter.sendMail({
+          from: this.getFromAddress(),
+          to,
+          subject,
+          html,
+        });
+      } else {
+        throw new Error('No email provider configured');
+      }
 
-      // Enregistrer dans l'historique
       await this.prisma.notification.create({
         data: {
           channel: NotificationChannel.EMAIL,
@@ -53,7 +84,6 @@ export class EmailService {
     } catch (error) {
       this.logger.error('Email send error:', error);
 
-      // Enregistrer l'erreur
       await this.prisma.notification.create({
         data: {
           channel: NotificationChannel.EMAIL,
@@ -65,8 +95,6 @@ export class EmailService {
           error: error instanceof Error ? error.message : 'Unknown error',
         },
       });
-
-      // Log l'erreur mais ne pas crasher l'app
     }
   }
 
@@ -122,4 +150,3 @@ export class EmailService {
     );
   }
 }
-

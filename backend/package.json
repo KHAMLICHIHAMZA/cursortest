@@ -48,6 +48,7 @@
     "pdfkit": "^0.17.2",
     "puppeteer": "^24.37.2",
     "reflect-metadata": "^0.1.13",
+    "resend": "^6.9.2",
     "rxjs": "^7.8.1",
     "zod": "^3.22.4"
   },
