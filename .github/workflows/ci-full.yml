@@ -70,6 +70,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
           JWT_SECRET: test-secret-key
+          JWT_REFRESH_SECRET: test-refresh-secret-key
           PORT: 3000
           NODE_ENV: test
 
