@@ -371,6 +371,10 @@ export class UserService {
       throw new ForbiddenException('Impossible de réinitialiser le mot de passe pour un utilisateur d\'une autre société');
     }
 
+    if (user.role === 'COMPANY_ADMIN' && targetUser.role === 'COMPANY_ADMIN' && targetUser.id !== user.sub) {
+      throw new ForbiddenException('Impossible de réinitialiser le mot de passe d\'un autre administrateur');
+    }
+
     const resetToken = this.generateResetToken();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);

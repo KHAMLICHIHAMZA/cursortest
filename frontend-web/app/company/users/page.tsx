@@ -162,6 +162,7 @@ export default function CompanyUsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
+                          {!(user?.role === 'COMPANY_ADMIN' && userItem.role === 'COMPANY_ADMIN' && userItem.id !== user?.id) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -173,11 +174,14 @@ export default function CompanyUsersPage() {
                           >
                             <Key className="w-4 h-4" />
                           </Button>
+                          )}
+                          {!(user?.role === 'COMPANY_ADMIN' && userItem.role === 'COMPANY_ADMIN' && userItem.id !== user?.id) && (
                           <Link href={`/company/users/${userItem.id}`}>
                             <Button variant="ghost" size="sm">
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
+                          )}
                           {userItem.id === user?.id ? (
                             <span title="Vous ne pouvez pas supprimer votre propre compte">
                               <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
