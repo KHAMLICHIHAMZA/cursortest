@@ -47,8 +47,9 @@ export const fetchCompanyModules = async (companyId: string): Promise<ActiveModu
 };
 
 export const isModuleActive = (modules: ActiveModule[], code: ModuleCode): boolean => {
+  if (modules.length === 0) return true;
   const found = modules.find(m => m.moduleCode === code);
-  return found?.isActive ?? false;
+  return found?.isActive ?? true;
 };
 
 export const clearModulesCache = (): void => {
