@@ -98,7 +98,16 @@ describe('SubscriptionService', () => {
       };
 
       mockPrismaService.company.findUnique.mockResolvedValue({ id: 'company-1' });
-      mockPrismaService.subscription.findUnique.mockResolvedValue(null);
+      mockPrismaService.subscription.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          companyId: 'company-1',
+          company: { id: 'company-1', name: 'Company 1', slug: 'company-1', status: 'ACTIVE' },
+          plan: { id: 'plan-1', name: 'Plan 1', planModules: [], planQuotas: [] },
+          subscriptionModules: [],
+          paymentsSaas: [],
+        });
       mockPrismaService.plan.findUnique.mockResolvedValue(mockPlan);
       mockPrismaService.subscription.create.mockResolvedValue({
         id: 'sub-1',
@@ -108,12 +117,6 @@ describe('SubscriptionService', () => {
       });
       mockPrismaService.subscriptionModule.createMany.mockResolvedValue({ count: 2 });
       mockPrismaService.companyModule.createMany.mockResolvedValue({ count: 2 });
-      mockPrismaService.subscription.findUnique.mockResolvedValue({
-        id: 'sub-1',
-        company: { id: 'company-1', name: 'Company 1' },
-        plan: { id: 'plan-1', name: 'Plan 1' },
-        subscriptionModules: [],
-      });
 
       const result = await service.create(createDto, mockUser);
 
@@ -127,6 +130,11 @@ describe('SubscriptionService', () => {
   describe('suspend', () => {
     it('should throw ForbiddenException if user is not SUPER_ADMIN', async () => {
       const mockUser = { userId: 'user-1', role: 'COMPANY_ADMIN' };
+      mockPrismaService.subscription.findUnique.mockResolvedValueOnce({
+        id: 'sub-1',
+        companyId: 'company-1',
+        company: { id: 'company-1' },
+      });
 
       await expect(service.suspend('sub-1', 'Reason', mockUser)).rejects.toThrow(
         ForbiddenException,
