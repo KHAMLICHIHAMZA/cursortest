@@ -15,6 +15,12 @@ interface HeaderProps {
 export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
   const { searchTerm, setSearchTerm } = useSearch();
 
+  const profileHref = userRole === 'SUPER_ADMIN'
+    ? '/admin/profile'
+    : userRole === 'COMPANY_ADMIN'
+      ? '/company/profile'
+      : '/agency/profile';
+
   return (
     <header className="fixed top-0 left-0 lg:left-64 right-0 h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 z-10">
       <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
@@ -44,7 +50,7 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
         </Button>
 
         {/* User info - hidden on mobile, visible on md+ */}
-        <Link href="/company/profile" className="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg bg-background border border-border hover:border-primary/50 transition-colors cursor-pointer">
+        <Link href={profileHref} className="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg bg-background border border-border hover:border-primary/50 transition-colors cursor-pointer">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
             <User className="w-4 h-4 text-white" />
           </div>
@@ -55,7 +61,7 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
         </Link>
 
         {/* User avatar only - mobile */}
-        <Link href="/company/profile" className="md:hidden w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+        <Link href={profileHref} className="md:hidden w-8 h-8 rounded-full bg-primary flex items-center justify-center">
           <User className="w-4 h-4 text-white" />
         </Link>
       </div>

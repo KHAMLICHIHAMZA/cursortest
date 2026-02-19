@@ -6,7 +6,7 @@ import { Header } from './header';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
 import { agencyApi } from '@/lib/api/agency';
-import { userApi } from '@/lib/api/user';
+
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
@@ -65,24 +65,9 @@ export function MainLayout({ children }: MainLayoutProps) {
     enabled: !!isCompanyAdmin && !!user?.companyId,
     retry: false,
   });
-  const { data: companyUsers } = useQuery({
-    queryKey: ['company-users', user?.companyId],
-    queryFn: () => userApi.getAll(),
-    enabled: !!isCompanyAdmin && !!user?.companyId,
-    retry: false,
-  });
-
   const getEffectiveAgencyRole = (): 'AGENCY_MANAGER' | 'AGENT' | 'BOTH' | null => {
-    if (!isCompanyAdmin || !companyUsers) return null;
-
-    const otherUsers = companyUsers.filter((u: any) => u.id !== user?.id);
-    const hasManager = otherUsers.some((u: any) => u.role === 'AGENCY_MANAGER');
-    const hasAgent = otherUsers.some((u: any) => u.role === 'AGENT');
-
-    if (!hasManager && !hasAgent) return 'BOTH';
-    if (hasAgent && !hasManager) return 'AGENCY_MANAGER';
-    if (hasManager && !hasAgent) return 'AGENT';
-    return null;
+    if (!isCompanyAdmin) return null;
+    return 'BOTH';
   };
 
   const effectiveAgencyRole = getEffectiveAgencyRole();

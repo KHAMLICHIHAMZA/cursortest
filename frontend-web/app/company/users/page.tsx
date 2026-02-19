@@ -182,23 +182,25 @@ export default function CompanyUsersPage() {
                             </Button>
                           </Link>
                           )}
-                          {userItem.id === user?.id ? (
-                            <span title="Vous ne pouvez pas supprimer votre propre compte">
-                              <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
+                          {user?.role === 'SUPER_ADMIN' && (
+                            userItem.id === user?.id ? (
+                              <span title="Vous ne pouvez pas supprimer votre propre compte">
+                                <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </span>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setUserToDelete(userItem);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
                                 <Trash2 className="w-4 h-4 text-red-500" />
                               </Button>
-                            </span>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setUserToDelete(userItem);
-                                setDeleteDialogOpen(true);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
+                            )
                           )}
                         </div>
                       </TableCell>

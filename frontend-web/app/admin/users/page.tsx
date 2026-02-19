@@ -19,6 +19,7 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import { apiClient } from '@/lib/api/client';
+import { authApi } from '@/lib/api/auth';
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
@@ -27,6 +28,13 @@ export default function UsersPage() {
   const [agencyFilter, setAgencyFilter] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => authApi.getMe(),
+  });
+
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
@@ -232,6 +240,7 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
+                          {isSuperAdmin && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -241,6 +250,7 @@ export default function UsersPage() {
                           >
                             <LogIn className="w-4 h-4 text-blue-500" />
                           </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -254,6 +264,7 @@ export default function UsersPage() {
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
+                          {isSuperAdmin && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -264,6 +275,7 @@ export default function UsersPage() {
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

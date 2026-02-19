@@ -235,8 +235,8 @@ export default function CompanyProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Card 3: Mon Agence (only if user has companyId) */}
-            {user.companyId && (
+            {/* Card 3: Mon Agence (only for COMPANY_ADMIN and SUPER_ADMIN) */}
+            {user.companyId && (user.role === 'COMPANY_ADMIN' || user.role === 'SUPER_ADMIN') && (
               <Card variant="default" padding="md" className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-text">
