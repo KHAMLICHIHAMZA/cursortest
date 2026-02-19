@@ -283,7 +283,7 @@ export default function SubscriptionsPage() {
               </div>
               {createMutation.isError && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                  {(createMutation.error as Error)?.message || 'Une erreur est survenue'}
+                  {(createMutation.error as any)?.response?.data?.message || (createMutation.error as Error)?.message || 'Une erreur est survenue'}
                 </div>
               )}
               <div className="flex gap-3 pt-4">
@@ -377,7 +377,7 @@ export default function SubscriptionsPage() {
                 </div>
                 {updateMutation.isError && (
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                    {(updateMutation.error as Error)?.message || 'Une erreur est survenue'}
+                    {(updateMutation.error as any)?.response?.data?.message || (updateMutation.error as Error)?.message || 'Une erreur est survenue'}
                   </div>
                 )}
                 <div className="flex gap-3 pt-4">

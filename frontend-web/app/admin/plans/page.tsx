@@ -54,8 +54,8 @@ export default function PlansAdminPage() {
   const queryClient = useQueryClient();
 
   const { data: plans = [], isLoading } = useQuery({
-    queryKey: ['plans'],
-    queryFn: () => planApi.getAll(),
+    queryKey: ['plans', 'all'],
+    queryFn: () => planApi.getAll(true),
   });
 
   const createMutation = useMutation({

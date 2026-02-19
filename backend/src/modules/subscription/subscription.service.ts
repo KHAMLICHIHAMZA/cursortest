@@ -42,13 +42,17 @@ export class SubscriptionService {
       throw new NotFoundException('Société introuvable');
     }
 
-    // Vérifier qu'il n'y a pas déjà un abonnement actif
     const existingSubscription = await this.prisma.subscription.findUnique({
       where: { companyId },
     });
 
-    if (existingSubscription && existingSubscription.status === SubscriptionStatus.ACTIVE) {
-      throw new BadRequestException('La société a déjà un abonnement actif');
+    if (existingSubscription) {
+      if (existingSubscription.status === SubscriptionStatus.ACTIVE) {
+        throw new BadRequestException('La société a déjà un abonnement actif');
+      }
+      throw new BadRequestException(
+        `La société a déjà un abonnement (${existingSubscription.status}). Utilisez Renouveler pour un abonnement expiré ou annulé.`,
+      );
     }
 
     // Vérifier que le Plan existe

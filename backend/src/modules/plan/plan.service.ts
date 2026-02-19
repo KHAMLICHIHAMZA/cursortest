@@ -75,9 +75,9 @@ export class PlanService {
   /**
    * Récupérer tous les plans
    */
-  async findAll() {
+  async findAll(includeInactive = false) {
     return this.prisma.plan.findMany({
-      where: { isActive: true },
+      where: includeInactive ? {} : { isActive: true },
       include: {
         planModules: true,
         planQuotas: true,
@@ -127,19 +127,44 @@ export class PlanService {
       throw new NotFoundException('Plan introuvable');
     }
 
+    const { moduleCodes, quotas, ...scalarFields } = updatePlanDto;
+
     const dataWithAudit = this.auditService.addUpdateAuditFields(
-      updatePlanDto,
+      scalarFields,
       user?.userId || user?.id,
     );
 
-    return this.prisma.plan.update({
+    await this.prisma.plan.update({
       where: { id },
       data: dataWithAudit,
-      include: {
-        planModules: true,
-        planQuotas: true,
-      },
     });
+
+    if (moduleCodes !== undefined) {
+      await this.prisma.planModule.deleteMany({ where: { planId: id } });
+      if (moduleCodes.length > 0) {
+        await this.prisma.planModule.createMany({
+          data: moduleCodes.map((moduleCode) => ({
+            planId: id,
+            moduleCode,
+          })),
+        });
+      }
+    }
+
+    if (quotas !== undefined) {
+      await this.prisma.planQuota.deleteMany({ where: { planId: id } });
+      if (Object.keys(quotas).length > 0) {
+        await this.prisma.planQuota.createMany({
+          data: Object.entries(quotas).map(([quotaKey, quotaValue]) => ({
+            planId: id,
+            quotaKey,
+            quotaValue: quotaValue as number,
+          })),
+        });
+      }
+    }
+
+    return this.findOne(id);
   }
 
   /**

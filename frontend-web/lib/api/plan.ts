@@ -34,8 +34,10 @@ export interface UpdatePlanDto extends Partial<CreatePlanDto> {
 }
 
 export const planApi = {
-  getAll: async (): Promise<Plan[]> => {
-    const res = await apiClient.get('/plans');
+  getAll: async (includeInactive = false): Promise<Plan[]> => {
+    const res = await apiClient.get('/plans', {
+      params: includeInactive ? { all: 'true' } : {},
+    });
     return res.data;
   },
 

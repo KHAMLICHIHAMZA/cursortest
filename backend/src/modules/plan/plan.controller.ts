@@ -6,9 +6,10 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PlanService } from './plan.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
@@ -34,8 +35,9 @@ export class PlanController {
 
   @Get()
   @ApiOperation({ summary: 'Get all plans' })
-  async findAll() {
-    return this.planService.findAll();
+  @ApiQuery({ name: 'all', required: false, type: Boolean, description: 'Include inactive plans' })
+  async findAll(@Query('all') all?: string) {
+    return this.planService.findAll(all === 'true');
   }
 
   @Get(':id')
