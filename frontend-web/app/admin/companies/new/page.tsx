@@ -2,14 +2,26 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { companyApi, CreateCompanyDto } from '@/lib/api/company';
+import { planApi, Plan } from '@/lib/api/plan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle } from 'lucide-react';
+
+const MODULE_LABELS: Record<string, string> = {
+  VEHICLES: 'Véhicules',
+  BOOKINGS: 'Réservations',
+  INVOICES: 'Facturation',
+  MAINTENANCE: 'Maintenance',
+  FINES: 'Amendes',
+  ANALYTICS: 'Analytics',
+};
 
 export default function NewCompanyPage() {
   const router = useRouter();
@@ -23,7 +35,13 @@ export default function NewCompanyPage() {
     adminEmail: '',
     adminName: '',
   });
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { data: plans = [] } = useQuery<Plan[]>({
+    queryKey: ['plans'],
+    queryFn: planApi.getAll,
+  });
 
   const createMutation = useMutation({
     mutationFn: (data: CreateCompanyDto) => companyApi.create(data),
@@ -62,7 +80,8 @@ export default function NewCompanyPage() {
       return;
     }
 
-    createMutation.mutate(formData);
+    const payload = selectedPlanId ? { ...formData, planId: selectedPlanId } : formData;
+    createMutation.mutate(payload);
   };
 
   return (
@@ -228,6 +247,63 @@ export default function NewCompanyPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="border-t border-border pt-6">
+              <h2 className="text-lg font-semibold text-text mb-2">Plan / Package</h2>
+              <p className="text-sm text-text-muted mb-4">
+                Sélectionnez un plan pour activer automatiquement l&apos;abonnement et les modules
+              </p>
+
+              {plans.length === 0 ? (
+                <p className="text-sm text-text-muted italic">Aucun plan disponible. Créez-en un depuis la page Plans.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {plans.map((plan) => {
+                    const isSelected = selectedPlanId === plan.id;
+                    return (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => setSelectedPlanId(isSelected ? null : plan.id)}
+                        className={`relative text-left p-4 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                            : 'border-border hover:border-primary/40 bg-card'
+                        }`}
+                      >
+                        {isSelected && (
+                          <CheckCircle className="absolute top-3 right-3 w-5 h-5 text-primary" />
+                        )}
+                        <h3 className="font-semibold text-text">{plan.name}</h3>
+                        <p className="text-2xl font-bold text-primary mt-1">
+                          {plan.price} <span className="text-sm font-normal text-text-muted">MAD/mois</span>
+                        </p>
+                        {plan.description && (
+                          <p className="text-xs text-text-muted mt-1">{plan.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-3">
+                          {plan.planModules.map((m) => (
+                            <Badge key={m.moduleCode} variant="outline" className="text-[10px]">
+                              {MODULE_LABELS[m.moduleCode] || m.moduleCode}
+                            </Badge>
+                          ))}
+                        </div>
+                        {plan.planQuotas.length > 0 && (
+                          <div className="mt-2 text-xs text-text-muted space-y-0.5">
+                            {plan.planQuotas.map((q) => (
+                              <p key={q.quotaKey}>
+                                {q.quotaKey === 'agencies' ? 'Agences' : q.quotaKey === 'users' ? 'Utilisateurs' : q.quotaKey === 'vehicles' ? 'Véhicules' : q.quotaKey}
+                                : {q.quotaValue === -1 ? 'Illimité' : q.quotaValue}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           {errors.submit && (

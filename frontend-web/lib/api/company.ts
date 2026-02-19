@@ -30,6 +30,7 @@ export interface CreateCompanyDto {
   address?: string;
   adminEmail?: string;
   adminName?: string;
+  planId?: string;
 }
 
 export interface UpdateCompanyDto {

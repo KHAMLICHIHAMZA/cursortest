@@ -150,6 +150,7 @@ export class CompanyService {
       address,
       adminEmail,
       adminName,
+      planId,
     } = createCompanyDto;
 
     if (!name) {
@@ -244,6 +245,50 @@ export class CompanyService {
         sendWelcomeEmail(adminEmail, adminName, resetToken).catch((emailError) =>
           console.error('Error sending welcome email:', emailError),
         );
+      }
+
+      if (planId) {
+        const plan = await tx.plan.findUnique({
+          where: { id: planId },
+          include: { planModules: true },
+        });
+
+        if (plan && plan.isActive) {
+          const startDate = new Date();
+          const endDate = new Date(startDate);
+          endDate.setMonth(endDate.getMonth() + 1);
+
+          const subscription = await tx.subscription.create({
+            data: {
+              companyId: createdCompany.id,
+              planId: plan.id,
+              status: 'ACTIVE',
+              billingPeriod: 'MONTHLY',
+              startDate,
+              endDate,
+              amount: plan.price,
+              createdByUserId: user?.id || user?.userId || user?.sub,
+            },
+          });
+
+          if (plan.planModules.length > 0) {
+            await tx.subscriptionModule.createMany({
+              data: plan.planModules.map((pm) => ({
+                subscriptionId: subscription.id,
+                moduleCode: pm.moduleCode,
+              })),
+            });
+
+            await tx.companyModule.createMany({
+              data: plan.planModules.map((pm) => ({
+                companyId: createdCompany.id,
+                moduleCode: pm.moduleCode,
+                isActive: true,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
       }
 
       return createdCompany;

@@ -49,6 +49,11 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   adminName?: string;
+
+  @ApiPropertyOptional({ description: 'ID du plan à souscrire automatiquement' })
+  @IsOptional()
+  @IsString()
+  planId?: string;
 }
 
 

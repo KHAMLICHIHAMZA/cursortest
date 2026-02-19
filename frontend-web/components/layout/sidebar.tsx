@@ -157,6 +157,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
     { href: '/admin/agencies', label: 'Agences', icon: MapPin },
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
+    { href: '/admin/plans', label: 'Plans', icon: ScrollText },
     { href: '/admin/company-health', label: 'Santé comptes', icon: Heart },
     { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   ];
