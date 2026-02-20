@@ -1,69 +1,85 @@
 /**
- * Design System - Palette de couleurs unique
- * Utilisée dans toute l'application de manière cohérente
+ * Design System - Palette de couleurs MalocAuto v2
+ * Premium dark theme with warm amber automotive accent
  */
 
 export const colors = {
-  // Couleurs de base
-  background: '#1D1F23',
-  card: '#2C2F36',
-  border: '#374151',
+  // Surfaces (dark depth system)
+  background: '#0A0A0C',
+  surface: {
+    0: '#0E0E11',
+    1: '#141418',
+    2: '#1C1C21',
+    3: '#26262C',
+  },
+  card: '#141418',
+
+  // Text
   text: {
-    primary: '#E5E7EB',
-    secondary: '#9CA3AF',
-    muted: '#6B7280',
+    primary: '#FAFAFA',
+    secondary: '#A3A3A3',
+    muted: '#737373',
   },
+
+  // Borders
+  border: {
+    DEFAULT: '#26262C',
+    hover: '#37373E',
+  },
+
+  // Brand
   primary: {
-    DEFAULT: '#3E7BFA',
-    hover: '#2563EB',
-    light: 'rgba(62, 123, 250, 0.1)',
+    DEFAULT: '#F5A623',
+    hover: '#E09418',
+    foreground: '#0A0A0C',
+    light: 'rgba(245, 166, 35, 0.12)',
   },
-  
-  // Couleurs de statut métier (OBLIGATOIRES)
+  accent: {
+    DEFAULT: '#3B82F6',
+    hover: '#2563EB',
+    light: 'rgba(59, 130, 246, 0.12)',
+  },
+
+  // Status colors (semantic business states)
   status: {
-    // Bleu : confirmé / actif / loué
     confirmed: '#3B82F6',
     active: '#3B82F6',
     rented: '#3B82F6',
-    
-    // Orange : en attente / option
-    pending: '#F59E0B',
-    option: '#F59E0B',
-    
-    // Vert : disponible / succès
-    available: '#10B981',
-    success: '#10B981',
-    
-    // Rouge : retard / incident / alerte
+
+    pending: '#F5A623',
+    option: '#F5A623',
+
+    available: '#22C55E',
+    success: '#22C55E',
+
     late: '#EF4444',
     incident: '#EF4444',
     alert: '#EF4444',
     error: '#EF4444',
-    
-    // Gris : terminé / inactif / bloqué
-    completed: '#6B7280',
-    inactive: '#6B7280',
-    blocked: '#6B7280',
-    cancelled: '#6B7280',
+
+    completed: '#737373',
+    inactive: '#737373',
+    blocked: '#737373',
+    cancelled: '#737373',
   },
-  
-  // Variantes avec opacité pour les backgrounds
+
+  // Status backgrounds (12% opacity)
   statusBg: {
-    confirmed: 'rgba(59, 130, 246, 0.15)',
-    active: 'rgba(59, 130, 246, 0.15)',
-    rented: 'rgba(59, 130, 246, 0.15)',
-    pending: 'rgba(245, 158, 11, 0.15)',
-    option: 'rgba(245, 158, 11, 0.15)',
-    available: 'rgba(16, 185, 129, 0.15)',
-    success: 'rgba(16, 185, 129, 0.15)',
-    late: 'rgba(239, 68, 68, 0.15)',
-    incident: 'rgba(239, 68, 68, 0.15)',
-    alert: 'rgba(239, 68, 68, 0.15)',
-    error: 'rgba(239, 68, 68, 0.15)',
-    completed: 'rgba(107, 114, 128, 0.15)',
-    inactive: 'rgba(107, 114, 128, 0.15)',
-    blocked: 'rgba(107, 114, 128, 0.15)',
-    cancelled: 'rgba(107, 114, 128, 0.15)',
+    confirmed: 'rgba(59, 130, 246, 0.12)',
+    active: 'rgba(59, 130, 246, 0.12)',
+    rented: 'rgba(59, 130, 246, 0.12)',
+    pending: 'rgba(245, 166, 35, 0.12)',
+    option: 'rgba(245, 166, 35, 0.12)',
+    available: 'rgba(34, 197, 94, 0.12)',
+    success: 'rgba(34, 197, 94, 0.12)',
+    late: 'rgba(239, 68, 68, 0.12)',
+    incident: 'rgba(239, 68, 68, 0.12)',
+    alert: 'rgba(239, 68, 68, 0.12)',
+    error: 'rgba(239, 68, 68, 0.12)',
+    completed: 'rgba(115, 115, 115, 0.12)',
+    inactive: 'rgba(115, 115, 115, 0.12)',
+    blocked: 'rgba(115, 115, 115, 0.12)',
+    cancelled: 'rgba(115, 115, 115, 0.12)',
   },
 } as const;
 

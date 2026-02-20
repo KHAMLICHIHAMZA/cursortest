@@ -9,23 +9,23 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = 'default', padding = 'md', children, ...props }, ref) => {
     const variantStyles = {
-      default: 'bg-card border border-border',
-      elevated: 'bg-card border border-border shadow-lg',
-      outlined: 'bg-transparent border-2 border-border',
+      default: 'bg-surface-1 border border-border',
+      elevated: 'bg-surface-2 border border-border shadow-elevation-2',
+      outlined: 'bg-transparent border border-border hover:border-border-hover',
     };
 
     const paddingStyles = {
       none: '',
       sm: 'p-4',
-      md: 'p-6',
-      lg: 'p-8',
+      md: 'p-5',
+      lg: 'p-6',
     };
 
     return (
       <div
         ref={ref}
         className={cn(
-          'rounded-xl transition-all',
+          'rounded-lg transition-all duration-200 animate-fade-in',
           variantStyles[variant],
           paddingStyles[padding],
           className,
@@ -44,7 +44,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col space-y-1.5 mb-6', className)}
+      className={cn('flex flex-col gap-1 mb-5', className)}
       {...props}
     />
   ),
@@ -55,7 +55,7 @@ export const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttrib
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-2xl font-bold text-text', className)}
+      className={cn('text-lg font-semibold tracking-tight text-foreground', className)}
       {...props}
     />
   ),
@@ -66,7 +66,7 @@ export const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTML
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-sm text-text-muted', className)}
+      className={cn('text-sm text-foreground-muted', className)}
       {...props}
     />
   ),

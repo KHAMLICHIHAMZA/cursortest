@@ -65,29 +65,38 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <Card variant="elevated" padding="lg">
-          <CardHeader>
-            <CardTitle className="text-center text-3xl">MalocAuto</CardTitle>
-            <CardDescription className="text-center">
-              Connectez-vous à votre compte
-            </CardDescription>
-          </CardHeader>
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
+      {/* Background subtle grid pattern */}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(245,166,35,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(245,166,35,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[120px]" />
 
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="rounded-lg bg-error/10 border border-error/20 p-3 text-sm text-error">
-                  {error}
-                </div>
-              )}
+      <div className="relative w-full max-w-sm">
+        {/* Logo mark */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-glow mb-4">
+            <svg className="h-6 w-6 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 17h8M8 17v-4m8 4v-4m-8 0h8m-8 0L5 9l3-3h8l3 3-3 4" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">MalocAuto</h1>
+          <p className="mt-1 text-sm text-foreground-subtle">Connectez-vous a votre compte</p>
+        </div>
 
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-text mb-2"
-              >
+        {/* Login card */}
+        <div className="rounded-lg border border-border bg-surface-1 p-6 shadow-elevation-2">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {error && (
+              <div className="flex items-center gap-2 rounded-md bg-error/10 border border-error/20 px-3 py-2.5 text-xs text-error">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                </svg>
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="email" className="text-xs font-medium text-foreground-muted">
                 Email
               </label>
               <Input
@@ -101,11 +110,8 @@ export default function LoginPage() {
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-text mb-2"
-              >
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="password" className="text-xs font-medium text-foreground-muted">
                 Mot de passe
               </label>
               <Input
@@ -119,27 +125,27 @@ export default function LoginPage() {
               />
             </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full"
-                isLoading={isLoading}
-              >
-                Se connecter
-              </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full mt-1"
+              isLoading={isLoading}
+            >
+              Se connecter
+            </Button>
+          </form>
+        </div>
 
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => router.push('/forgot-password')}
-                  className="text-sm text-text-muted hover:text-text"
-                >
-                  Mot de passe oublié ?
-                </button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {/* Forgot password link */}
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => router.push('/forgot-password')}
+            className="text-xs text-foreground-subtle hover:text-primary transition-colors"
+          >
+            Mot de passe oublie ?
+          </button>
+        </div>
       </div>
     </div>
   );

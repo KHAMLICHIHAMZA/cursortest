@@ -238,59 +238,69 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col z-50 transition-transform duration-300 lg:translate-x-0 ${
+      <aside
+        className={`fixed left-0 top-0 h-screen w-64 bg-surface-0 border-r border-border flex flex-col z-50 transition-transform duration-300 ease-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 md:p-6 border-b border-border flex items-center justify-between">
-          <div>
-            <h1 className="text-lg md:text-xl font-bold text-text">MalocAuto</h1>
-            <p className="text-xs text-text-muted mt-1">
-              {isAdmin ? 'Administration' : isCompanyAdmin ? 'Entreprise' : 'Agence'}
-            </p>
+        {/* Brand header */}
+        <div className="flex h-14 items-center justify-between px-5 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+              <Car className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold tracking-tight text-foreground">MalocAuto</span>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-foreground-subtle">
+                {isAdmin ? 'Admin' : isCompanyAdmin ? 'Entreprise' : 'Agence'}
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden p-1 rounded-md text-text-muted hover:text-text hover:bg-background"
+            className="lg:hidden flex h-7 w-7 items-center justify-center rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-2 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {links.map((link, index) => {
             const Icon = link.icon;
             const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
-            const showAgencySeparator = isCompanyAdmin && agencyId && index > 0 
-              && link.href.startsWith('/agency') 
+            const showAgencySeparator = isCompanyAdmin && agencyId && index > 0
+              && link.href.startsWith('/agency')
               && !links[index - 1]?.href.startsWith('/agency');
             return (
               <div key={link.href}>
                 {showAgencySeparator && (
-                  <div className="mt-4 mb-2 px-4">
-                    <p className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">
-                      Opérations Agence
+                  <div className="mt-5 mb-2 px-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-subtle">
+                      Operations Agence
                     </p>
-                    <div className="border-t border-border mt-1" />
                   </div>
                 )}
                 <Link href={link.href} onClick={handleLinkClick}>
                   <div
-                    className={`flex items-center gap-3 px-3 md:px-4 py-2.5 rounded-lg transition-colors ${
+                    className={`group relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
                       isActive
-                        ? 'bg-primary text-white'
-                        : 'text-text-muted hover:bg-background hover:text-text'
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-foreground-muted hover:text-foreground hover:bg-surface-2'
                     }`}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="font-medium text-sm">{link.label}</span>
+                    {/* Active indicator bar */}
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-primary" />
+                    )}
+                    <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary' : 'text-foreground-subtle group-hover:text-foreground-muted'}`} />
+                    <span>{link.label}</span>
                   </div>
                 </Link>
               </div>
@@ -298,17 +308,17 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
           })}
         </nav>
 
-        <div className="p-3 md:p-4 border-t border-border">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-text-muted hover:text-text"
+        {/* Logout */}
+        <div className="px-3 py-3 border-t border-border">
+          <button
             onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-foreground-subtle hover:text-foreground hover:bg-surface-2 transition-colors"
           >
-            <LogOut className="w-5 h-5 mr-3" />
-            Déconnexion
-          </Button>
+            <LogOut className="h-4 w-4" />
+            <span>Deconnexion</span>
+          </button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

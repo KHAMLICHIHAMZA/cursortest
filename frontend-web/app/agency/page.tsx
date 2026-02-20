@@ -40,157 +40,138 @@ export default function AgencyDashboard() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
+        {/* Page header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text mb-2">Tableau de bord Agence</h1>
-          <p className="text-text-muted">Gestion de votre agence</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tableau de bord</h1>
+          <p className="mt-1 text-sm text-foreground-muted">Vue d&apos;ensemble de votre agence</p>
         </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              title="Véhicules disponibles"
-              value={availableVehicles}
-              icon={Car}
-              iconColor="text-green-500"
-              isLoading={vehiclesLoading}
-            />
-            <StatCard
-              title="Véhicules en location"
-              value={rentedVehicles}
-              icon={Car}
-              isLoading={vehiclesLoading}
-            />
-            <StatCard
-              title="Clients"
-              value={clients?.length || 0}
-              icon={Users}
-              isLoading={clientsLoading}
-            />
-            <StatCard
-              title="Locations actives"
-              value={activeBookings}
-              icon={Calendar}
-              isLoading={bookingsLoading}
-            />
-          </div>
+        {/* Stats row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard
+            title="Disponibles"
+            value={availableVehicles}
+            icon={Car}
+            iconColor="text-emerald-400"
+            isLoading={vehiclesLoading}
+          />
+          <StatCard
+            title="En location"
+            value={rentedVehicles}
+            icon={Car}
+            iconColor="text-blue-400"
+            isLoading={vehiclesLoading}
+          />
+          <StatCard
+            title="Clients"
+            value={clients?.length || 0}
+            icon={Users}
+            iconColor="text-primary"
+            isLoading={clientsLoading}
+          />
+          <StatCard
+            title="Locations actives"
+            value={activeBookings}
+            icon={Calendar}
+            iconColor="text-amber-400"
+            isLoading={bookingsLoading}
+          />
+        </div>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Quick actions grid */}
+        <div className="mb-8">
+          <h2 className="text-[11px] font-semibold uppercase tracking-widest text-foreground-subtle mb-3">
+            Actions rapides
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { href: '/agency/vehicles', icon: Car, label: 'Vehicules', desc: 'Gerer la flotte' },
+              { href: '/agency/clients', icon: Users, label: 'Clients', desc: 'Gerer les clients' },
+              { href: '/agency/bookings', icon: Calendar, label: 'Locations', desc: 'Reservations' },
+              { href: '/agency/planning', icon: Calendar, label: 'Planning', desc: 'Vue d\'ensemble' },
+            ].map((action) => (
+              <Link key={action.href} href={action.href}>
+                <div className="group flex items-center gap-3 rounded-lg border border-border bg-surface-1 p-4 transition-all duration-200 hover:border-primary/30 hover:bg-surface-2 cursor-pointer">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                    <action.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-medium text-foreground truncate">{action.label}</h3>
+                    <p className="text-xs text-foreground-subtle truncate">{action.desc}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Vehicles */}
+        <div className="rounded-lg border border-border bg-surface-1">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <h2 className="text-sm font-semibold text-foreground">Vehicules recents</h2>
             <Link href="/agency/vehicles">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <Car className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Véhicules</h3>
-                    <p className="text-sm text-text-muted">Gérer la flotte</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/agency/clients">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <Users className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Clients</h3>
-                    <p className="text-sm text-text-muted">Gérer les clients</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/agency/bookings">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <Calendar className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Locations</h3>
-                    <p className="text-sm text-text-muted">Gérer les réservations</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/agency/planning">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <Calendar className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Planning</h3>
-                    <p className="text-sm text-text-muted">Vue d&apos;ensemble</p>
-                  </div>
-                </div>
-              </Card>
+              <Button variant="primary" size="sm">
+                <Plus className="h-3.5 w-3.5" />
+                Nouveau vehicule
+              </Button>
             </Link>
           </div>
-
-          {/* Recent Vehicles */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Véhicules récents</CardTitle>
-                <Link href="/agency/vehicles">
-                  <Button variant="primary" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nouveau véhicule
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {vehiclesLoading ? (
-                <LoadingState message="Chargement des véhicules..." />
-              ) : vehicles && vehicles.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {vehicles.slice(0, 6).map((vehicle) => (
-                    <Card key={vehicle.id} variant="outlined" padding="sm">
-                      {vehicle.imageUrl ? (
-                        <img
-                          src={getImageUrl(vehicle.imageUrl) || ''}
-                          alt={`${vehicle.brand} ${vehicle.model}`}
-                          className="w-full h-32 object-cover rounded-lg mb-3"
-                        />
-                      ) : (
-                        <div className="w-full h-32 bg-background rounded-lg mb-3 flex items-center justify-center">
-                          <Car className="w-8 h-8 text-text-muted" />
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-text">
+          <div className="p-5">
+            {vehiclesLoading ? (
+              <LoadingState message="Chargement des vehicules..." />
+            ) : vehicles && vehicles.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {vehicles.slice(0, 6).map((vehicle) => (
+                  <div
+                    key={vehicle.id}
+                    className="group overflow-hidden rounded-lg border border-border bg-surface-0 transition-all duration-200 hover:border-border-hover"
+                  >
+                    {vehicle.imageUrl ? (
+                      <img
+                        src={getImageUrl(vehicle.imageUrl) || ''}
+                        alt={`${vehicle.brand} ${vehicle.model}`}
+                        className="w-full h-32 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-32 bg-surface-2 flex items-center justify-center">
+                        <Car className="h-6 w-6 text-foreground-subtle" />
+                      </div>
+                    )}
+                    <div className="p-3.5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <h3 className="text-sm font-medium text-foreground truncate">
                           {vehicle.brand} {vehicle.model}
                         </h3>
-                        <Badge status={vehicle.status.toLowerCase() as any}>
+                        <Badge status={vehicle.status.toLowerCase() as any} size="sm">
                           {vehicle.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-text-muted">{vehicle.registrationNumber}</p>
+                      <p className="text-xs text-foreground-subtle">{vehicle.registrationNumber}</p>
                       {vehicle.dailyRate && (
-                        <p className="text-sm text-text mt-2">
+                        <p className="text-xs font-medium text-primary mt-2">
                           {vehicle.dailyRate} MAD/jour
                         </p>
                       )}
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  icon={Car}
-                  title="Aucun véhicule"
-                  description="Commencez par ajouter votre premier véhicule"
-                  action={
-                    <Link href="/agency/vehicles/new">
-                      <Button variant="primary">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Ajouter un véhicule
-                      </Button>
-                    </Link>
-                  }
-                />
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Car}
+                title="Aucun vehicule"
+                description="Commencez par ajouter votre premier vehicule"
+                action={
+                  <Link href="/agency/vehicles/new">
+                    <Button variant="primary">
+                      <Plus className="h-4 w-4" />
+                      Ajouter un vehicule
+                    </Button>
+                  </Link>
+                }
+              />
+            )}
+          </div>
         </div>
       </MainLayout>
     </RouteGuard>

@@ -77,8 +77,8 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar 
-        userRole={user?.role} 
+      <Sidebar
+        userRole={user?.role}
         companyId={user?.companyId}
         agencyId={effectiveAgencyId}
         effectiveAgencyRole={effectiveAgencyRole}
@@ -87,21 +87,22 @@ export function MainLayout({ children }: MainLayoutProps) {
       />
       <div className="flex-1 lg:ml-64 min-w-0">
         {isImpersonating && (
-          <div className="fixed top-0 left-0 lg:left-64 right-0 z-50 bg-orange-500 text-white px-3 md:px-4 py-2 flex items-center justify-between text-xs md:text-sm font-medium shadow-lg">
+          <div className="fixed top-0 left-0 lg:left-64 right-0 z-50 bg-warning/10 border-b border-warning/20 text-warning px-4 py-2 flex items-center justify-between text-xs font-medium backdrop-blur-sm">
             <div className="flex items-center gap-2 min-w-0">
-              <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+              <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="truncate">
-                Impersonation — <strong>{impersonatedUser?.email || 'utilisateur'}</strong>
+                {'Impersonation  — '}
+                <strong className="text-foreground">{impersonatedUser?.email || 'utilisateur'}</strong>
                 {impersonatedUser?.role && (
-                  <span className="ml-1 opacity-80">({impersonatedUser.role})</span>
+                  <span className="ml-1 text-foreground-muted">({impersonatedUser.role})</span>
                 )}
               </span>
             </div>
             <button
               onClick={handleStopImpersonation}
-              className="flex items-center gap-1 bg-white/20 hover:bg-white/30 rounded px-2 md:px-3 py-1 transition-colors flex-shrink-0 text-xs md:text-sm"
+              className="flex items-center gap-1.5 rounded-md bg-warning/10 hover:bg-warning/20 px-3 py-1 transition-colors flex-shrink-0 text-xs text-warning"
             >
-              <ArrowLeft className="w-3 h-3" />
+              <ArrowLeft className="h-3 w-3" />
               <span className="hidden sm:inline">Revenir en Super Admin</span>
               <span className="sm:hidden">Retour</span>
             </button>
@@ -112,8 +113,10 @@ export function MainLayout({ children }: MainLayoutProps) {
           userRole={user?.role}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className={`pt-14 md:pt-16 p-3 md:p-6 lg:p-8 ${isImpersonating ? 'mt-10' : ''}`}>
-          {children}
+        <main className={`pt-14 px-4 pb-8 md:px-6 lg:px-8 ${isImpersonating ? 'mt-10' : ''}`}>
+          <div className="mx-auto max-w-7xl pt-6">
+            {children}
+          </div>
         </main>
       </div>
     </div>

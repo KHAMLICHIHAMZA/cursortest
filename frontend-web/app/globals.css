@@ -2,67 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@layer base {
+  :root {
+    /* ── Surface System ────────────────────────── */
+    --background: 10 10 12;          /* #0A0A0C - deep black */
+    --surface-0: 14 14 17;           /* #0E0E11 - sidebar / nav */
+    --surface-1: 20 20 24;           /* #141418 - cards */
+    --surface-2: 28 28 33;           /* #1C1C21 - elevated cards / dropdowns */
+    --surface-3: 38 38 44;           /* #26262C - hover states */
 
-:root {
-  --background: #1D1F23;
-  --card: #2C2F36;
-  --primary: #3E7BFA;
-  --text: #E5E7EB;
-  --text-muted: #9CA3AF;
-  --border: #374151;
-}
+    /* ── Text System ──────────────────────────── */
+    --foreground: 250 250 250;       /* #FAFAFA - primary text */
+    --foreground-muted: 163 163 163; /* #A3A3A3 - secondary text */
+    --foreground-subtle: 115 115 115;/* #737373 - tertiary / labels */
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
+    /* ── Border System ────────────────────────── */
+    --border: 38 38 44;             /* #26262C - subtle borders */
+    --border-hover: 55 55 62;       /* #37373E - hover borders */
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: var(--background);
-  color: var(--text);
-  font-size: 16px;
-}
+    /* ── Brand Colors ─────────────────────────── */
+    --primary: 245 166 35;          /* #F5A623 - warm amber (automotive) */
+    --primary-hover: 224 148 24;    /* #E09418 - darker amber */
+    --primary-foreground: 10 10 12; /* #0A0A0C - text on primary */
 
-@media (max-width: 640px) {
-  html, body {
-    font-size: 14px;
+    /* ── Accent ───────────────────────────────── */
+    --accent: 59 130 246;           /* #3B82F6 - blue accent */
+    --accent-hover: 37 99 235;      /* #2563EB - darker blue */
+    --accent-foreground: 250 250 250;
+
+    /* ── Status Colors ────────────────────────── */
+    --success: 34 197 94;           /* #22C55E - green */
+    --warning: 245 166 35;          /* #F5A623 - amber */
+    --error: 239 68 68;             /* #EF4444 - red */
+    --info: 59 130 246;             /* #3B82F6 - blue */
+
+    /* ── Radius ───────────────────────────────── */
+    --radius: 0.625rem;             /* 10px */
   }
 }
 
-body {
-  min-height: 100vh;
-  -webkit-text-size-adjust: 100%;
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: rgb(var(--border));
+  }
+
+  html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  @media (max-width: 640px) {
+    html, body {
+      font-size: 14px;
+    }
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* ── Scrollbar Styling ───────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--border-hover));
 }
 
-/* Responsive tables */
+/* ── Utility Layer ───────────────────────────── */
 @layer utilities {
   .table-responsive {
     @apply w-full overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0;
   }
+
+  /* Glass effect for modals/overlays */
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background-color: rgba(var(--surface-1), 0.8);
+  }
 }
 
-/* RTL Support */
+/* ── RTL Support ─────────────────────────────── */
 [dir='rtl'] {
   direction: rtl;
 }
 
-/* Mobile touch targets */
+/* ── Mobile Touch Targets ────────────────────── */
 @media (max-width: 768px) {
   button, a, [role="button"] {
     min-height: 44px;
   }
-  
   input, select, textarea {
     font-size: 16px !important;
   }
