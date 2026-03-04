@@ -6,7 +6,7 @@ import { BusinessEventLogService } from '../business-event-log/business-event-lo
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { sendWelcomeEmail } from '../../services/email.service';
-import { BusinessEventType } from '@prisma/client';
+import { BusinessEventType, CompanyStatus, AgencyStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
@@ -392,7 +392,7 @@ export class CompanyService {
     const companyDeleteData = this.auditService.addDeleteAuditFields(
       {
         isActive: false,
-        status: 'DELETED',
+        status: CompanyStatus.DELETED,
       },
       actorId,
       reason,
@@ -410,7 +410,7 @@ export class CompanyService {
 
     const agencyDeleteData = this.auditService.addDeleteAuditFields(
       {
-        status: 'DELETED',
+        status: AgencyStatus.DELETED,
       },
       actorId,
       reason || 'Suppression de la société par administrateur',
