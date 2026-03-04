@@ -144,7 +144,7 @@ export default function NewBookingPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           <Card className="p-4">
             <p className="text-sm text-text-muted">
               Conseil: sélectionnez d&apos;abord l&apos;agence puis le véhicule pour calculer automatiquement le montant total.

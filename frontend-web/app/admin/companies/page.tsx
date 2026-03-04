@@ -5,12 +5,13 @@ import { companyApi, Company } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Building2, Plus, Edit, Trash2, Power, Search } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Power } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -58,18 +59,13 @@ export default function CompaniesPage() {
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto pt-2">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Entreprises</h1>
-              <p className="text-text-muted">Gérer toutes les entreprises de la plateforme</p>
-            </div>
-            <Link href="/admin/companies/new" className="w-full sm:w-auto block md:shrink-0">
-              <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle entreprise
-              </Button>
-            </Link>
-          </div>
+          <PageHeader
+            title="Entreprises"
+            description="Gérer toutes les entreprises de la plateforme"
+            actionHref="/admin/companies/new"
+            actionLabel="Nouvelle entreprise"
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <Card className="p-4">
@@ -86,25 +82,13 @@ export default function CompaniesPage() {
             </Card>
           </div>
 
-          <Card className="mb-6 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <Input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher par nom ou téléphone..."
-                  className="pl-10"
-                />
-              </div>
-              {searchTerm && (
-                <Button variant="secondary" onClick={() => setSearchTerm('')}>
-                  Réinitialiser
-                </Button>
-              )}
-            </div>
-          </Card>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher par nom ou téléphone..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoading ? (
             <LoadingState message="Chargement des entreprises..." />

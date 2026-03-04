@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -117,14 +118,20 @@ export default function EditFinePage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <FormCard
-          title="Modifier l'amende"
-          description="Mettez à jour les informations de l'amende"
-          backHref="/agency/fines"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || updateMutation.isPending}
-          submitLabel="Enregistrer"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Vérifiez le montant et l&apos;état de règlement avant validation pour garder un suivi financier cohérent.
+            </p>
+          </Card>
+          <FormCard
+            title="Modifier l'amende"
+            description="Mettez à jour les informations de l'amende"
+            backHref="/agency/fines"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || updateMutation.isPending}
+            submitLabel="Enregistrer"
+          >
             <div>
               <label htmlFor="agencyId" className="block text-sm font-medium text-text mb-2">
                 Agence
@@ -200,7 +207,8 @@ export default function EditFinePage() {
                 <option value="CLOTUREE">Clôturée</option>
               </select>
             </div>
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

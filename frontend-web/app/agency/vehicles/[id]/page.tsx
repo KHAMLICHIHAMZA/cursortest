@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { ColorAutocomplete } from '@/components/ui/color-autocomplete';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -314,14 +315,20 @@ export default function EditVehiclePage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <FormCard
-          title="Modifier le véhicule"
-          description="Mettez à jour les informations du véhicule"
-          backHref="/agency/vehicles"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || updateMutation.isPending || uploadImageMutation.isPending}
-          submitLabel="Enregistrer"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Vérifiez les changements de statut et de financement avant d&apos;enregistrer, ils impactent les indicateurs opérationnels.
+            </p>
+          </Card>
+          <FormCard
+            title="Modifier le véhicule"
+            description="Mettez à jour les informations du véhicule"
+            backHref="/agency/vehicles"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || updateMutation.isPending || uploadImageMutation.isPending}
+            submitLabel="Enregistrer"
+          >
             <div>
               <label htmlFor="agencyId" className="block text-sm font-medium text-text mb-2">
                 Agence
@@ -680,7 +687,8 @@ export default function EditVehiclePage() {
               </Select>
               {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
             </div>
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

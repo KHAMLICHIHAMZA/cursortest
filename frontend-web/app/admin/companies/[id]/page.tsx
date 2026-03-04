@@ -163,7 +163,7 @@ export default function EditCompanyPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
-        <div className="max-w-3xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-6">
           <FormCard
             title="Modifier l'entreprise"
             description="Mettez à jour les informations de l'entreprise"

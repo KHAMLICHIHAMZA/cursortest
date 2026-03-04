@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -120,14 +121,20 @@ export default function EditMaintenancePage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <FormCard
-          title="Modifier la maintenance"
-          description="Mettez à jour les informations de la maintenance"
-          backHref="/agency/maintenance"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || updateMutation.isPending}
-          submitLabel="Enregistrer"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Conseil: mettez à jour le statut à chaque étape pour conserver un historique de maintenance exploitable.
+            </p>
+          </Card>
+          <FormCard
+            title="Modifier la maintenance"
+            description="Mettez à jour les informations de la maintenance"
+            backHref="/agency/maintenance"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || updateMutation.isPending}
+            submitLabel="Enregistrer"
+          >
             <div>
               <label htmlFor="agencyId" className="block text-sm font-medium text-text mb-2">
                 Agence
@@ -214,7 +221,8 @@ export default function EditMaintenancePage() {
               </Select>
               {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
             </div>
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

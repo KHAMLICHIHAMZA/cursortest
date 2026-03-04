@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select';
 import { VehicleAutocomplete, VehicleSuggestion } from '@/components/ui/vehicle-autocomplete';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { ColorAutocomplete } from '@/components/ui/color-autocomplete';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -197,14 +198,20 @@ export default function NewVehiclePage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <FormCard
-          title="Nouveau véhicule"
-          description="Ajoutez un nouveau véhicule à votre flotte"
-          backHref="/agency/vehicles"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
-          submitLabel="Créer le véhicule"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Conseil: renseignez d&apos;abord les informations techniques, puis les données financières pour un suivi KPI plus fiable.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouveau véhicule"
+            description="Ajoutez un nouveau véhicule à votre flotte"
+            backHref="/agency/vehicles"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
+            submitLabel="Créer le véhicule"
+          >
           <div>
             <label htmlFor="agencyId" className="block text-sm font-medium text-text mb-2">
               Agence *
@@ -553,7 +560,8 @@ export default function NewVehiclePage() {
             </Select>
             {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
           </div>
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

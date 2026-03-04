@@ -3,7 +3,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
-import { SearchProvider } from '@/contexts/search-context';
 import { ThemeProvider } from '@/contexts/theme-context';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -23,7 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <ToastProvider />
-        <SearchProvider>{children}</SearchProvider>
+        {children}
       </QueryClientProvider>
     </ThemeProvider>
   );

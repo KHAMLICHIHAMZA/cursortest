@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -110,39 +112,27 @@ export default function MaintenancePage() {
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto pt-2">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Maintenance</h1>
-              <p className="text-text-muted">Gérer les opérations de maintenance</p>
-            </div>
-            {isModuleActive && (
-              <Link href="/agency/maintenance/new" className="w-full sm:w-auto block md:shrink-0">
-                <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle maintenance
-                </Button>
-              </Link>
-            )}
-          </div>
+          <PageHeader
+            title="Maintenance"
+            description="Gérer les opérations de maintenance"
+            actionHref={isModuleActive ? '/agency/maintenance/new' : undefined}
+            actionLabel={isModuleActive ? 'Nouvelle maintenance' : undefined}
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
 
-          <Card className="mb-6 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <Input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher une maintenance (véhicule, description)..."
-                  className="pl-10"
-                />
-              </div>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une maintenance (véhicule, description)..."
+            rightSlot={(
               <AgencyFilter
                 selectedAgencyId={selectedAgencyId}
                 onAgencyChange={setSelectedAgencyId}
               />
-            </div>
-          </Card>
+            )}
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des maintenances..." />

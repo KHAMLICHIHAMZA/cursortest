@@ -8,13 +8,14 @@ import { authApi } from '@/lib/api/auth';
 import { companyApi } from '@/lib/api/company';
 import { agencyApi, Agency } from '@/lib/api/agency';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { MapPin, Plus, Edit, Trash2, Search } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -83,29 +84,20 @@ export default function CompanyAgenciesPage() {
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto pt-2">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Agences</h1>
-              <p className="text-text-muted">Gérer les agences de votre entreprise</p>
-              {maxAgencies !== null && (
-                <p className="text-sm text-text-muted mt-2">
-                  Limite d'agences: {currentAgenciesCount}/{maxAgencies}
-                </p>
-              )}
-            </div>
-            {limitReached ? (
-              <Button variant="primary" disabled>
-                Limite atteinte
-              </Button>
-            ) : (
-              <Link href="/company/agencies/new" className="w-full sm:w-auto block md:shrink-0">
-                <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle agence
-                </Button>
-              </Link>
+          <PageHeader
+            title="Agences"
+            description="Gérer les agences de votre entreprise"
+            actionHref={limitReached ? undefined : '/company/agencies/new'}
+            actionLabel={limitReached ? 'Limite atteinte' : 'Nouvelle agence'}
+            actionIcon={!limitReached ? <Plus className="w-4 h-4 mr-2" /> : undefined}
+            actionDisabled={limitReached}
+          >
+            {maxAgencies !== null && (
+              <p className="text-sm text-text-muted mt-2">
+                Limite d&apos;agences: {currentAgenciesCount}/{maxAgencies}
+              </p>
             )}
-          </div>
+          </PageHeader>
 
           {limitReached && (
             <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
@@ -124,25 +116,13 @@ export default function CompanyAgenciesPage() {
             </Card>
           </div>
 
-          <Card className="mb-6 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <Input
-                  type="search"
-                  placeholder="Rechercher une agence..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {searchTerm && (
-                <Button variant="secondary" onClick={() => setSearchTerm('')}>
-                  Réinitialiser
-                </Button>
-              )}
-            </div>
-          </Card>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une agence..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoading ? (
             <LoadingState message="Chargement des agences..." />

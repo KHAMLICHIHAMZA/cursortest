@@ -287,14 +287,15 @@ export default function EditClientPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <FormCard
-          title="Modifier le client"
-          description="Mettez à jour les informations du client"
-          backHref="/agency/clients"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || updateMutation.isPending || uploadImageMutation.isPending}
-          submitLabel="Enregistrer"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <FormCard
+            title="Modifier le client"
+            description="Mettez à jour les informations du client"
+            backHref="/agency/clients"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || updateMutation.isPending || uploadImageMutation.isPending}
+            submitLabel="Enregistrer"
+          >
           {/* Indicateur de validation globale */}
           {validationStatus.overall && (
             <Card className="p-3 mb-6 bg-green-500/10 border-green-500/20">
@@ -682,7 +683,8 @@ export default function EditClientPage() {
               )}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

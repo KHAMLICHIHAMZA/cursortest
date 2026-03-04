@@ -88,7 +88,7 @@ export default function NewCompanyPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           <Card className="p-4">
             <p className="text-sm text-text-muted">
               Workflow: création entreprise + plan initial, puis configuration détaillée des modules à l&apos;étape suivante.

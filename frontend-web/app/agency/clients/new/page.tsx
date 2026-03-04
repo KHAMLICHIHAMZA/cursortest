@@ -213,16 +213,18 @@ export default function NewClientPage() {
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
         <MainLayout>
-          <FormCard
-            title="Nouveau client"
-            description="Chargement..."
-            backHref="/agency/clients"
-            onSubmit={(e) => e.preventDefault()}
-            isLoading={true}
-            submitLabel="Créer le client"
-          >
-            <div className="text-sm text-text-muted">Chargement des données...</div>
-          </FormCard>
+          <div className="max-w-4xl mx-auto space-y-6">
+            <FormCard
+              title="Nouveau client"
+              description="Chargement..."
+              backHref="/agency/clients"
+              onSubmit={(e) => e.preventDefault()}
+              isLoading={true}
+              submitLabel="Créer le client"
+            >
+              <div className="text-sm text-text-muted">Chargement des données...</div>
+            </FormCard>
+          </div>
         </MainLayout>
       </RouteGuard>
     );
@@ -231,14 +233,15 @@ export default function NewClientPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <FormCard
-          title="Nouveau client"
-          description="Ajoutez un nouveau client à votre base de données"
-          backHref="/agency/clients"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
-          submitLabel="Créer le client"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <FormCard
+            title="Nouveau client"
+            description="Ajoutez un nouveau client à votre base de données"
+            backHref="/agency/clients"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
+            submitLabel="Créer le client"
+          >
           {/* Indicateur de validation globale */}
           {validationStatus.overall && (
             <Card className="p-3 mb-6 bg-green-500/10 border-green-500/20">
@@ -637,7 +640,8 @@ export default function NewClientPage() {
               )}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

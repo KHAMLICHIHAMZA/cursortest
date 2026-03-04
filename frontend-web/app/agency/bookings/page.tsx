@@ -5,10 +5,12 @@ import { bookingApi } from '@/lib/api/booking';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Calendar, Plus, Search } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -17,7 +19,6 @@ import { AgencyFilter } from '@/components/ui/agency-filter';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
-import { Input } from '@/components/ui/input';
 
 export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -117,20 +118,13 @@ export default function BookingsPage() {
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto pt-2">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Locations</h1>
-              <p className="text-text-muted">Gérer les réservations et locations</p>
-            </div>
-            {isModuleActive && (
-              <Link href="/agency/bookings/new" className="w-full sm:w-auto block md:shrink-0">
-                <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle réservation
-                </Button>
-              </Link>
-            )}
-          </div>
+          <PageHeader
+            title="Locations"
+            description="Gérer les réservations et locations"
+            actionHref={isModuleActive ? '/agency/bookings/new' : undefined}
+            actionLabel={isModuleActive ? 'Nouvelle réservation' : undefined}
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <Card className="p-4">
@@ -147,24 +141,19 @@ export default function BookingsPage() {
             </Card>
           </div>
 
-          <Card className="mb-6 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <Input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher une réservation, client, véhicule..."
-                  className="pl-10"
-                />
-              </div>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une réservation, client, véhicule..."
+            rightSlot={(
               <AgencyFilter
                 selectedAgencyId={selectedAgencyId}
                 onAgencyChange={setSelectedAgencyId}
               />
-            </div>
-          </Card>
+            )}
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des réservations..." />
