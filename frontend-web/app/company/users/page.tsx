@@ -74,12 +74,21 @@ export default function CompanyUsersPage() {
     },
   });
 
-  const filteredUsers = companyUsers?.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredUsers = companyUsers?.filter((user) => {
+    const name = (user.name || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const role = (user.role || '').toLowerCase();
+    return (
+      name.includes(normalizedSearch) ||
+      email.includes(normalizedSearch) ||
+      role.includes(normalizedSearch)
+    );
+  });
+
+  const totalUsers = companyUsers?.length || 0;
+  const activeUsers = companyUsers?.filter((item) => item.isActive).length || 0;
+  const visibleUsers = filteredUsers?.length || 0;
 
   const getRoleStatus = (role: string): 'active' | 'pending' | 'completed' | 'inactive' => {
     switch (role) {
@@ -109,18 +118,40 @@ export default function CompanyUsersPage() {
             </Link>
           </div>
 
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="search"
-                placeholder="Rechercher un utilisateur..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 max-w-md"
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total utilisateurs</p>
+              <p className="text-2xl font-bold text-text">{totalUsers}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Actifs</p>
+              <p className="text-2xl font-bold text-text">{activeUsers}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
+              <p className="text-2xl font-bold text-text">{visibleUsers}</p>
+            </Card>
           </div>
+
+          <Card className="mb-6 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Input
+                  type="search"
+                  placeholder="Rechercher un utilisateur..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {searchTerm && (
+                <Button variant="secondary" onClick={() => setSearchTerm('')}>
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
+          </Card>
 
           {isLoading ? (
             <LoadingState message="Chargement des utilisateurs..." />

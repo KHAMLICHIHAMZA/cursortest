@@ -8,6 +8,7 @@ import { companyApi } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -56,14 +57,20 @@ export default function NewAgencyPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Nouvelle agence"
-          description="Remplissez les informations pour créer une nouvelle agence"
-          backHref="/admin/agencies"
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
-          submitLabel="Créer l'agence"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Créez l&apos;agence puis configurez les utilisateurs et véhicules depuis la fiche agence.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvelle agence"
+            description="Remplissez les informations pour créer une nouvelle agence"
+            backHref="/admin/agencies"
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isPending}
+            submitLabel="Créer l'agence"
+          >
             <div>
               <label htmlFor="companyId" className="block text-sm font-medium text-text mb-2">
                 Entreprise *
@@ -126,7 +133,8 @@ export default function NewAgencyPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

@@ -7,6 +7,7 @@ import { companyApi, CreateCompanyDto } from '@/lib/api/company';
 import { planApi, Plan } from '@/lib/api/plan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -87,14 +88,20 @@ export default function NewCompanyPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Nouvelle entreprise"
-          description="Remplissez les informations pour créer une nouvelle entreprise"
-          backHref="/admin/companies"
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
-          submitLabel="Créer l'entreprise"
-        >
+        <div className="max-w-5xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Workflow: création entreprise + plan initial, puis configuration détaillée des modules à l&apos;étape suivante.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvelle entreprise"
+            description="Remplissez les informations pour créer une nouvelle entreprise"
+            backHref="/admin/companies"
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isPending}
+            submitLabel="Créer l'entreprise"
+          >
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
                 Nom de l'entreprise *
@@ -311,7 +318,8 @@ export default function NewCompanyPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

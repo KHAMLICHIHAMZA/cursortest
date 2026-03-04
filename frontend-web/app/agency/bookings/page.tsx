@@ -13,12 +13,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
-import { Input } from '@/components/ui/input';
 import { AgencyFilter } from '@/components/ui/agency-filter';
 import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
-import { toast } from '@/components/ui/toast';
 import Cookies from 'js-cookie';
 
 export default function BookingsPage() {
@@ -47,6 +45,12 @@ export default function BookingsPage() {
       booking.client?.name?.toLowerCase().includes(q)
     );
   });
+
+  const totalBookings = filteredBookings?.length || 0;
+  const inProgressBookings =
+    filteredBookings?.filter((booking) => booking.status === 'IN_PROGRESS').length || 0;
+  const lateBookings =
+    filteredBookings?.filter((booking) => booking.status === 'LATE').length || 0;
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
@@ -128,12 +132,34 @@ export default function BookingsPage() {
             )}
           </div>
 
-          <div className="mb-6 flex items-center gap-4">
-            <AgencyFilter
-              selectedAgencyId={selectedAgencyId}
-              onAgencyChange={setSelectedAgencyId}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Réservations</p>
+              <p className="text-2xl font-bold text-text">{totalBookings}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">En cours</p>
+              <p className="text-2xl font-bold text-text">{inProgressBookings}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">En retard</p>
+              <p className="text-2xl font-bold text-text">{lateBookings}</p>
+            </Card>
           </div>
+
+          <Card className="mb-6 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <AgencyFilter
+                selectedAgencyId={selectedAgencyId}
+                onAgencyChange={setSelectedAgencyId}
+              />
+              {searchTerm && (
+                <div className="text-sm text-text-muted">
+                  Recherche active: <span className="text-text font-medium">"{searchTerm}"</span>
+                </div>
+              )}
+            </div>
+          </Card>
 
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des réservations..." />

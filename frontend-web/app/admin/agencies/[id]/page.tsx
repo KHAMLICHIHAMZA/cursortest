@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agencyApi, UpdateAgencyDto } from '@/lib/api/agency';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -98,14 +98,20 @@ export default function EditAgencyPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Modifier l'agence"
-          description="Mettez à jour les informations de l'agence"
-          backHref="/admin/agencies"
-          onSubmit={handleSubmit}
-          isLoading={updateMutation.isPending}
-          submitLabel="Mettre à jour"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Entreprise liée: <span className="font-medium text-text">{agency.company?.name || '-'}</span>
+            </p>
+          </Card>
+          <FormCard
+            title="Modifier l'agence"
+            description="Mettez à jour les informations de l'agence"
+            backHref="/admin/agencies"
+            onSubmit={handleSubmit}
+            isLoading={updateMutation.isPending}
+            submitLabel="Mettre à jour"
+          >
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
               Nom de l'agence *
@@ -161,7 +167,8 @@ export default function EditAgencyPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

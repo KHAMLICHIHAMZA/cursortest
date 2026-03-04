@@ -137,6 +137,10 @@ export default function UsersPage() {
     return matchesSearch && matchesAgency;
   });
 
+  const totalUsers = users?.length || 0;
+  const visibleUsers = filteredUsers?.length || 0;
+  const activeUsers = users?.filter((user) => user.isActive).length || 0;
+
   const getRoleStatus = (role: string): 'active' | 'pending' | 'completed' | 'inactive' => {
     switch (role) {
       case 'SUPER_ADMIN':
@@ -153,43 +157,71 @@ export default function UsersPage() {
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Utilisateurs</h1>
               <p className="text-text-muted">Gérer les utilisateurs de la plateforme</p>
             </div>
-            <Link href="/admin/users/new">
-              <Button variant="primary">
+            <Link href="/admin/users/new" className="w-full sm:w-auto block">
+              <Button variant="primary" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Nouvel utilisateur
               </Button>
             </Link>
           </div>
 
-          <div className="mb-6 flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="search"
-                placeholder="Rechercher un utilisateur..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <select
-              value={agencyFilter}
-              onChange={(e) => setAgencyFilter(e.target.value)}
-              className="px-3 py-2 border border-border rounded-lg bg-card text-text text-sm min-w-[200px]"
-            >
-              <option value="">Toutes les agences</option>
-              {allAgencies.map((agency) => (
-                <option key={agency.id} value={agency.id}>
-                  {agency.name}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total utilisateurs</p>
+              <p className="text-2xl font-bold text-text">{totalUsers}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Actifs</p>
+              <p className="text-2xl font-bold text-text">{activeUsers}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
+              <p className="text-2xl font-bold text-text">{visibleUsers}</p>
+            </Card>
           </div>
+
+          <Card className="mb-6 p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Input
+                  type="search"
+                  placeholder="Rechercher un utilisateur..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <select
+                value={agencyFilter}
+                onChange={(e) => setAgencyFilter(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg bg-card text-text text-sm min-w-[220px]"
+              >
+                <option value="">Toutes les agences</option>
+                {allAgencies.map((agency) => (
+                  <option key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </option>
+                ))}
+              </select>
+              {(searchTerm || agencyFilter) && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setAgencyFilter('');
+                  }}
+                >
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
+          </Card>
 
           {isLoading ? (
             <LoadingState message="Chargement des utilisateurs..." />
@@ -214,10 +246,10 @@ export default function UsersPage() {
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                             <Users className="w-5 h-5 text-primary" />
                           </div>
-                          <span className="font-medium text-text">{user.name}</span>
+                          <span className="font-medium text-text">{user.name || 'Utilisateur sans nom'}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-text-muted">{user.email}</TableCell>
+                      <TableCell className="text-text-muted">{user.email || '-'}</TableCell>
                       <TableCell>
                         <Badge status={getRoleStatus(user.role)}>
                           {user.role.replace('_', ' ')}

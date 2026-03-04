@@ -10,6 +10,7 @@ import { companyApi } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -99,15 +100,22 @@ export default function NewCompanyAgencyPage() {
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Nouvelle agence"
-          description="Remplissez les informations pour créer une nouvelle agence"
-          backHref="/company/agencies"
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
-          isSubmitDisabled={limitReached}
-          submitLabel="Créer l'agence"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Utilisation du quota agences: <span className="font-medium text-text">{currentAgenciesCount}</span>
+              {maxAgencies !== null ? ` / ${maxAgencies}` : ' / illimité'}.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvelle agence"
+            description="Remplissez les informations pour créer une nouvelle agence"
+            backHref="/company/agencies"
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isPending}
+            isSubmitDisabled={limitReached}
+            submitLabel="Créer l'agence"
+          >
           {limitReached && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
               Limite d'agences atteinte ({currentAgenciesCount}/{maxAgencies}). Contactez votre administrateur.
@@ -200,7 +208,8 @@ export default function NewCompanyAgencyPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

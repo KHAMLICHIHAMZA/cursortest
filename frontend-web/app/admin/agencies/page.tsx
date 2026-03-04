@@ -48,35 +48,56 @@ export default function AgenciesPage() {
     return agencyName.includes(normalizedSearch) || companyName.includes(normalizedSearch);
   });
 
+  const totalAgencies = agencies?.length || 0;
+  const visibleAgencies = filteredAgencies?.length || 0;
+
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Agences</h1>
               <p className="text-text-muted">Gérer les agences</p>
             </div>
-            <Link href="/admin/agencies/new">
-              <Button variant="primary">
+            <Link href="/admin/agencies/new" className="w-full sm:w-auto block">
+              <Button variant="primary" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Nouvelle agence
               </Button>
             </Link>
           </div>
 
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="search"
-                placeholder="Rechercher une agence..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 max-w-md"
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total agences</p>
+              <p className="text-2xl font-bold text-text">{totalAgencies}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
+              <p className="text-2xl font-bold text-text">{visibleAgencies}</p>
+            </Card>
           </div>
+
+          <Card className="mb-6 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Input
+                  type="search"
+                  placeholder="Rechercher une agence ou une entreprise..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {searchTerm && (
+                <Button variant="secondary" onClick={() => setSearchTerm('')}>
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
+          </Card>
 
           {isLoading ? (
             <LoadingState message="Chargement des agences..." />

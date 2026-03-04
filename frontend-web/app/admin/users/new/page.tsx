@@ -76,14 +76,20 @@ export default function NewUserPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Nouvel utilisateur"
-          description="Remplissez les informations pour créer un nouvel utilisateur"
-          backHref="/admin/users"
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
-          submitLabel="Créer l'utilisateur"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Astuce: sélectionnez d&apos;abord l&apos;entreprise pour afficher les agences disponibles.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvel utilisateur"
+            description="Remplissez les informations pour créer un nouvel utilisateur"
+            backHref="/admin/users"
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isPending}
+            submitLabel="Créer l'utilisateur"
+          >
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
                 Nom complet *
@@ -171,7 +177,8 @@ export default function NewUserPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

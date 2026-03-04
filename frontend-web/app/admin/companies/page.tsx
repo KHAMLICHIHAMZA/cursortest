@@ -5,11 +5,12 @@ import { companyApi, Company } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Building2, Plus, Edit, Trash2, Power } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Power, Search } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -17,6 +18,7 @@ import { RouteGuard } from '@/components/auth/route-guard';
 
 export default function CompaniesPage() {
   const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
 
@@ -42,6 +44,16 @@ export default function CompaniesPage() {
     },
   });
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredCompanies = companies?.filter((company) => {
+    const name = (company.name || '').toLowerCase();
+    const phone = (company.phone || '').toLowerCase();
+    return name.includes(normalizedSearch) || phone.includes(normalizedSearch);
+  });
+
+  const activeCount = companies?.filter((company) => company.isActive).length || 0;
+  const inactiveCount = (companies?.length || 0) - activeCount;
+
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
@@ -59,9 +71,44 @@ export default function CompaniesPage() {
             </Link>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total</p>
+              <p className="text-2xl font-bold text-text">{companies?.length || 0}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Actives</p>
+              <p className="text-2xl font-bold text-text">{activeCount}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Inactives</p>
+              <p className="text-2xl font-bold text-text">{inactiveCount}</p>
+            </Card>
+          </div>
+
+          <Card className="mb-6 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher par nom ou téléphone..."
+                  className="pl-10"
+                />
+              </div>
+              {searchTerm && (
+                <Button variant="secondary" onClick={() => setSearchTerm('')}>
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
+          </Card>
+
           {isLoading ? (
             <LoadingState message="Chargement des entreprises..." />
-          ) : companies && companies.length > 0 ? (
+          ) : filteredCompanies && filteredCompanies.length > 0 ? (
             <Card padding="none">
               <Table>
                 <TableHeader>
@@ -75,7 +122,7 @@ export default function CompaniesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {companies.map((company) => (
+                  {filteredCompanies.map((company) => (
                     <TableRow key={company.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -127,15 +174,21 @@ export default function CompaniesPage() {
           ) : (
             <EmptyState
               icon={Building2}
-              title="Aucune entreprise"
-              description="Commencez par créer votre première entreprise"
+              title="Aucune entreprise trouvée"
+              description={
+                searchTerm
+                  ? 'Aucune entreprise ne correspond à votre recherche'
+                  : 'Commencez par créer votre première entreprise'
+              }
               action={
-                <Link href="/admin/companies/new">
-                  <Button variant="primary">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Créer une entreprise
-                  </Button>
-                </Link>
+                !searchTerm && (
+                  <Link href="/admin/companies/new">
+                    <Button variant="primary">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Créer une entreprise
+                    </Button>
+                  </Link>
+                )
               }
             />
           )}

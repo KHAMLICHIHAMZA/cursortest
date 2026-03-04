@@ -12,6 +12,7 @@ import { clientApi } from '@/lib/api/client-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -143,14 +144,20 @@ export default function NewBookingPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <FormCard
-          title="Nouvelle réservation"
-          description="Créez une nouvelle réservation de location"
-          backHref="/agency/bookings"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || createMutation.isPending}
-          submitLabel="Créer la réservation"
-        >
+        <div className="max-w-5xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Conseil: sélectionnez d&apos;abord l&apos;agence puis le véhicule pour calculer automatiquement le montant total.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvelle réservation"
+            description="Créez une nouvelle réservation de location"
+            backHref="/agency/bookings"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || createMutation.isPending}
+            submitLabel="Créer la réservation"
+          >
             <div>
               <label htmlFor="agencyId" className="block text-sm font-medium text-text mb-2">
                 Agence *
@@ -317,7 +324,8 @@ export default function NewBookingPage() {
               )}
             </div>
 
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );
