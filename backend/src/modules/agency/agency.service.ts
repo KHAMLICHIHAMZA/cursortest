@@ -5,7 +5,7 @@ import { AuditService } from '../../common/services/audit.service';
 import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
 import { CreateAgencyDto } from './dto/create-agency.dto';
 import { UpdateAgencyDto } from './dto/update-agency.dto';
-import { BusinessEventType } from '@prisma/client';
+import { AgencyStatus, BusinessEventType, Role } from '@prisma/client';
 
 @Injectable()
 export class AgencyService {
@@ -287,12 +287,55 @@ export class AgencyService {
     // Store previous state for event log
     const previousState = { ...agency };
 
-    // Add delete audit fields
-    const deleteData = this.auditService.addDeleteAuditFields({}, user?.id || user?.userId || user?.sub);
+    const actorId = user?.id || user?.userId || user?.sub;
 
-    await this.prisma.agency.update({
-      where: { id },
-      data: deleteData,
+    // Soft-delete agency + cleanup user-agency links in one transaction.
+    // Then deactivate AGENT/AGENCY_MANAGER users that no longer have any active agency.
+    const deleteData = this.auditService.addDeleteAuditFields(
+      { status: AgencyStatus.DELETED },
+      actorId,
+      'Suppression de l’agence',
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.agency.update({
+        where: { id },
+        data: deleteData,
+      });
+
+      await tx.userAgency.deleteMany({
+        where: { agencyId: id },
+      });
+
+      const orphanUsers = await tx.user.findMany({
+        where: {
+          companyId: agency.companyId,
+          role: { in: [Role.AGENCY_MANAGER, Role.AGENT] },
+          isActive: true,
+          deletedAt: null,
+          userAgencies: {
+            none: {
+              agency: {
+                deletedAt: null,
+                status: AgencyStatus.ACTIVE,
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      if (orphanUsers.length > 0) {
+        await tx.user.updateMany({
+          where: {
+            id: { in: orphanUsers.map((u) => u.id) },
+          },
+          data: this.auditService.addUpdateAuditFields(
+            { isActive: false },
+            actorId,
+          ),
+        });
+      }
     });
 
     // Log business event
@@ -304,7 +347,7 @@ export class AgencyService {
         BusinessEventType.AGENCY_DELETED,
         previousState,
         { ...agency, ...deleteData },
-        user?.id || user?.userId || user?.sub,
+        actorId,
         agency.companyId, // companyId
       )
       .catch((err) => this.logger.error('Error logging agency deletion event:', err));
