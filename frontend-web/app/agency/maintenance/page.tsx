@@ -10,13 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Wrench, Plus, Edit, Trash2 } from 'lucide-react';
+import { Wrench, Plus, Edit, Trash2, Search } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { AgencyFilter } from '@/components/ui/agency-filter';
-import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import { toast } from '@/components/ui/toast';
@@ -24,7 +23,7 @@ import Cookies from 'js-cookie';
 
 export default function MaintenancePage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [maintenanceToDelete, setMaintenanceToDelete] = useState<Maintenance | null>(null);
@@ -110,15 +109,15 @@ export default function MaintenancePage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+        <div className="max-w-7xl mx-auto pt-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Maintenance</h1>
               <p className="text-text-muted">Gérer les opérations de maintenance</p>
             </div>
             {isModuleActive && (
-              <Link href="/agency/maintenance/new">
-                <Button variant="primary">
+              <Link href="/agency/maintenance/new" className="w-full sm:w-auto block md:shrink-0">
+                <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouvelle maintenance
                 </Button>
@@ -126,12 +125,24 @@ export default function MaintenancePage() {
             )}
           </div>
 
-          <div className="mb-6 flex items-center gap-4">
-            <AgencyFilter
-              selectedAgencyId={selectedAgencyId}
-              onAgencyChange={setSelectedAgencyId}
-            />
-          </div>
+          <Card className="mb-6 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher une maintenance (véhicule, description)..."
+                  className="pl-10"
+                />
+              </div>
+              <AgencyFilter
+                selectedAgencyId={selectedAgencyId}
+                onAgencyChange={setSelectedAgencyId}
+              />
+            </div>
+          </Card>
 
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des maintenances..." />

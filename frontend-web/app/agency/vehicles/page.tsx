@@ -5,17 +5,17 @@ import { vehicleApi, Vehicle } from '@/lib/api/vehicle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { Car, Plus, Edit, Trash2, AlertTriangle, Search } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import { getImageUrl } from '@/lib/utils/image-url';
-import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import { authApi } from '@/lib/api/auth';
@@ -23,7 +23,7 @@ import Cookies from 'js-cookie';
 
 export default function VehiclesPage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
 
@@ -75,21 +75,34 @@ export default function VehiclesPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="max-w-7xl mx-auto pt-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Véhicules</h1>
               <p className="text-text-muted">Gérer la flotte de véhicules</p>
             </div>
             {canManageVehicles && (
-              <Link href="/agency/vehicles/new" className="w-full sm:w-auto block">
-                <Button variant="primary" className="w-full sm:w-auto">
+              <Link href="/agency/vehicles/new" className="w-full sm:w-auto block md:shrink-0">
+                <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouveau véhicule
                 </Button>
               </Link>
             )}
           </div>
+
+          <Card className="mb-6 p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <Input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Rechercher un véhicule (marque, modèle, immatriculation)..."
+                className="pl-10"
+              />
+            </div>
+          </Card>
 
           {isError ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">

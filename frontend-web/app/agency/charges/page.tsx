@@ -275,7 +275,7 @@ export default function ChargesPage() {
       <MainLayout>
         <div className="max-w-[1600px] mx-auto space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between pt-2">
             <div>
               <h1 className="text-3xl font-bold text-text mb-1">Charges & Depenses</h1>
               <p className="text-text-muted text-sm">
@@ -284,7 +284,7 @@ export default function ChargesPage() {
             </div>
             <button
               onClick={openNewModal}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-lg"
+              className="w-full sm:w-auto md:shrink-0 whitespace-nowrap px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-lg"
             >
               + Nouvelle charge
             </button>

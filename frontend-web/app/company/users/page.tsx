@@ -104,14 +104,14 @@ export default function CompanyUsersPage() {
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="max-w-7xl mx-auto pt-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Utilisateurs</h1>
               <p className="text-text-muted">Gérer les utilisateurs de votre entreprise</p>
             </div>
-            <Link href="/company/users/new">
-              <Button variant="primary">
+            <Link href="/company/users/new" className="w-full sm:w-auto block md:shrink-0">
+              <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
                 <Plus className="w-4 h-4 mr-2" />
                 Nouvel utilisateur
               </Button>

@@ -9,18 +9,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { UserCircle, Plus, Edit, Trash2, Globe, FileText, Calendar } from 'lucide-react';
+import { UserCircle, Plus, Edit, Trash2, Globe, FileText, Calendar, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { useDebounce } from '@/lib/hooks/use-debounce';
-import { useSearch } from '@/contexts/search-context';
 
 export default function ClientsPage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -62,19 +61,32 @@ export default function ClientsPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="max-w-7xl mx-auto pt-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-text mb-2">Clients</h1>
               <p className="text-text-muted">Gérer les clients de l'agence</p>
             </div>
-            <Link href="/agency/clients/new" className="w-full sm:w-auto block">
-              <Button variant="primary" className="w-full sm:w-auto">
+            <Link href="/agency/clients/new" className="w-full sm:w-auto block md:shrink-0">
+              <Button variant="primary" className="w-full sm:w-auto whitespace-nowrap">
                 <Plus className="w-4 h-4 mr-2" />
                 Nouveau client
               </Button>
             </Link>
           </div>
+
+          <Card className="mb-6 p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <Input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Rechercher un client (nom, email, téléphone, document)..."
+                className="pl-10"
+              />
+            </div>
+          </Card>
 
 
           {isError ? (
