@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useSearch } from '@/contexts/search-context';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface HeaderProps {
   userName?: string;
@@ -15,6 +16,8 @@ interface HeaderProps {
 
 export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
   const { searchTerm, setSearchTerm } = useSearch();
+  const pathname = usePathname();
+  const showAgencySearch = pathname.startsWith('/agency');
 
   const profileHref = userRole === 'SUPER_ADMIN'
     ? '/admin/profile'
@@ -33,16 +36,22 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="relative flex-1 max-w-md min-w-0">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <Input
-            type="search"
-            placeholder="Rechercher..."
-            className="pl-10 bg-background border-border"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        {showAgencySearch ? (
+          <div className="relative flex-1 max-w-md min-w-0">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <Input
+              type="search"
+              placeholder="Recherche rapide (agence)..."
+              className="pl-10 bg-background border-border"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div className="hidden md:block text-sm text-text-muted">
+            Recherche rapide disponible dans les pages Agence.
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
