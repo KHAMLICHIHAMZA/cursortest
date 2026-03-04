@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
@@ -107,9 +108,12 @@ export default function VehiclesPage() {
               {filteredVehicles.map((vehicle) => (
                 <Card key={vehicle.id} className="hover:border-primary transition-colors">
                   {vehicle.imageUrl ? (
-                    <img
+                    <Image
                       src={getImageUrl(vehicle.imageUrl) || ''}
                       alt={`${vehicle.brand} ${vehicle.model}`}
+                      width={800}
+                      height={480}
+                      unoptimized
                       className="w-full h-48 object-cover rounded-t-lg mb-4"
                     />
                   ) : (

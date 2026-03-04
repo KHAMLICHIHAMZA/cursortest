@@ -9,6 +9,7 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actionHref?: string;
+  actionOnClick?: () => void;
   actionLabel?: string;
   actionIcon?: React.ReactNode;
   actionDisabled?: boolean;
@@ -21,6 +22,7 @@ export function PageHeader({
   title,
   description,
   actionHref,
+  actionOnClick,
   actionLabel,
   actionIcon,
   actionDisabled = false,
@@ -51,6 +53,19 @@ export function PageHeader({
         <Link href={actionHref} className="w-full sm:w-auto block md:shrink-0">
           {actionButton}
         </Link>
+      ) : actionOnClick && actionButton ? (
+        <div className="w-full sm:w-auto md:shrink-0">
+          <Button
+            variant="primary"
+            className="w-full sm:w-auto whitespace-nowrap"
+            disabled={actionDisabled}
+            aria-label={actionAriaLabel || actionLabel}
+            onClick={actionOnClick}
+          >
+            {actionIcon}
+            {actionLabel}
+          </Button>
+        </div>
       ) : (
         actionButton
       )}

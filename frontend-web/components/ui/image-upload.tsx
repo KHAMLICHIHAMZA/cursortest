@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './button';
 import { Card } from './card';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { X, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { toast } from './toast';
+import Image from 'next/image';
 
 interface ImageUploadProps {
   value?: string;
@@ -161,9 +162,12 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
       {preview ? (
         <Card className="relative p-4">
           <div className="relative inline-block">
-            <img
+            <Image
               src={preview}
               alt="Prévisualisation"
+              width={640}
+              height={384}
+              unoptimized
               className="w-full h-48 object-cover rounded-lg"
             />
             {!disabled && (

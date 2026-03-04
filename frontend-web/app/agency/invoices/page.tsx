@@ -3,9 +3,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
+import { LoadingState } from '@/components/ui/loading-state';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -127,7 +130,7 @@ export default function InvoicesPage() {
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
-          <div className="text-center py-8">Chargement...</div>
+          <LoadingState message="Chargement des factures..." />
         </MainLayout>
       </RouteGuard>
     );
@@ -137,7 +140,7 @@ export default function InvoicesPage() {
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
-          <div className="text-center py-8 text-red-500">Erreur lors du chargement des factures</div>
+          <div className="text-center py-8 text-error">Erreur lors du chargement des factures</div>
         </MainLayout>
       </RouteGuard>
     );
@@ -146,84 +149,84 @@ export default function InvoicesPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Factures</h1>
-      </div>
+        <div className="max-w-7xl mx-auto pt-2 space-y-6">
+          <PageHeader
+            title="Factures"
+            description="Consulter les factures et avoirs, puis exporter en PDF"
+          />
 
-      <div>
-        <Input
-          placeholder="Rechercher par numéro, client, véhicule..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
+          <PageFilters
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Rechercher par numéro, client, véhicule..."
+            showReset={!!search}
+            onReset={() => setSearch('')}
+          />
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>N° Facture</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>N° Réservation</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Véhicule</TableHead>
-              <TableHead>Montant</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredInvoices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  Aucune facture trouvée
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
-                  <TableCell>
-                    <Badge status={invoice.type === 'CREDIT_NOTE' ? 'pending' : 'confirmed'}>
-                      {invoice.type === 'CREDIT_NOTE' ? 'Avoir' : 'Facture'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{invoice.booking?.bookingNumber || '-'}</TableCell>
-                  <TableCell>{invoice.booking?.client?.name || '-'}</TableCell>
-                  <TableCell>
-                    {invoice.booking?.vehicle
-                      ? `${invoice.booking.vehicle.brand} ${invoice.booking.vehicle.model}`
-                      : '-'}
-                  </TableCell>
-                  <TableCell className={invoice.totalAmount < 0 ? 'text-red-600' : ''}>
-                    {formatAmount(invoice.totalAmount)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge status={getStatusKey(invoice.status)}>
-                      {getStatusLabel(invoice.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadPdf(invoice.id, invoice.invoiceNumber)}
-                      disabled={downloadingId === invoice.id}
-                    >
-                      {downloadingId === invoice.id ? 'Chargement...' : 'PDF'}
-                    </Button>
-                  </TableCell>
+          <Card className="p-0 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° Facture</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>N° Réservation</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Véhicule</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-text-muted">
+                      Aucune facture trouvée
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
+                      <TableCell>
+                        <Badge status={invoice.type === 'CREDIT_NOTE' ? 'pending' : 'confirmed'}>
+                          {invoice.type === 'CREDIT_NOTE' ? 'Avoir' : 'Facture'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{invoice.booking?.bookingNumber || '-'}</TableCell>
+                      <TableCell>{invoice.booking?.client?.name || '-'}</TableCell>
+                      <TableCell>
+                        {invoice.booking?.vehicle
+                          ? `${invoice.booking.vehicle.brand} ${invoice.booking.vehicle.model}`
+                          : '-'}
+                      </TableCell>
+                      <TableCell className={invoice.totalAmount < 0 ? 'text-red-600' : ''}>
+                        {formatAmount(invoice.totalAmount)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge status={getStatusKey(invoice.status)}>
+                          {getStatusLabel(invoice.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadPdf(invoice.id, invoice.invoiceNumber)}
+                          disabled={downloadingId === invoice.id}
+                        >
+                          {downloadingId === invoice.id ? 'Chargement...' : 'PDF'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

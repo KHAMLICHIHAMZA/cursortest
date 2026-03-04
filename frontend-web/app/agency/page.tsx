@@ -6,6 +6,7 @@ import { clientApi, Client } from '@/lib/api/client-api';
 import { bookingApi } from '@/lib/api/booking';
 import { Car, Users, Calendar, Plus } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -152,9 +153,12 @@ export default function AgencyDashboard() {
                   {vehicles.slice(0, 6).map((vehicle) => (
                     <Card key={vehicle.id} variant="outlined" padding="sm" className="hover:border-primary/50 transition-colors">
                       {vehicle.imageUrl ? (
-                        <img
+                        <Image
                           src={getImageUrl(vehicle.imageUrl) || ''}
                           alt={`${vehicle.brand} ${vehicle.model}`}
+                          width={640}
+                          height={320}
+                          unoptimized
                           className="w-full h-32 object-cover rounded-lg mb-3"
                         />
                       ) : (

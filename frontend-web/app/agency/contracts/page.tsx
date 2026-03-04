@@ -3,9 +3,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
+import { LoadingState } from '@/components/ui/loading-state';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -135,7 +138,7 @@ export default function ContractsPage() {
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
         <MainLayout>
-          <div className="text-center py-8">Chargement...</div>
+          <LoadingState message="Chargement des contrats..." />
         </MainLayout>
       </RouteGuard>
     );
@@ -144,80 +147,80 @@ export default function ContractsPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Contrats</h1>
-      </div>
+        <div className="max-w-7xl mx-auto pt-2 space-y-6">
+          <PageHeader
+            title="Contrats"
+            description="Consulter et télécharger les contrats de location"
+          />
 
-      <div>
-        <Input
-          placeholder="Rechercher par réservation, client, véhicule..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
+          <PageFilters
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Rechercher par réservation, client, véhicule..."
+            showReset={!!search}
+            onReset={() => setSearch('')}
+          />
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>N° Réservation</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Véhicule</TableHead>
-              <TableHead>Version</TableHead>
-              <TableHead>Signatures</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead>Effectif</TableHead>
-              <TableHead>Créé le</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredContracts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  Aucun contrat trouvé
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredContracts.map((contract) => (
-                <TableRow key={contract.id}>
-                  <TableCell className="font-mono">
-                    {contract.booking?.bookingNumber || '-'}
-                  </TableCell>
-                  <TableCell>{contract.booking?.client?.name || '-'}</TableCell>
-                  <TableCell>
-                    {contract.booking?.vehicle
-                      ? `${contract.booking.vehicle.brand} ${contract.booking.vehicle.model}`
-                      : '-'}
-                  </TableCell>
-                  <TableCell>v{contract.version}</TableCell>
-                  <TableCell className="text-sm">{getSignatureStatus(contract)}</TableCell>
-                  <TableCell>
-                    <Badge status={getStatusKey(contract.status)}>
-                      {getStatusLabel(contract.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(contract.effectiveAt)}</TableCell>
-                  <TableCell>{formatDate(contract.createdAt)}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadPdf(contract.id)}
-                      disabled={downloadingId === contract.id}
-                    >
-                      {downloadingId === contract.id ? 'Chargement...' : 'PDF'}
-                    </Button>
-                  </TableCell>
+          <Card className="p-0 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° Réservation</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Véhicule</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Signatures</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Effectif</TableHead>
+                  <TableHead>Créé le</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+              </TableHeader>
+              <TableBody>
+                {filteredContracts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-text-muted">
+                      Aucun contrat trouvé
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredContracts.map((contract) => (
+                    <TableRow key={contract.id}>
+                      <TableCell className="font-mono">
+                        {contract.booking?.bookingNumber || '-'}
+                      </TableCell>
+                      <TableCell>{contract.booking?.client?.name || '-'}</TableCell>
+                      <TableCell>
+                        {contract.booking?.vehicle
+                          ? `${contract.booking.vehicle.brand} ${contract.booking.vehicle.model}`
+                          : '-'}
+                      </TableCell>
+                      <TableCell>v{contract.version}</TableCell>
+                      <TableCell className="text-sm">{getSignatureStatus(contract)}</TableCell>
+                      <TableCell>
+                        <Badge status={getStatusKey(contract.status)}>
+                          {getStatusLabel(contract.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(contract.effectiveAt)}</TableCell>
+                      <TableCell>{formatDate(contract.createdAt)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadPdf(contract.id)}
+                          disabled={downloadingId === contract.id}
+                        >
+                          {downloadingId === contract.id ? 'Chargement...' : 'PDF'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </div>
       </MainLayout>
     </RouteGuard>
   );
