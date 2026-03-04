@@ -151,18 +151,16 @@ export class AgencyService {
           maxAgencies: company.maxAgencies,
         };
 
-        this.businessEventLogService
-          .logEvent(
-            null,
-            'Agency',
-            targetCompanyId,
-            BusinessEventType.AGENCY_CREATE_BLOCKED_MAX_LIMIT,
-            null,
-            eventPayload,
-            user?.id || user?.userId || user?.sub,
-            targetCompanyId,
-          )
-          .catch((err) => this.logger.error('Error logging agency creation block event:', err));
+        await this.businessEventLogService.logEvent(
+          null,
+          'Agency',
+          targetCompanyId,
+          BusinessEventType.AGENCY_CREATE_BLOCKED_MAX_LIMIT,
+          null,
+          eventPayload,
+          user?.id || user?.userId || user?.sub,
+          targetCompanyId,
+        );
 
         throw new ConflictException(
           `Limite d’agences atteinte (${activeAgenciesCount}/${company.maxAgencies})`,
