@@ -167,17 +167,17 @@ export default function UsersPage() {
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-primary/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Total utilisateurs</p>
-              <p className="text-2xl font-bold text-text">{totalUsers}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{totalUsers}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-green-500/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Actifs</p>
-              <p className="text-2xl font-bold text-text">{activeUsers}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{activeUsers}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-indigo-500/35">
               <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
-              <p className="text-2xl font-bold text-text">{visibleUsers}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{visibleUsers}</p>
             </Card>
           </div>
 
@@ -210,7 +210,7 @@ export default function UsersPage() {
           {isLoading ? (
             <LoadingState message="Chargement des utilisateurs..." />
           ) : filteredUsers && filteredUsers.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -266,7 +266,9 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
                             onClick={() => impersonateMutation.mutate(user.id)}
+                            aria-label="Se connecter en tant que cet utilisateur"
                             title="Se connecter en tant que cet utilisateur"
                             disabled={impersonateMutation.isPending}
                           >
@@ -276,13 +278,21 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
                             onClick={() => resetPasswordMutation.mutate(user.id)}
+                            aria-label="Réinitialiser le mot de passe"
                             title="Réinitialiser le mot de passe"
                           >
                             <Key className="w-4 h-4" />
                           </Button>
                           <Link href={`/admin/users/${user.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier l'utilisateur"
+                              title="Modifier l'utilisateur"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
@@ -290,6 +300,9 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer l'utilisateur"
+                            title="Supprimer l'utilisateur"
                             onClick={() => {
                               setUserToDelete(user);
                               setDeleteDialogOpen(true);

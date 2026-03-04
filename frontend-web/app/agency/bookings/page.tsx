@@ -56,8 +56,8 @@ export default function BookingsPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
       CONFIRMED: { status: 'confirmed', label: 'Confirmée' },
-      IN_PROGRESS: { status: 'active', label: 'ACTIVE' },
-      RETURNED: { status: 'completed', label: 'TERMINÉE' },
+      IN_PROGRESS: { status: 'active', label: 'En cours' },
+      RETURNED: { status: 'completed', label: 'Terminée' },
       CANCELLED: { status: 'cancelled', label: 'Annulée' },
       LATE: { status: 'late', label: 'En retard' },
       PENDING: { status: 'pending', label: 'En attente' },
@@ -127,17 +127,17 @@ export default function BookingsPage() {
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-primary/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Réservations</p>
-              <p className="text-2xl font-bold text-text">{totalBookings}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{totalBookings}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-blue-500/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">En cours</p>
-              <p className="text-2xl font-bold text-text">{inProgressBookings}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{inProgressBookings}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-orange-500/45">
               <p className="text-xs uppercase tracking-wide text-text-muted">En retard</p>
-              <p className="text-2xl font-bold text-text">{lateBookings}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{lateBookings}</p>
             </Card>
           </div>
 
@@ -158,7 +158,7 @@ export default function BookingsPage() {
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des réservations..." />
           ) : filteredBookings && filteredBookings.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -219,7 +219,12 @@ export default function BookingsPage() {
                           {isModuleActive && (
                             <div className="flex items-center justify-end gap-2">
                               <Link href={`/agency/bookings/${booking.id}`}>
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label="Modifier la réservation"
+                                  title="Modifier la réservation"
+                                >
                                   Modifier
                                 </Button>
                               </Link>

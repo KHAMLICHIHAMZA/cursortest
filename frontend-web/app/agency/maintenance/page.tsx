@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { maintenanceApi, Maintenance } from '@/lib/api/maintenance';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
@@ -12,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Wrench, Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Wrench, Plus, Edit, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -137,7 +136,7 @@ export default function MaintenancePage() {
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des maintenances..." />
           ) : filteredMaintenance && filteredMaintenance.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -180,13 +179,22 @@ export default function MaintenancePage() {
                           {isModuleActive && (
                             <div className="flex items-center justify-end gap-2">
                               <Link href={`/agency/maintenance/${m.id}`}>
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                  aria-label="Modifier la maintenance"
+                                  title="Modifier la maintenance"
+                                >
                                   <Edit className="w-4 h-4" />
                                 </Button>
                               </Link>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-9 w-9 p-0"
+                                aria-label="Supprimer la maintenance"
+                                title="Supprimer la maintenance"
                                 onClick={() => {
                                   setMaintenanceToDelete(m);
                                   setDeleteDialogOpen(true);

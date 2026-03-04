@@ -153,7 +153,13 @@ export default function VehiclesPage() {
 
                     <div className="flex items-center gap-2">
                       <Link href={`/agency/vehicles/${vehicle.id}`} className="flex-1">
-                        <Button variant="ghost" size="sm" className="w-full">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          aria-label="Modifier le véhicule"
+                          title="Modifier le véhicule"
+                        >
                           <Edit className="w-4 h-4 mr-2" />
                           Modifier
                         </Button>
@@ -161,6 +167,9 @@ export default function VehiclesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-9 w-9 p-0"
+                        aria-label="Supprimer le véhicule"
+                        title="Supprimer le véhicule"
                         onClick={() => {
                           setVehicleToDelete(vehicle);
                           setDeleteDialogOpen(true);

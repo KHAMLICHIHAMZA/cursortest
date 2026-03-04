@@ -106,13 +106,13 @@ export default function CompanyAgenciesPage() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-primary/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Total agences</p>
-              <p className="text-2xl font-bold text-text">{currentAgenciesCount}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{currentAgenciesCount}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-indigo-500/35">
               <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
-              <p className="text-2xl font-bold text-text">{visibleAgencies}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{visibleAgencies}</p>
             </Card>
           </div>
 
@@ -127,7 +127,7 @@ export default function CompanyAgenciesPage() {
           {isLoading ? (
             <LoadingState message="Chargement des agences..." />
           ) : filteredAgencies && filteredAgencies.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -153,13 +153,22 @@ export default function CompanyAgenciesPage() {
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/company/agencies/${agency.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier l'agence"
+                              title="Modifier l'agence"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer l'agence"
+                            title="Supprimer l'agence"
                             onClick={() => {
                               setAgencyToDelete(agency);
                               setDeleteDialogOpen(true);

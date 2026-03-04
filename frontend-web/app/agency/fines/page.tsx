@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fineApi, Fine } from '@/lib/api/fine';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
@@ -120,7 +119,7 @@ export default function FinesPage() {
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des amendes..." />
           ) : filteredFines && filteredFines.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -163,13 +162,22 @@ export default function FinesPage() {
                         {isModuleActive && (
                           <div className="flex items-center justify-end gap-2">
                             <Link href={`/agency/fines/${fine.id}`}>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 w-9 p-0"
+                                aria-label="Modifier l'amende"
+                                title="Modifier l'amende"
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
                             </Link>
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Supprimer l'amende"
+                              title="Supprimer l'amende"
                               onClick={() => {
                                 setFineToDelete(fine);
                                 setDeleteDialogOpen(true);

@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientApi, Client } from '@/lib/api/client-api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageFilters } from '@/components/ui/page-filters';
@@ -11,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { UserCircle, Plus, Edit, Trash2, Globe, FileText, Calendar } from 'lucide-react';
+import { UserCircle, Plus, Edit, Trash2, FileText, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
@@ -91,7 +90,7 @@ export default function ClientsPage() {
           ) : isLoading ? (
             <LoadingState message="Chargement des clients..." />
           ) : filteredClients && filteredClients.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -182,13 +181,22 @@ export default function ClientsPage() {
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/agency/clients/${client.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier le client"
+                              title="Modifier le client"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer le client"
+                            title="Supprimer le client"
                             onClick={() => {
                               setClientToDelete(client);
                               setDeleteDialogOpen(true);

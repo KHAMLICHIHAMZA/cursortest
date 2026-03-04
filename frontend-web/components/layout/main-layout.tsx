@@ -112,7 +112,11 @@ export function MainLayout({ children }: MainLayoutProps) {
           userRole={user?.role}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className={`pt-14 md:pt-16 p-3 md:p-6 lg:p-8 ${isImpersonating ? 'mt-10' : ''}`}>
+        <main
+          className={`p-3 md:p-6 lg:p-8 ${
+            isImpersonating ? 'pt-24 md:pt-28' : 'pt-16 md:pt-20'
+          }`}
+        >
           {children}
         </main>
       </div>

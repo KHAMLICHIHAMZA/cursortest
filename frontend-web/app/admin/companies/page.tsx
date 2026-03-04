@@ -68,17 +68,17 @@ export default function CompaniesPage() {
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-primary/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Total</p>
-              <p className="text-2xl font-bold text-text">{companies?.length || 0}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{companies?.length || 0}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-green-500/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Actives</p>
-              <p className="text-2xl font-bold text-text">{activeCount}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{activeCount}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="p-4 border-l-4 border-l-slate-400/60">
               <p className="text-xs uppercase tracking-wide text-text-muted">Inactives</p>
-              <p className="text-2xl font-bold text-text">{inactiveCount}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{inactiveCount}</p>
             </Card>
           </div>
 
@@ -93,7 +93,7 @@ export default function CompaniesPage() {
           {isLoading ? (
             <LoadingState message="Chargement des entreprises..." />
           ) : filteredCompanies && filteredCompanies.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -127,6 +127,9 @@ export default function CompaniesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label={company.isActive ? "Désactiver l'entreprise" : "Activer l'entreprise"}
+                            title={company.isActive ? "Désactiver l'entreprise" : "Activer l'entreprise"}
                             onClick={() =>
                               toggleActiveMutation.mutate({ id: company.id, isActive: company.isActive })
                             }
@@ -134,13 +137,22 @@ export default function CompaniesPage() {
                             <Power className="w-4 h-4" />
                           </Button>
                           <Link href={`/admin/companies/${company.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier l'entreprise"
+                              title="Modifier l'entreprise"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer l'entreprise"
+                            title="Supprimer l'entreprise"
                             onClick={() => {
                               setCompanyToDelete(company);
                               setDeleteDialogOpen(true);
