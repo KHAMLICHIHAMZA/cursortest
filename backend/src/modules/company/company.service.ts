@@ -10,6 +10,10 @@ import { BusinessEventType, CompanyStatus, AgencyStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
+import {
+  DEFAULT_SAAS_SETTINGS,
+  SAAS_SETTINGS_RULE_KEYS,
+} from '../saas-settings/saas-settings.types';
 
 @Injectable()
 export class CompanyService {
@@ -151,6 +155,7 @@ export class CompanyService {
       adminEmail,
       adminName,
       planId,
+      additionalModuleCodes,
     } = createCompanyDto;
 
     if (!name) {
@@ -250,10 +255,86 @@ export class CompanyService {
       if (planId) {
         const plan = await tx.plan.findUnique({
           where: { id: planId },
-          include: { planModules: true },
+          include: { planModules: true, planQuotas: true },
         });
 
         if (plan && plan.isActive) {
+          const settingsRules = await tx.businessRule.findMany({
+            where: {
+              key: { in: Object.values(SAAS_SETTINGS_RULE_KEYS) },
+              companyId: null,
+              agencyId: null,
+              isActive: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+          });
+          const latestRuleValueByKey = new Map<string, string>();
+          settingsRules.forEach((r) => {
+            if (!latestRuleValueByKey.has(r.key)) {
+              latestRuleValueByKey.set(r.key, r.value);
+            }
+          });
+          const extraAgencyPriceMad = Number(
+            latestRuleValueByKey.get(SAAS_SETTINGS_RULE_KEYS.EXTRA_AGENCY_PRICE_MAD) ??
+              DEFAULT_SAAS_SETTINGS.extraAgencyPriceMad,
+          );
+          const extraModulePriceMad = Number(
+            latestRuleValueByKey.get(SAAS_SETTINGS_RULE_KEYS.EXTRA_MODULE_PRICE_MAD) ??
+              DEFAULT_SAAS_SETTINGS.extraModulePriceMad,
+          );
+          const allowAgencyOverageOnCreate =
+            (latestRuleValueByKey.get(
+              SAAS_SETTINGS_RULE_KEYS.ALLOW_AGENCY_OVERAGE_ON_CREATE,
+            ) ?? String(DEFAULT_SAAS_SETTINGS.allowAgencyOverageOnCreate)) === 'true';
+          const allowAdditionalModulesOnCreate =
+            (latestRuleValueByKey.get(
+              SAAS_SETTINGS_RULE_KEYS.ALLOW_ADDITIONAL_MODULES_ON_CREATE,
+            ) ?? String(DEFAULT_SAAS_SETTINGS.allowAdditionalModulesOnCreate)) === 'true';
+
+          const planModuleCodes = plan.planModules.map((pm) => pm.moduleCode);
+          const extraModuleCodes =
+            additionalModuleCodes?.filter((code) => !planModuleCodes.includes(code)) || [];
+          if (!allowAdditionalModulesOnCreate && extraModuleCodes.length > 0) {
+            throw new BadRequestException(
+              "L'ajout de modules additionnels a la creation est desactive par la configuration SaaS.",
+            );
+          }
+          const allModuleCodes = Array.from(new Set([...planModuleCodes, ...extraModuleCodes]));
+          const planAgencyQuota = plan.planQuotas.find(
+            (q) =>
+              q.quotaKey === 'agencies' ||
+              q.quotaKey === 'max_agencies' ||
+              q.quotaKey === 'maxAgencies',
+          );
+          const resolvedMaxAgencies =
+            maxAgencies ??
+            (planAgencyQuota && planAgencyQuota.quotaValue >= 0
+              ? planAgencyQuota.quotaValue
+              : undefined);
+          const extraAgenciesCount =
+            resolvedMaxAgencies !== undefined &&
+            planAgencyQuota &&
+            planAgencyQuota.quotaValue >= 0
+              ? Math.max(0, resolvedMaxAgencies - planAgencyQuota.quotaValue)
+              : 0;
+          if (!allowAgencyOverageOnCreate && extraAgenciesCount > 0) {
+            throw new BadRequestException(
+              "Le depassement du quota agences a la creation est desactive par la configuration SaaS.",
+            );
+          }
+
+          // If maxAgencies is not explicitly provided, inherit agencies quota from selected plan.
+          if (
+            maxAgencies === undefined &&
+            planAgencyQuota &&
+            planAgencyQuota.quotaValue >= 0
+          ) {
+            await tx.company.update({
+              where: { id: createdCompany.id },
+              data: { maxAgencies: planAgencyQuota.quotaValue },
+            });
+          }
+
           const startDate = new Date();
           const endDate = new Date(startDate);
           endDate.setMonth(endDate.getMonth() + 1);
@@ -266,23 +347,26 @@ export class CompanyService {
               billingPeriod: 'MONTHLY',
               startDate,
               endDate,
-              amount: plan.price,
+              amount:
+                plan.price +
+                extraAgenciesCount * (Number.isFinite(extraAgencyPriceMad) ? extraAgencyPriceMad : 0) +
+                extraModuleCodes.length * (Number.isFinite(extraModulePriceMad) ? extraModulePriceMad : 0),
               createdByUserId: user?.id || user?.userId || user?.sub,
             },
           });
 
-          if (plan.planModules.length > 0) {
+          if (allModuleCodes.length > 0) {
             await tx.subscriptionModule.createMany({
-              data: plan.planModules.map((pm) => ({
+              data: allModuleCodes.map((moduleCode) => ({
                 subscriptionId: subscription.id,
-                moduleCode: pm.moduleCode,
+                moduleCode,
               })),
             });
 
             await tx.companyModule.createMany({
-              data: plan.planModules.map((pm) => ({
+              data: allModuleCodes.map((moduleCode) => ({
                 companyId: createdCompany.id,
-                moduleCode: pm.moduleCode,
+                moduleCode,
                 isActive: true,
               })),
               skipDuplicates: true,

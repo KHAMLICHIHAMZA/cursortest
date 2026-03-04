@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import Cookies from 'js-cookie';
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -42,8 +44,9 @@ export default function LoginPage() {
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
       });
-      
-      console.log('Tokens stored successfully');
+
+      // Prime shared cache to avoid extra user-fetch/loading flash just after redirect.
+      queryClient.setQueryData(['me'], response.user);
 
       // Rediriger selon le rôle
       const role = response.user.role;

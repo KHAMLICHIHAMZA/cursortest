@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEmail, IsEnum, IsInt, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingNumberMode, CompanyLegalForm } from '@prisma/client';
+import { BookingNumberMode, CompanyLegalForm, ModuleCode } from '@prisma/client';
 
 export class CreateCompanyDto {
   @ApiProperty()
@@ -54,6 +54,15 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   planId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Modules additionnels à activer en plus des modules du plan',
+    type: [String],
+    enum: ModuleCode,
+  })
+  @IsOptional()
+  @IsEnum(ModuleCode, { each: true })
+  additionalModuleCodes?: ModuleCode[];
 }
 
 

@@ -26,11 +26,13 @@ export interface CreateCompanyDto {
   identifiantLegal: string;
   formeJuridique: string;
   maxAgencies?: number | null;
+  bookingNumberMode?: string;
   phone?: string;
   address?: string;
   adminEmail?: string;
   adminName?: string;
   planId?: string;
+  additionalModuleCodes?: string[];
 }
 
 export interface UpdateCompanyDto {

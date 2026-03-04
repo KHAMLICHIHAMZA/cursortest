@@ -38,6 +38,7 @@ import { InAppNotificationModule } from './modules/in-app-notification/in-app-no
 
 // V2.1 Modules
 import { ChargeModule } from './modules/charge/charge.module';
+import { SaasSettingsModule } from './modules/saas-settings/saas-settings.module';
 
 // Common
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -98,6 +99,7 @@ import { ReadOnlyGuard } from './common/guards/read-only.guard';
 
     // V2.1 Modules
     ChargeModule,
+    SaasSettingsModule,
   ],
   providers: [
     {
