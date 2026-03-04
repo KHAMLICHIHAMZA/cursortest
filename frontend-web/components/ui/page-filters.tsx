@@ -39,9 +39,9 @@ export function PageFilters({
             className="pl-10"
           />
         </div>
-        {rightSlot}
+        {rightSlot && <div className="w-full sm:w-auto">{rightSlot}</div>}
         {showReset && onReset && (
-          <Button variant="secondary" onClick={onReset}>
+          <Button variant="secondary" onClick={onReset} className="w-full sm:w-auto whitespace-nowrap">
             Réinitialiser
           </Button>
         )}

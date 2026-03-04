@@ -62,9 +62,13 @@ export default function ChargesPage() {
     enabled: isCompanyAdmin && !defaultAgencyId,
   });
 
-  const companyAgencies = agencies?.filter(
-    (a: any) => !user?.companyId || a.companyId === user.companyId,
-  ) || [];
+  const companyAgencies = useMemo(
+    () =>
+      (agencies?.filter(
+        (a: any) => !user?.companyId || a.companyId === user.companyId,
+      ) || []),
+    [agencies, user?.companyId],
+  );
 
   // Auto-select first agency for COMPANY_ADMIN with no agencyIds
   useEffect(() => {
@@ -115,7 +119,7 @@ export default function ChargesPage() {
     enabled: !!agencyId,
   });
 
-  const allChargesRaw = charges ?? [];
+  const allChargesRaw = useMemo(() => charges ?? [], [charges]);
 
   // Apply recurrence filter client-side
   const allCharges = useMemo(() => {

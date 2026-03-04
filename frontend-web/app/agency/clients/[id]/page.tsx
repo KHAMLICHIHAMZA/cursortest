@@ -87,6 +87,7 @@ export default function EditClientPage() {
   const licenseExpiryDate = watch('licenseExpiryDate');
   const idCardExpiryDate = watch('idCardExpiryDate');
   const passportExpiryDate = watch('passportExpiryDate');
+  const idCardType = watch('idCardType');
 
   // Déterminer si la section pièce d'identité/passeport doit être affichée
   const showIdentitySection = useMemo(() => {
@@ -248,7 +249,6 @@ export default function EditClientPage() {
   const validationStatus = useMemo(() => {
     const requiredFields = ['firstName', 'lastName', 'email', 'phone'];
     const requiredValid = requiredFields.every(field => !errors[field as keyof typeof errors]);
-    const idCardType = watch('idCardType');
     const conditionalValid = !showIdentitySection || (idCardType && idCardNumber);
     const countryValid = isMoroccan || countryOfOrigin;
     
@@ -258,7 +258,7 @@ export default function EditClientPage() {
       country: countryValid,
       overall: requiredValid && conditionalValid && countryValid && isValid,
     };
-  }, [errors, showIdentitySection, idCardNumber, passportNumber, isMoroccan, countryOfOrigin, isValid]);
+  }, [errors, showIdentitySection, idCardType, idCardNumber, isMoroccan, countryOfOrigin, isValid]);
 
   if (isLoadingClient || isLoadingAgencies) {
     return (
@@ -635,7 +635,7 @@ export default function EditClientPage() {
                 </select>
               </div>
 
-              {watch('idCardType') && (
+              {idCardType && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="idCardNumber" className="block text-sm font-medium text-text mb-2">
@@ -644,7 +644,7 @@ export default function EditClientPage() {
                     <Input
                       id="idCardNumber"
                       {...register('idCardNumber')}
-                      placeholder={watch('idCardType') === 'PASSEPORT' ? 'Ex: 12AB34567' : 'Ex: AB123456'}
+                      placeholder={idCardType === 'PASSEPORT' ? 'Ex: 12AB34567' : 'Ex: AB123456'}
                       onBlur={() => trigger(['idCardNumber', 'idCardExpiryDate'])}
                     />
                     {errors.idCardNumber && (
