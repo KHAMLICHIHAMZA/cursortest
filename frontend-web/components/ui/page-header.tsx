@@ -43,18 +43,18 @@ export function PageHeader({
   ) : null;
 
   return (
-    <div className={cn('flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8', className)}>
-      <div>
-        <h1 className="text-3xl font-bold text-text mb-2">{title}</h1>
-        {description && <p className="text-text-muted">{description}</p>}
+    <div className={cn('mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between', className)}>
+      <div className="min-w-0">
+        <h1 className="text-3xl font-bold text-text">{title}</h1>
+        {description && <p className="mt-1 text-text-muted">{description}</p>}
         {children}
       </div>
       {actionHref && actionButton ? (
-        <Link href={actionHref} className="w-full sm:w-auto block md:shrink-0">
+        <Link href={actionHref} className="block w-full self-start sm:w-auto md:shrink-0 md:pt-1">
           {actionButton}
         </Link>
       ) : actionOnClick && actionButton ? (
-        <div className="w-full sm:w-auto md:shrink-0">
+        <div className="w-full self-start sm:w-auto md:shrink-0 md:pt-1">
           <Button
             variant="primary"
             className="w-full sm:w-auto whitespace-nowrap"

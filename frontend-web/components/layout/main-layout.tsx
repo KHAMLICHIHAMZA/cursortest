@@ -114,7 +114,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         />
         <main
           className={`p-3 md:p-6 lg:p-8 ${
-            isImpersonating ? 'pt-24 md:pt-28' : 'pt-16 md:pt-20'
+            isImpersonating ? 'pt-24 md:pt-32 lg:pt-[8.5rem]' : 'pt-16 md:pt-24 lg:pt-[6.5rem]'
           }`}
         >
           {children}
