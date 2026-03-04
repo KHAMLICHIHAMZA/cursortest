@@ -41,7 +41,7 @@ export default function NewCompanyPage() {
 
   const { data: plans = [] } = useQuery<Plan[]>({
     queryKey: ['plans'],
-    queryFn: planApi.getAll,
+    queryFn: () => planApi.getAll(),
   });
 
   const createMutation = useMutation({
