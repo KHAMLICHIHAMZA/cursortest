@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
 
@@ -66,6 +67,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="fixed top-4 right-4 z-20">
+        <ThemeToggle className="border border-border bg-card" />
+      </div>
       <div className="w-full max-w-md">
         <Card variant="elevated" padding="lg">
           <CardHeader>

@@ -46,6 +46,9 @@ export class AuthService {
 
     // Vérifier que la company est active (vérifier isActive ET status SaaS)
     if (user.companyId && user.company) {
+      if (user.company.deletedAt) {
+        throw new UnauthorizedException('Société supprimée');
+      }
       if (!user.company.isActive) {
         throw new UnauthorizedException('Société inactive');
       }
@@ -341,12 +344,16 @@ export class AuthService {
     }
 
     // Vérifier que la company est active
-    if (user.companyId && user.company && !user.company.isActive) {
+    if (
+      user.companyId &&
+      user.company &&
+      (user.company.deletedAt || !user.company.isActive || (user.company.status && user.company.status !== 'ACTIVE'))
+    ) {
       await this.prisma.refreshToken.update({
         where: { id: storedToken.id },
         data: { revoked: true, revokedAt: new Date() },
       });
-      throw new UnauthorizedException('La société est inactive. Contactez votre administrateur.');
+      throw new UnauthorizedException('La société est inactive ou supprimée. Contactez votre administrateur.');
     }
 
     const agencyIds = user.userAgencies.map(ua => ua.agencyId);

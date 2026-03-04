@@ -24,11 +24,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:pointer-events-none min-h-[44px]';
 
     const variants = {
-      primary: 'bg-primary text-white hover:bg-[#2563EB]',
-      secondary: 'bg-card text-text hover:bg-[#374151]',
+      primary: 'bg-primary text-white hover:bg-primary/90',
+      secondary: 'bg-card text-text hover:bg-card-hover',
       outline: 'border border-border text-text hover:bg-card',
       ghost: 'text-text hover:bg-card',
-      danger: 'bg-error text-white hover:bg-[#DC2626]',
+      danger: 'bg-error text-white hover:bg-error/90',
     };
 
     const sizes = {

@@ -9,16 +9,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Design System MalocAuto
-        background: '#1D1F23',
-        card: '#2C2F36',
-        primary: '#3E7BFA',
-        text: '#E5E7EB',
-        'text-muted': '#9CA3AF',
-        border: '#374151',
-        success: '#10B981',
-        warning: '#F59E0B',
-        error: '#EF4444',
+        // Design System (token-based, supports dark/light themes)
+        background: 'rgb(var(--background) / <alpha-value>)',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        'card-hover': 'rgb(var(--card-hover) / <alpha-value>)',
+        primary: 'rgb(var(--primary) / <alpha-value>)',
+        text: 'rgb(var(--text) / <alpha-value>)',
+        'text-muted': 'rgb(var(--text-muted) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
+        success: 'rgb(var(--success) / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
+        error: 'rgb(var(--error) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

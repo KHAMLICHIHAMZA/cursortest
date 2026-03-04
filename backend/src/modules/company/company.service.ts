@@ -386,13 +386,56 @@ export class CompanyService {
     // Store previous state for event log
     const previousState = { ...company };
 
-    // Add delete audit fields
-    const deleteData = this.auditService.addDeleteAuditFields({}, user?.id || user?.userId || user?.sub, reason);
+    const actorId = user?.id || user?.userId || user?.sub;
 
-    await this.prisma.company.update({
-      where: { id },
-      data: deleteData,
-    });
+    // Add delete audit fields (company)
+    const companyDeleteData = this.auditService.addDeleteAuditFields(
+      {
+        isActive: false,
+        status: 'DELETED',
+      },
+      actorId,
+      reason,
+    );
+
+    // Soft-delete cascade: disable related users and agencies immediately
+    // so existing sessions are blocked on next request.
+    const userDeleteData = this.auditService.addDeleteAuditFields(
+      {
+        isActive: false,
+      },
+      actorId,
+      reason || 'Suppression de la société par administrateur',
+    );
+
+    const agencyDeleteData = this.auditService.addDeleteAuditFields(
+      {
+        status: 'DELETED',
+      },
+      actorId,
+      reason || 'Suppression de la société par administrateur',
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.user.updateMany({
+        where: {
+          companyId: id,
+          deletedAt: null,
+        },
+        data: userDeleteData,
+      }),
+      this.prisma.agency.updateMany({
+        where: {
+          companyId: id,
+          deletedAt: null,
+        },
+        data: agencyDeleteData,
+      }),
+      this.prisma.company.update({
+        where: { id },
+        data: companyDeleteData,
+      }),
+    ]);
 
     // Log business event
     this.businessEventLogService
@@ -402,7 +445,7 @@ export class CompanyService {
         company.id,
         BusinessEventType.COMPANY_DELETED,
         previousState,
-        { ...company, ...deleteData },
+        { ...company, ...companyDeleteData },
         user?.id || user?.userId || user?.sub,
         company.id, // companyId
       )

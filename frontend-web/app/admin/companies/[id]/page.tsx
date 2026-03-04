@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyApi, UpdateCompanyDto } from '@/lib/api/company';
 import { moduleApi, ModuleCode, CompanyModule } from '@/lib/api/module';
@@ -27,6 +27,7 @@ const ALL_MODULES: { code: ModuleCode; label: string; description: string }[] = 
 export default function EditCompanyPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const queryClient = useQueryClient();
 
@@ -64,6 +65,15 @@ export default function EditCompanyPage() {
       });
     }
   }, [company]);
+
+  useEffect(() => {
+    if (searchParams.get('section') !== 'modules') return;
+    const timer = setTimeout(() => {
+      const section = document.getElementById('modules-section');
+      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
 
   // --- Modules management (hooks must be before any conditional return) ---
   const { data: companyModules, isLoading: modulesLoading } = useQuery({
@@ -294,12 +304,17 @@ export default function EditCompanyPage() {
           </FormCard>
 
           {/* Section Modules */}
-          <Card>
+          <Card id="modules-section">
             <CardHeader>
               <CardTitle>Modules activés</CardTitle>
               <p className="text-sm text-text-muted mt-1">
                 Activez ou désactivez les modules pour cette entreprise. Les modules actifs seront disponibles pour toutes ses agences.
               </p>
+              {searchParams.get('section') === 'modules' && (
+                <p className="text-xs text-primary mt-2">
+                  Étape 2 : finalisez ici l&apos;activation des modules.
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               {modulesLoading ? (
@@ -338,6 +353,11 @@ export default function EditCompanyPage() {
                       </div>
                     );
                   })}
+                  <div className="pt-2 flex justify-end">
+                    <Button variant="primary" onClick={() => router.push('/admin/companies')}>
+                      Terminer
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

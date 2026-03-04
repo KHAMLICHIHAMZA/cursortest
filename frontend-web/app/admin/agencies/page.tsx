@@ -40,11 +40,13 @@ export default function AgenciesPage() {
     },
   });
 
-  const filteredAgencies = agencies?.filter(
-    (agency) =>
-      agency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agency.company?.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const filteredAgencies = agencies?.filter((agency) => {
+    const agencyName = (agency.name || '').toLowerCase();
+    const companyName = (agency.company?.name || '').toLowerCase();
+    return agencyName.includes(normalizedSearch) || companyName.includes(normalizedSearch);
+  });
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>

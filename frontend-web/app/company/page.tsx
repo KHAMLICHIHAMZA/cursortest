@@ -129,8 +129,9 @@ export default function CompanyDashboard() {
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-text mb-2">Tableau de bord Entreprise</h1>
+          <div className="mb-8 flex flex-col gap-2">
+            <Badge status="info" className="w-fit">Company Admin</Badge>
+            <h1 className="text-3xl font-bold text-text">Tableau de bord Entreprise</h1>
             <p className="text-text-muted">Vue d'ensemble de votre entreprise</p>
           </div>
 
@@ -197,7 +198,7 @@ export default function CompanyDashboard() {
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             <StatCard
               title="Agences"
               value={companyAgencies.length || 0}
@@ -229,13 +230,13 @@ export default function CompanyDashboard() {
           </div>
 
           {/* Additional Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Revenus totaux</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-text">{totalRevenue.toLocaleString('fr-FR')} €</p>
+                <p className="text-3xl font-bold text-text">{totalRevenue.toLocaleString('fr-FR')} MAD</p>
                 <p className="text-sm text-text-muted mt-1">
                   {completedBookings.length} location(s) terminée(s)
                 </p>
@@ -253,7 +254,7 @@ export default function CompanyDashboard() {
                         maximumFractionDigits: 0,
                       })
                     : 0}{' '}
-                  €
+                  MAD
                 </p>
                 <p className="text-sm text-text-muted mt-1">
                   Moyenne sur {companyVehicles.length} véhicule(s)
@@ -278,9 +279,13 @@ export default function CompanyDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold text-text">Actions rapides</h2>
+            <p className="text-sm text-text-muted">Navigation directe vers la gestion opérationnelle.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             <Link href="/company/agencies">
-              <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
                 <div className="flex items-center gap-4 p-6">
                   <MapPin className="w-8 h-8 text-primary" />
                   <div>
@@ -292,7 +297,7 @@ export default function CompanyDashboard() {
             </Link>
 
             <Link href="/company/users">
-              <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
                 <div className="flex items-center gap-4 p-6">
                   <Users className="w-8 h-8 text-primary" />
                   <div>
@@ -304,7 +309,7 @@ export default function CompanyDashboard() {
             </Link>
 
             <Link href="/company/analytics">
-              <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
                 <div className="flex items-center gap-4 p-6">
                   <BarChart3 className="w-8 h-8 text-primary" />
                   <div>
@@ -316,7 +321,7 @@ export default function CompanyDashboard() {
             </Link>
 
             <Link href="/company/planning">
-              <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
                 <div className="flex items-center gap-4 p-6">
                   <Calendar className="w-8 h-8 text-primary" />
                   <div>
@@ -340,7 +345,7 @@ export default function CompanyDashboard() {
                     {companyAgencies.slice(0, 5).map((agency) => (
                       <div
                         key={agency.id}
-                        className="flex items-center justify-between p-4 bg-background rounded-lg hover:bg-background/80 transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-4 bg-card-hover rounded-lg hover:bg-card transition-colors cursor-pointer border border-border/40"
                         onClick={() => router.push(`/company/agencies/${agency.id}`)}
                       >
                         <div>
@@ -370,7 +375,7 @@ export default function CompanyDashboard() {
                     {activeBookings.slice(0, 5).map((booking) => (
                       <div
                         key={booking.id}
-                        className="flex items-center justify-between p-4 bg-background rounded-lg"
+                        className="flex items-center justify-between p-4 bg-card-hover rounded-lg border border-border/40"
                       >
                         <div>
                           <p className="font-medium text-text">

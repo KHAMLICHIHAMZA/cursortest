@@ -3,6 +3,7 @@
 import { Bell, Search, User, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useSearch } from '@/contexts/search-context';
 import Link from 'next/link';
 
@@ -45,6 +46,7 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+        <ThemeToggle />
         <Button variant="ghost" size="sm">
           <Bell className="w-5 h-5 text-text-muted" />
         </Button>

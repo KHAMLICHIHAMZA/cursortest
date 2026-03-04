@@ -45,9 +45,9 @@ export default function NewCompanyPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: CreateCompanyDto) => companyApi.create(data),
-    onSuccess: () => {
-      toast.success('Entreprise créée avec succès');
-      router.push('/admin/companies');
+    onSuccess: (createdCompany) => {
+      toast.success('Entreprise créée. Configurez maintenant les modules.');
+      router.push(`/admin/companies/${createdCompany.id}?section=modules`);
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Erreur lors de la création';
@@ -252,7 +252,7 @@ export default function NewCompanyPage() {
             <div className="border-t border-border pt-6">
               <h2 className="text-lg font-semibold text-text mb-2">Plan / Package</h2>
               <p className="text-sm text-text-muted mb-4">
-                Sélectionnez un plan pour activer automatiquement l&apos;abonnement et les modules
+                Sélectionnez un plan pour créer l&apos;abonnement initial. La configuration détaillée des modules se fait à l&apos;étape suivante.
               </p>
 
               {plans.length === 0 ? (

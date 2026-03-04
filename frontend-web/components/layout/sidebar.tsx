@@ -226,6 +226,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
     ...agencyLinks4CompanyAdmin,
   ];
 
+  const dashboardHref = isAdmin ? '/admin' : isCompanyAdmin ? '/company' : '/agency';
   const allLinks = isAdmin ? adminLinks : isCompanyAdmin ? companyAdminWithAgencyLinks : agencyLinks;
   const links = modulesLoaded ? allLinks.filter(link => shouldShowLink(link.href)) : [];
 
@@ -250,12 +251,14 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
         }`}
       >
         <div className="p-4 md:p-6 border-b border-border flex items-center justify-between">
-          <div>
-            <h1 className="text-lg md:text-xl font-bold text-text">MalocAuto</h1>
+          <Link href={dashboardHref} onClick={handleLinkClick} className="block">
+            <h1 className="text-lg md:text-xl font-bold text-text hover:text-primary transition-colors">
+              MalocAuto
+            </h1>
             <p className="text-xs text-text-muted mt-1">
               {isAdmin ? 'Administration' : isCompanyAdmin ? 'Entreprise' : 'Agence'}
             </p>
-          </div>
+          </Link>
           <button
             onClick={onClose}
             className="lg:hidden p-1 rounded-md text-text-muted hover:text-text hover:bg-background"

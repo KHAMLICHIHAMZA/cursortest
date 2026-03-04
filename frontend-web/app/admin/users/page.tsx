@@ -118,11 +118,17 @@ export default function UsersPage() {
         .sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
   const filteredUsers = users?.filter((user) => {
+    const userName = (user.name || '').toLowerCase();
+    const userEmail = (user.email || '').toLowerCase();
+    const userRole = (user.role || '').toLowerCase();
+
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase());
+      userName.includes(normalizedSearch) ||
+      userEmail.includes(normalizedSearch) ||
+      userRole.includes(normalizedSearch);
 
     const matchesAgency =
       !agencyFilter ||

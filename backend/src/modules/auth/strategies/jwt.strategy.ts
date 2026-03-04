@@ -34,8 +34,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Session invalide ou compte désactivé. Veuillez vous reconnecter.');
     }
 
-    // Note: Les règles métier SaaS (company suspended/inactive, etc.) sont gérées
-    // par des guards dédiés (RequireActiveCompanyGuard) pour retourner 403 (pas 401).
+    // Block deleted/inactive company sessions immediately (even for existing tokens).
+    if (
+      user.companyId &&
+      user.company &&
+      (user.company.deletedAt || !user.company.isActive || (user.company.status && user.company.status !== 'ACTIVE'))
+    ) {
+      throw new UnauthorizedException('Session invalide: la société est inactive ou supprimée.');
+    }
 
     return {
       userId: user.id,

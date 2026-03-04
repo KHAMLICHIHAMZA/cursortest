@@ -41,13 +41,14 @@ export default function AgencyDashboard() {
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text mb-2">Tableau de bord Agence</h1>
-          <p className="text-text-muted">Gestion de votre agence</p>
-        </div>
+          <div className="mb-8 flex flex-col gap-2">
+            <Badge status="info" className="w-fit">Agence</Badge>
+            <h1 className="text-3xl font-bold text-text">Tableau de bord Agence</h1>
+            <p className="text-text-muted">Gestion de votre agence</p>
+          </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-8">
             <StatCard
               title="Véhicules disponibles"
               value={availableVehicles}
@@ -76,10 +77,14 @@ export default function AgencyDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold text-text">Actions rapides</h2>
+            <p className="text-sm text-text-muted">Accès direct aux modules métier de l’agence.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-8">
             <Link href="/agency/vehicles">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <Car className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Véhicules</h3>
@@ -90,8 +95,8 @@ export default function AgencyDashboard() {
             </Link>
 
             <Link href="/agency/clients">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <Users className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Clients</h3>
@@ -102,8 +107,8 @@ export default function AgencyDashboard() {
             </Link>
 
             <Link href="/agency/bookings">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <Calendar className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Locations</h3>
@@ -114,8 +119,8 @@ export default function AgencyDashboard() {
             </Link>
 
             <Link href="/agency/planning">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <Calendar className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Planning</h3>
@@ -145,7 +150,7 @@ export default function AgencyDashboard() {
               ) : vehicles && vehicles.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {vehicles.slice(0, 6).map((vehicle) => (
-                    <Card key={vehicle.id} variant="outlined" padding="sm">
+                    <Card key={vehicle.id} variant="outlined" padding="sm" className="hover:border-primary/50 transition-colors">
                       {vehicle.imageUrl ? (
                         <img
                           src={getImageUrl(vehicle.imageUrl) || ''}

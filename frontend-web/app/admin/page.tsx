@@ -35,13 +35,14 @@ export default function AdminDashboard() {
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-text mb-2">Tableau de bord Admin</h1>
+          <div className="mb-8 flex flex-col gap-2">
+            <Badge status="info" className="w-fit">Super Admin</Badge>
+            <h1 className="text-3xl font-bold text-text">Tableau de bord Admin</h1>
             <p className="text-text-muted">Gestion complète de la plateforme MalocAuto</p>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
             <StatCard
               title="Entreprises"
               value={companies?.length || 0}
@@ -63,10 +64,14 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold text-text">Actions rapides</h2>
+            <p className="text-sm text-text-muted">Accès direct aux pages de gestion principales.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
             <Link href="/admin/companies">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <Building2 className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Gérer les entreprises</h3>
@@ -77,8 +82,8 @@ export default function AdminDashboard() {
             </Link>
 
             <Link href="/admin/agencies">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <MapPin className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Gérer les agences</h3>
@@ -89,8 +94,8 @@ export default function AdminDashboard() {
             </Link>
 
             <Link href="/admin/users">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
+              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
+                <div className="flex items-center gap-4 min-h-[72px]">
                   <Users className="w-8 h-8 text-primary" />
                   <div>
                     <h3 className="font-semibold text-text mb-1">Gérer les utilisateurs</h3>
@@ -120,17 +125,17 @@ export default function AdminDashboard() {
               ) : companies && companies.length > 0 ? (
                 <div className="space-y-4">
                   {companies.slice(0, 5).map((company) => (
-                    <Card key={company.id} variant="outlined" padding="sm">
-                      <div className="flex items-center justify-between">
+                    <Card key={company.id} variant="outlined" padding="sm" className="hover:border-primary/50 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                           <h3 className="font-medium text-text">{company.name}</h3>
                           <p className="text-sm text-text-muted">
                             {company._count?.agencies || 0} agences • {company._count?.users || 0} utilisateurs
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
                           <Badge status={company.isActive ? 'active' : 'inactive'}>
-                            {company.isActive ? 'Active' : 'Inactive'}
+                            {company.isActive ? 'Actif' : 'Inactif'}
                           </Badge>
                           <Link href={`/admin/companies/${company.id}`}>
                             <Button variant="ghost" size="sm">
