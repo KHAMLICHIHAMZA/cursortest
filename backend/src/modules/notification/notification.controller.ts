@@ -6,10 +6,13 @@ import { EmailNotificationService } from './email-notification.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequireModuleGuard, RequireModule } from '../../common/guards/require-module.guard';
+import { ModuleCode } from '@prisma/client';
 
 @ApiTags('Notifications')
 @Controller('notifications')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RequireModuleGuard)
+@RequireModule(ModuleCode.NOTIFICATIONS)
 @ApiBearerAuth()
 export class NotificationController {
   constructor(
