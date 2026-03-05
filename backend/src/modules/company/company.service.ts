@@ -255,7 +255,7 @@ export class CompanyService {
       if (planId) {
         const plan = await tx.plan.findUnique({
           where: { id: planId },
-          include: { planModules: true, planQuotas: true },
+          include: { planModules: true, planQuotas: true, pricingRule: true },
         });
 
         if (plan && plan.isActive) {
@@ -290,11 +290,27 @@ export class CompanyService {
             (latestRuleValueByKey.get(
               SAAS_SETTINGS_RULE_KEYS.ALLOW_ADDITIONAL_MODULES_ON_CREATE,
             ) ?? String(DEFAULT_SAAS_SETTINGS.allowAdditionalModulesOnCreate)) === 'true';
+          const effectiveExtraAgencyPriceMad =
+            plan.pricingRule?.extraAgencyPriceMad ??
+            (Number.isFinite(extraAgencyPriceMad)
+              ? extraAgencyPriceMad
+              : DEFAULT_SAAS_SETTINGS.extraAgencyPriceMad);
+          const effectiveExtraModulePriceMad =
+            plan.pricingRule?.extraModulePriceMad ??
+            (Number.isFinite(extraModulePriceMad)
+              ? extraModulePriceMad
+              : DEFAULT_SAAS_SETTINGS.extraModulePriceMad);
+          const effectiveAllowAgencyOverageOnCreate =
+            plan.pricingRule?.allowAgencyOverageOnCreate ??
+            allowAgencyOverageOnCreate;
+          const effectiveAllowAdditionalModulesOnCreate =
+            plan.pricingRule?.allowAdditionalModulesOnCreate ??
+            allowAdditionalModulesOnCreate;
 
           const planModuleCodes = plan.planModules.map((pm) => pm.moduleCode);
           const extraModuleCodes =
             additionalModuleCodes?.filter((code) => !planModuleCodes.includes(code)) || [];
-          if (!allowAdditionalModulesOnCreate && extraModuleCodes.length > 0) {
+          if (!effectiveAllowAdditionalModulesOnCreate && extraModuleCodes.length > 0) {
             throw new BadRequestException(
               "L'ajout de modules additionnels a la creation est desactive par la configuration SaaS.",
             );
@@ -317,7 +333,7 @@ export class CompanyService {
             planAgencyQuota.quotaValue >= 0
               ? Math.max(0, resolvedMaxAgencies - planAgencyQuota.quotaValue)
               : 0;
-          if (!allowAgencyOverageOnCreate && extraAgenciesCount > 0) {
+          if (!effectiveAllowAgencyOverageOnCreate && extraAgenciesCount > 0) {
             throw new BadRequestException(
               "Le depassement du quota agences a la creation est desactive par la configuration SaaS.",
             );
@@ -349,8 +365,8 @@ export class CompanyService {
               endDate,
               amount:
                 plan.price +
-                extraAgenciesCount * (Number.isFinite(extraAgencyPriceMad) ? extraAgencyPriceMad : 0) +
-                extraModuleCodes.length * (Number.isFinite(extraModulePriceMad) ? extraModulePriceMad : 0),
+                extraAgenciesCount * effectiveExtraAgencyPriceMad +
+                extraModuleCodes.length * effectiveExtraModulePriceMad,
               createdByUserId: user?.id || user?.userId || user?.sub,
             },
           });

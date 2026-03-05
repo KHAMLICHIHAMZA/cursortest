@@ -9,6 +9,13 @@ export interface PlanQuota {
   quotaValue: number;
 }
 
+export interface PlanPricingRule {
+  extraAgencyPriceMad: number;
+  extraModulePriceMad: number;
+  allowAgencyOverageOnCreate: boolean;
+  allowAdditionalModulesOnCreate: boolean;
+}
+
 export interface Plan {
   id: string;
   name: string;
@@ -17,8 +24,16 @@ export interface Plan {
   isActive: boolean;
   planModules: PlanModule[];
   planQuotas: PlanQuota[];
+  pricingRule?: PlanPricingRule | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PlanPricingRulesInput {
+  extraAgencyPriceMad?: number;
+  extraModulePriceMad?: number;
+  allowAgencyOverageOnCreate?: boolean;
+  allowAdditionalModulesOnCreate?: boolean;
 }
 
 export interface CreatePlanDto {
@@ -27,6 +42,7 @@ export interface CreatePlanDto {
   price: number;
   moduleCodes?: string[];
   quotas?: Record<string, number>;
+  pricingRules?: PlanPricingRulesInput;
 }
 
 export interface UpdatePlanDto extends Partial<CreatePlanDto> {

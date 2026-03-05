@@ -120,8 +120,14 @@ export default function NewCompanyPage() {
 
   const estimatedMonthlyAmount = useMemo(() => {
     if (!selectedPlan) return undefined;
-    const extraAgencyUnitPrice = saasSettings?.extraAgencyPriceMad ?? 0;
-    const extraModuleUnitPrice = saasSettings?.extraModulePriceMad ?? 0;
+    const extraAgencyUnitPrice =
+      selectedPlan.pricingRule?.extraAgencyPriceMad ??
+      saasSettings?.extraAgencyPriceMad ??
+      0;
+    const extraModuleUnitPrice =
+      selectedPlan.pricingRule?.extraModulePriceMad ??
+      saasSettings?.extraModulePriceMad ??
+      0;
     return selectedPlan.price + extraAgenciesCount * extraAgencyUnitPrice + additionalModuleCodes.length * extraModuleUnitPrice;
   }, [
     selectedPlan,
@@ -130,6 +136,22 @@ export default function NewCompanyPage() {
     saasSettings?.extraAgencyPriceMad,
     saasSettings?.extraModulePriceMad,
   ]);
+
+  const effectiveAllowAgencyOverageOnCreate = useMemo(
+    () =>
+      selectedPlan?.pricingRule?.allowAgencyOverageOnCreate ??
+      saasSettings?.allowAgencyOverageOnCreate ??
+      true,
+    [selectedPlan, saasSettings],
+  );
+
+  const effectiveAllowAdditionalModulesOnCreate = useMemo(
+    () =>
+      selectedPlan?.pricingRule?.allowAdditionalModulesOnCreate ??
+      saasSettings?.allowAdditionalModulesOnCreate ??
+      true,
+    [selectedPlan, saasSettings],
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,13 +179,12 @@ export default function NewCompanyPage() {
 
     if (
       selectedPlan &&
-      saasSettings &&
-      !saasSettings.allowAgencyOverageOnCreate &&
+      !effectiveAllowAgencyOverageOnCreate &&
       extraAgenciesCount > 0
     ) {
       setErrors({
         submit:
-          "Le depassement du quota d'agences est desactive dans les Parametres SaaS.",
+          "Le depassement du quota d'agences est desactive par la regle tarifaire active (plan/global).",
       });
       return;
     }
@@ -172,7 +193,7 @@ export default function NewCompanyPage() {
       ? {
           ...formData,
           planId: selectedPlanId,
-          additionalModuleCodes: saasSettings?.allowAdditionalModulesOnCreate
+          additionalModuleCodes: effectiveAllowAdditionalModulesOnCreate
             ? additionalModuleCodes
             : [],
         }
@@ -477,22 +498,25 @@ export default function NewCompanyPage() {
                   <div className="mt-4 text-xs text-text-muted space-y-1">
                     <p>
                       Prix agence supplementaire (global):{' '}
-                      <span className="text-text">{saasSettings?.extraAgencyPriceMad ?? 0} MAD/mois</span>
+                      <span className="text-text">
+                        {(selectedPlan.pricingRule?.extraAgencyPriceMad ?? saasSettings?.extraAgencyPriceMad ?? 0)} MAD/mois
+                      </span>
                     </p>
                     <p>
                       Prix module supplementaire (global):{' '}
-                      <span className="text-text">{saasSettings?.extraModulePriceMad ?? 0} MAD/mois</span>
+                      <span className="text-text">
+                        {(selectedPlan.pricingRule?.extraModulePriceMad ?? saasSettings?.extraModulePriceMad ?? 0)} MAD/mois
+                      </span>
                     </p>
                     <p>
-                      Regles modifiables depuis{' '}
-                      <span className="text-text">Administration &gt; Parametres SaaS</span>.
+                      Source de regle: <span className="text-text">{selectedPlan.pricingRule ? 'Plan (prioritaire)' : 'Global SaaS'}</span>
                     </p>
                   </div>
                   <div className="mt-3">
                     <p className="text-xs font-medium text-text mb-2">Modules additionnels à activer dès création</p>
-                    {saasSettings && !saasSettings.allowAdditionalModulesOnCreate && (
+                    {!effectiveAllowAdditionalModulesOnCreate && (
                       <p className="text-xs text-amber-500 mb-2">
-                        L ajout de modules additionnels a la creation est desactive dans les Parametres SaaS.
+                        L ajout de modules additionnels a la creation est desactive par la regle tarifaire active.
                       </p>
                     )}
                     {availableAdditionalModules.length === 0 ? (
@@ -505,7 +529,7 @@ export default function NewCompanyPage() {
                             <button
                               key={code}
                               type="button"
-                              disabled={!!saasSettings && !saasSettings.allowAdditionalModulesOnCreate}
+                              disabled={!effectiveAllowAdditionalModulesOnCreate}
                               onClick={() =>
                                 setAdditionalModuleCodes((prev) =>
                                   checked ? prev.filter((c) => c !== code) : [...prev, code],
@@ -515,7 +539,7 @@ export default function NewCompanyPage() {
                                 checked
                                   ? 'border-primary bg-primary/15 text-text'
                                   : 'border-border bg-card text-text-muted hover:border-primary/40'
-                              } ${!!saasSettings && !saasSettings.allowAdditionalModulesOnCreate ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              } ${!effectiveAllowAdditionalModulesOnCreate ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               {MODULE_LABELS[code] || code}
                             </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
@@ -14,6 +14,15 @@ interface RouteGuardProps {
 export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
   const router = useRouter();
   const token = Cookies.get('accessToken');
+  const cachedUser = useMemo(() => {
+    const raw = Cookies.get('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }, []);
 
   const { data: user, isLoading, error } = useQuery({
     queryKey: ['me'],
@@ -30,35 +39,37 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
       return me;
     },
     enabled: !!token,
+    initialData: cachedUser || undefined,
     retry: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
     if (!token) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
     if (error) {
       Cookies.remove('accessToken');
       Cookies.remove('refreshToken');
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
     if (user && allowedRoles && !allowedRoles.includes(user.role)) {
       // Redirect based on role
       if (user.role === 'SUPER_ADMIN') {
-        router.push('/admin');
+        router.replace('/admin');
       } else if (user.role === 'COMPANY_ADMIN') {
-        router.push('/company');
+        router.replace('/company');
       } else {
-        router.push('/agency');
+        router.replace('/agency');
       }
     }
   }, [token, user, error, allowedRoles, router]);
 
-  if (!token || isLoading) {
+  if (!token || (isLoading && !cachedUser)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-text-muted">Chargement...</div>

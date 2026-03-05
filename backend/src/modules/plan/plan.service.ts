@@ -27,7 +27,7 @@ export class PlanService {
    * Créer un nouveau plan
    */
   async create(createPlanDto: CreatePlanDto, user: any) {
-    const { name, description, price, moduleCodes, quotas } = createPlanDto;
+    const { name, description, price, moduleCodes, quotas, pricingRules } = createPlanDto;
 
     // Vérifier que le nom est unique
     const existing = await this.prisma.plan.findUnique({
@@ -69,6 +69,18 @@ export class PlanService {
       });
     }
 
+    if (pricingRules) {
+      await this.prisma.planPricingRule.create({
+        data: {
+          planId: plan.id,
+          extraAgencyPriceMad: pricingRules.extraAgencyPriceMad ?? 0,
+          extraModulePriceMad: pricingRules.extraModulePriceMad ?? 0,
+          allowAgencyOverageOnCreate: pricingRules.allowAgencyOverageOnCreate ?? true,
+          allowAdditionalModulesOnCreate: pricingRules.allowAdditionalModulesOnCreate ?? true,
+        },
+      });
+    }
+
     return this.findOne(plan.id);
   }
 
@@ -81,6 +93,7 @@ export class PlanService {
       include: {
         planModules: true,
         planQuotas: true,
+        pricingRule: true,
         _count: {
           select: {
             subscriptions: true,
@@ -100,6 +113,7 @@ export class PlanService {
       include: {
         planModules: true,
         planQuotas: true,
+        pricingRule: true,
         _count: {
           select: {
             subscriptions: true,
@@ -127,7 +141,7 @@ export class PlanService {
       throw new NotFoundException('Plan introuvable');
     }
 
-    const { moduleCodes, quotas, ...scalarFields } = updatePlanDto;
+    const { moduleCodes, quotas, pricingRules, ...scalarFields } = updatePlanDto;
 
     const dataWithAudit = this.auditService.addUpdateAuditFields(
       scalarFields,
@@ -162,6 +176,33 @@ export class PlanService {
           })),
         });
       }
+    }
+
+    if (pricingRules !== undefined) {
+      await this.prisma.planPricingRule.upsert({
+        where: { planId: id },
+        create: {
+          planId: id,
+          extraAgencyPriceMad: pricingRules.extraAgencyPriceMad ?? 0,
+          extraModulePriceMad: pricingRules.extraModulePriceMad ?? 0,
+          allowAgencyOverageOnCreate: pricingRules.allowAgencyOverageOnCreate ?? true,
+          allowAdditionalModulesOnCreate: pricingRules.allowAdditionalModulesOnCreate ?? true,
+        },
+        update: {
+          ...(pricingRules.extraAgencyPriceMad !== undefined
+            ? { extraAgencyPriceMad: pricingRules.extraAgencyPriceMad }
+            : {}),
+          ...(pricingRules.extraModulePriceMad !== undefined
+            ? { extraModulePriceMad: pricingRules.extraModulePriceMad }
+            : {}),
+          ...(pricingRules.allowAgencyOverageOnCreate !== undefined
+            ? { allowAgencyOverageOnCreate: pricingRules.allowAgencyOverageOnCreate }
+            : {}),
+          ...(pricingRules.allowAdditionalModulesOnCreate !== undefined
+            ? { allowAdditionalModulesOnCreate: pricingRules.allowAdditionalModulesOnCreate }
+            : {}),
+        },
+      });
     }
 
     return this.findOne(id);

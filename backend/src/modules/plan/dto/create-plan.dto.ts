@@ -1,6 +1,16 @@
-import { IsString, IsNumber, IsArray, IsOptional, IsObject, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsArray,
+  IsOptional,
+  IsObject,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { ModuleCode } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { PlanPricingRulesDto } from './plan-pricing-rules.dto';
 
 export class CreatePlanDto {
   @ApiProperty({ description: 'Nom du plan (ex: Starter, Pro, Enterprise)' })
@@ -26,6 +36,12 @@ export class CreatePlanDto {
   @IsOptional()
   @IsObject()
   quotas?: Record<string, number>;
+
+  @ApiProperty({ description: 'Regles tarifaires de surcharge du plan', required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanPricingRulesDto)
+  pricingRules?: PlanPricingRulesDto;
 }
 
 

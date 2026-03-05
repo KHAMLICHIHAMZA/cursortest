@@ -1,14 +1,22 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/contexts/theme-context';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
-    () =>
-      new QueryClient({
+    () => {
+      let client: QueryClient;
+      client = new QueryClient({
+        mutationCache: new MutationCache({
+          onSuccess: async () => {
+            // Keep all query caches coherent after create/update/delete operations.
+            await client.invalidateQueries();
+          },
+        }),
         defaultOptions: {
           queries: {
             // Keep data fresh enough while avoiding aggressive re-fetches on every navigation.
@@ -16,14 +24,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
             gcTime: 30 * 60 * 1000, // 30 minutes
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchOnMount: false,
+            refetchOnMount: true,
             retry: 1,
           },
           mutations: {
             retry: 0,
           },
         },
-      }),
+      });
+      return client;
+    },
   );
 
   return (

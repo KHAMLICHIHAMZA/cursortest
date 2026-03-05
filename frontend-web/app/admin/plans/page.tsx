@@ -48,6 +48,12 @@ function formatQuotasDisplay(plan: Plan): string {
   return parts.join(', ');
 }
 
+function formatPricingRulesDisplay(plan: Plan): string {
+  const rule = plan.pricingRule;
+  if (!rule) return 'Global SaaS';
+  return `${rule.extraAgencyPriceMad} MAD/agence, ${rule.extraModulePriceMad} MAD/module`;
+}
+
 export default function PlansAdminPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -123,6 +129,25 @@ export default function PlansAdminPage() {
     const selectedModules = ALL_MODULES.filter((m) => formData.get(`module-${m.code}`) === 'on').map(
       (m) => m.code
     );
+    const extraAgencyPriceMadRaw = formData.get('pricing-extraAgencyPriceMad') as string;
+    const extraModulePriceMadRaw = formData.get('pricing-extraModulePriceMad') as string;
+    const extraAgencyPriceMad = extraAgencyPriceMadRaw ? parseFloat(extraAgencyPriceMadRaw) : 0;
+    const extraModulePriceMad = extraModulePriceMadRaw ? parseFloat(extraModulePriceMadRaw) : 0;
+    if (Number.isNaN(extraAgencyPriceMad) || extraAgencyPriceMad < 0) {
+      toast.error('Le prix agence supplementaire doit etre un nombre positif');
+      return;
+    }
+    if (Number.isNaN(extraModulePriceMad) || extraModulePriceMad < 0) {
+      toast.error('Le prix module supplementaire doit etre un nombre positif');
+      return;
+    }
+    const pricingRules = {
+      extraAgencyPriceMad,
+      extraModulePriceMad,
+      allowAgencyOverageOnCreate: formData.get('pricing-allowAgencyOverageOnCreate') === 'on',
+      allowAdditionalModulesOnCreate: formData.get('pricing-allowAdditionalModulesOnCreate') === 'on',
+    };
+
     const quotas: Record<string, number> = {};
     for (const { key } of QUOTA_KEYS) {
       const raw = formData.get(`quota-${key}`) as string;
@@ -139,6 +164,7 @@ export default function PlansAdminPage() {
           price,
           moduleCodes: selectedModules,
           quotas,
+          pricingRules,
           isActive: formData.get('isActive') === 'on',
         },
       });
@@ -149,6 +175,7 @@ export default function PlansAdminPage() {
         price,
         moduleCodes: selectedModules,
         quotas,
+        pricingRules,
       });
     }
   };
@@ -188,6 +215,7 @@ export default function PlansAdminPage() {
                   <TableHead>Prix (MAD/mois)</TableHead>
                   <TableHead>Modules</TableHead>
                   <TableHead>Quotas</TableHead>
+                  <TableHead>Surcharges</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -195,7 +223,7 @@ export default function PlansAdminPage() {
               <TableBody>
                 {plans.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Aucun plan trouvé
                     </TableCell>
                   </TableRow>
@@ -218,6 +246,9 @@ export default function PlansAdminPage() {
                       </TableCell>
                       <TableCell className="text-sm">
                         {formatQuotasDisplay(plan)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatPricingRulesDisplay(plan)}
                       </TableCell>
                       <TableCell>
                         <Badge status={plan.isActive ? 'success' : 'inactive'}>
@@ -328,6 +359,52 @@ export default function PlansAdminPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Règles tarifaires du plan</label>
+                <Card className="p-3 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Prix agence supp. (MAD/mois)</label>
+                      <Input
+                        type="number"
+                        name="pricing-extraAgencyPriceMad"
+                        min={0}
+                        step={0.01}
+                        defaultValue={editingPlan?.pricingRule?.extraAgencyPriceMad ?? 0}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Prix module supp. (MAD/mois)</label>
+                      <Input
+                        type="number"
+                        name="pricing-extraModulePriceMad"
+                        min={0}
+                        step={0.01}
+                        defaultValue={editingPlan?.pricingRule?.extraModulePriceMad ?? 0}
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="pricing-allowAgencyOverageOnCreate"
+                      defaultChecked={editingPlan?.pricingRule?.allowAgencyOverageOnCreate ?? true}
+                      className="rounded border-input"
+                    />
+                    <span className="text-sm">Autoriser dépassement quota agences à la création</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="pricing-allowAdditionalModulesOnCreate"
+                      defaultChecked={editingPlan?.pricingRule?.allowAdditionalModulesOnCreate ?? true}
+                      className="rounded border-input"
+                    />
+                    <span className="text-sm">Autoriser modules additionnels à la création</span>
+                  </label>
+                </Card>
               </div>
 
               {isEdit && (

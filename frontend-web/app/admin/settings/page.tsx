@@ -55,6 +55,9 @@ export default function AdminSettingsPage() {
             <p className="text-sm text-text-muted mt-1">
               Parametres globaux de tarification et regles appliquees a la creation des entreprises.
             </p>
+            <p className="text-xs text-text-muted mt-2">
+              Les regles definies au niveau d&apos;un plan restent prioritaires sur ces valeurs globales.
+            </p>
           </Card>
 
           {isLoading ? (
