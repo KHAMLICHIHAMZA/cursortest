@@ -21,6 +21,11 @@ const ALL_MODULES = [
   { code: 'MAINTENANCE', label: 'Maintenance', desc: 'Entretien et réparations' },
   { code: 'FINES', label: 'Amendes', desc: 'Gestion des infractions' },
   { code: 'ANALYTICS', label: 'Analytics', desc: 'KPI et tableaux de bord' },
+  { code: 'GPS', label: 'GPS', desc: 'Geolocalisation et tracking' },
+  { code: 'CONTRACTS', label: 'Contrats', desc: 'Gestion des contrats de location' },
+  { code: 'JOURNAL', label: 'Journal', desc: 'Historique et journal d activite' },
+  { code: 'CHARGES', label: 'Charges', desc: 'Charges et depenses operationnelles' },
+  { code: 'NOTIFICATIONS', label: 'Notifications', desc: 'Centre de notifications applicatives' },
 ];
 
 const QUOTA_KEYS = [

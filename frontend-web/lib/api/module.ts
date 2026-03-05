@@ -1,6 +1,17 @@
 import { apiClient } from './client';
 
-export type ModuleCode = 'VEHICLES' | 'BOOKINGS' | 'INVOICES' | 'MAINTENANCE' | 'FINES' | 'ANALYTICS';
+export type ModuleCode =
+  | 'VEHICLES'
+  | 'BOOKINGS'
+  | 'INVOICES'
+  | 'MAINTENANCE'
+  | 'FINES'
+  | 'ANALYTICS'
+  | 'GPS'
+  | 'CONTRACTS'
+  | 'JOURNAL'
+  | 'CHARGES'
+  | 'NOTIFICATIONS';
 
 export interface CompanyModule {
   companyId: string;

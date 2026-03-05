@@ -22,6 +22,11 @@ const ALL_MODULES: { code: ModuleCode; label: string; description: string }[] = 
   { code: 'MAINTENANCE', label: 'Maintenance', description: 'Entretien et réparations' },
   { code: 'FINES', label: 'Amendes', description: 'Gestion des infractions' },
   { code: 'ANALYTICS', label: 'Analytics', description: 'KPI et tableaux de bord' },
+  { code: 'GPS', label: 'GPS', description: 'Géolocalisation et tracking' },
+  { code: 'CONTRACTS', label: 'Contrats', description: 'Contrats de location' },
+  { code: 'JOURNAL', label: 'Journal', description: 'Journal d activité' },
+  { code: 'CHARGES', label: 'Charges', description: 'Charges et dépenses' },
+  { code: 'NOTIFICATIONS', label: 'Notifications', description: 'Notifications in-app' },
 ];
 
 export default function EditCompanyPage() {

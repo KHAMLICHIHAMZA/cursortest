@@ -7,12 +7,14 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ChargeService, CreateChargeDto } from './charge.service';
-import { Role } from '@prisma/client';
+import { Role, ModuleCode } from '@prisma/client';
+import { RequireModuleGuard, RequireModule } from '../../common/guards/require-module.guard';
 
 @ApiTags('Charges & KPI')
 @Controller('charges')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RequireModuleGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.AGENCY_MANAGER) // Spec: Manager/Gérant uniquement
+@RequireModule(ModuleCode.CHARGES)
 @ApiBearerAuth()
 export class ChargeController {
   constructor(private readonly chargeService: ChargeService) {}

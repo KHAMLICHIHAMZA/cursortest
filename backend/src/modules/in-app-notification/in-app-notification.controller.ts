@@ -13,10 +13,13 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InAppNotificationService } from './in-app-notification.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequireModuleGuard, RequireModule } from '../../common/guards/require-module.guard';
+import { ModuleCode } from '@prisma/client';
 
 @ApiTags('In-App Notifications')
 @Controller('notifications/in-app')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RequireModuleGuard)
+@RequireModule(ModuleCode.NOTIFICATIONS)
 @ApiBearerAuth()
 export class InAppNotificationController {
   constructor(private readonly notificationService: InAppNotificationService) {}

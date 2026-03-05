@@ -35,7 +35,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
   RequireActiveAgencyGuard,
   PermissionGuard,
 )
-@RequireModule(ModuleCode.BOOKINGS)
+@RequireModule(ModuleCode.CONTRACTS)
 @ApiBearerAuth()
 export class ContractController {
   constructor(

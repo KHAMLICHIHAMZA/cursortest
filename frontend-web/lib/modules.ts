@@ -1,6 +1,17 @@
 import { apiClient } from './api/client';
 
-export type ModuleCode = 'VEHICLES' | 'BOOKINGS' | 'INVOICES' | 'MAINTENANCE' | 'FINES' | 'ANALYTICS' | 'GPS';
+export type ModuleCode =
+  | 'VEHICLES'
+  | 'BOOKINGS'
+  | 'INVOICES'
+  | 'MAINTENANCE'
+  | 'FINES'
+  | 'ANALYTICS'
+  | 'GPS'
+  | 'CONTRACTS'
+  | 'JOURNAL'
+  | 'CHARGES'
+  | 'NOTIFICATIONS';
 
 export interface ActiveModule {
   moduleCode: ModuleCode;
@@ -64,14 +75,14 @@ export const agencyRouteModuleMap: Record<string, ModuleCode | null> = {
   '/agency/bookings': 'BOOKINGS',
   '/agency/planning': 'BOOKINGS',
   '/agency/invoices': 'INVOICES',
-  '/agency/contracts': 'BOOKINGS', // Contrats liés aux réservations
-  '/agency/journal': null, // Journal toujours visible
+  '/agency/contracts': 'CONTRACTS',
+  '/agency/journal': 'JOURNAL',
   '/agency/maintenance': 'MAINTENANCE',
   '/agency/fines': 'FINES',
-  '/agency/charges': 'VEHICLES', // Charges & Depenses liees aux vehicules
+  '/agency/charges': 'CHARGES',
   '/agency/kpi': 'BOOKINGS', // KPI necessite au minimum le module Bookings
-  '/agency/gps': 'VEHICLES', // GPS (utilise le module VEHICLES cote backend)
-  '/agency/notifications': null, // Notifications toujours visibles
+  '/agency/gps': 'GPS',
+  '/agency/notifications': 'NOTIFICATIONS',
 };
 
 // Mapping des routes company vers les modules requis

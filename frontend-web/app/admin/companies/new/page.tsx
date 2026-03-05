@@ -23,6 +23,11 @@ const MODULE_LABELS: Record<string, string> = {
   MAINTENANCE: 'Maintenance',
   FINES: 'Amendes',
   ANALYTICS: 'Analytics',
+  GPS: 'GPS',
+  CONTRACTS: 'Contrats',
+  JOURNAL: 'Journal',
+  CHARGES: 'Charges',
+  NOTIFICATIONS: 'Notifications',
 };
 
 const ALL_MODULE_CODES = Object.keys(MODULE_LABELS);

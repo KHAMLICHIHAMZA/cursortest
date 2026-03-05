@@ -220,6 +220,11 @@ enum ModuleCode {
   MAINTENANCE // Gestion maintenance
   FINES // Gestion amendes
   ANALYTICS // Analytics et rapports
+  GPS // Geolocalisation et tracking
+  CONTRACTS // Gestion des contrats
+  JOURNAL // Journal d activite
+  CHARGES // Charges et depenses
+  NOTIFICATIONS // Notifications internes
 }
 
 // Périodicité de facturation SaaS

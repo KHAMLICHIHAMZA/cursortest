@@ -33,7 +33,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
   RequireActiveAgencyGuard,
   PermissionGuard,
 )
-@RequireModule(ModuleCode.BOOKINGS)
+@RequireModule(ModuleCode.JOURNAL)
 @ApiBearerAuth()
 export class JournalController {
   constructor(private readonly journalService: JournalService) {}

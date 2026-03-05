@@ -80,6 +80,14 @@ export class RequireModuleGuard implements CanActivate {
     }
 
     // Vérifier que le module est payé au niveau Company
+    const fallbackByModule: Partial<Record<ModuleCode, ModuleCode>> = {
+      GPS: ModuleCode.VEHICLES,
+      CONTRACTS: ModuleCode.BOOKINGS,
+      JOURNAL: ModuleCode.BOOKINGS,
+      CHARGES: ModuleCode.VEHICLES,
+      NOTIFICATIONS: ModuleCode.BOOKINGS,
+    };
+
     const companyModule = await this.prisma.companyModule.findUnique({
       where: {
         companyId_moduleCode: {
@@ -88,8 +96,23 @@ export class RequireModuleGuard implements CanActivate {
         },
       },
     });
+    const fallbackModuleCode = fallbackByModule[requiredModule];
+    const fallbackCompanyModule =
+      !companyModule && fallbackModuleCode
+        ? await this.prisma.companyModule.findUnique({
+            where: {
+              companyId_moduleCode: {
+                companyId: user.companyId,
+                moduleCode: fallbackModuleCode,
+              },
+            },
+          })
+        : null;
 
-    if (!companyModule || !companyModule.isActive) {
+    if (
+      (!companyModule || !companyModule.isActive) &&
+      (!fallbackCompanyModule || !fallbackCompanyModule.isActive)
+    ) {
       throw new ForbiddenException(
         `Le module ${requiredModule} n'est pas inclus dans votre abonnement. Veuillez contacter le support.`,
       );
@@ -130,9 +153,23 @@ export class RequireModuleGuard implements CanActivate {
           },
         },
       });
+      const fallbackAgencyModule =
+        !agencyModule && fallbackModuleCode
+          ? await this.prisma.agencyModule.findUnique({
+              where: {
+                agencyId_moduleCode: {
+                  agencyId: agencyId,
+                  moduleCode: fallbackModuleCode,
+                },
+              },
+            })
+          : null;
 
       // Si un record existe et est désactivé, bloquer
-      if (agencyModule && !agencyModule.isActive) {
+      if (
+        (agencyModule && !agencyModule.isActive) ||
+        (fallbackAgencyModule && !fallbackAgencyModule.isActive)
+      ) {
         throw new ForbiddenException(
           `Le module ${requiredModule} est désactivé pour cette agence. Veuillez contacter l'administrateur.`,
         );

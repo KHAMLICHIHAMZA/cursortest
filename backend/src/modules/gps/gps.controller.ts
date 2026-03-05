@@ -32,7 +32,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
   RequireActiveAgencyGuard,
   PermissionGuard,
 )
-@RequireModule(ModuleCode.VEHICLES)
+@RequireModule(ModuleCode.GPS)
 @ApiBearerAuth()
 export class GpsController {
   constructor(
