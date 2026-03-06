@@ -116,7 +116,7 @@ export default function NewCompanyPage() {
     if (
       selectedPlanAgencyQuota === undefined ||
       selectedPlanAgencyQuota < 0 ||
-      formData.maxAgencies === undefined
+      formData.maxAgencies == null
     ) {
       return 0;
     }
@@ -491,7 +491,7 @@ export default function NewCompanyPage() {
                   </div>
                   {selectedPlanAgencyQuota !== undefined &&
                     selectedPlanAgencyQuota >= 0 &&
-                    formData.maxAgencies !== undefined &&
+                    formData.maxAgencies != null &&
                     formData.maxAgencies > selectedPlanAgencyQuota && (
                       <p className="mt-3 text-sm text-amber-500">
                         La limite d&apos;agences dépasse le quota du pack. Le montant estimé inclut automatiquement ce dépassement.

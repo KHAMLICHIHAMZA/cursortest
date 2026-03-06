@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -30,6 +31,21 @@ export class UserController {
   @ApiOperation({ summary: 'Get all users (filtered by role)' })
   async findAll(@CurrentUser() user: any) {
     return this.userService.findAll(user);
+  }
+
+  @Get('light')
+  @Roles('SUPER_ADMIN', 'COMPANY_ADMIN')
+  @ApiOperation({ summary: 'Get lightweight paginated users list (filtered by role)' })
+  async findAllLight(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('q') q?: string,
+    @Query('agencyId') agencyId?: string,
+  ) {
+    const parsedPage = page ? Number(page) : 1;
+    const parsedPageSize = pageSize ? Number(pageSize) : 25;
+    return this.userService.findAllLight(user, parsedPage, parsedPageSize, q, agencyId);
   }
 
   @Patch('me')

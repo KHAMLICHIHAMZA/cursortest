@@ -28,13 +28,13 @@ export default function NewUserPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: companies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyApi.getAll(),
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
   });
 
   const { data: agencies } = useQuery({
-    queryKey: ['agencies', formData.companyId],
-    queryFn: () => agencyApi.getAll(),
+    queryKey: ['agencies', 'lookup', formData.companyId],
+    queryFn: () => agencyApi.getLookup(formData.companyId),
     enabled: !!formData.companyId,
   });
 
@@ -155,9 +155,7 @@ export default function NewUserPage() {
                   Agences (multi-sélection)
                 </label>
                 <Card variant="outlined" padding="sm" className="max-h-48 overflow-y-auto">
-                  {agencies
-                    .filter((a) => a.companyId === formData.companyId)
-                    .map((agency) => (
+                  {agencies.map((agency) => (
                       <label key={agency.id} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"

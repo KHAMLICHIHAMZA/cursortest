@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
+import { companyApi, CompanyLookup } from '@/lib/api/company';
 import { Send, Bell, Building2, Globe, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +13,6 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
-
-interface Company {
-  id: string;
-  name: string;
-}
 
 interface BroadcastHistory {
   id: string;
@@ -44,12 +40,9 @@ export default function AdminNotificationsPage() {
   const [error, setError] = useState('');
 
   // Fetch companies for the select dropdown
-  const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ['companies'],
-    queryFn: async () => {
-      const res = await apiClient.get('/companies');
-      return res.data;
-    },
+  const { data: companies = [] } = useQuery<CompanyLookup[]>({
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
   });
 
   // Fetch recent broadcast notifications (sent by current admin)

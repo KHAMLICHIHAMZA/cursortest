@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -27,6 +28,29 @@ export class AgencyController {
   @ApiOperation({ summary: 'Get all agencies (filtered by role)' })
   async findAll(@CurrentUser() user: any) {
     return this.agencyService.findAll(user);
+  }
+
+  @Get('lookup')
+  @ApiOperation({ summary: 'Get lightweight agencies lookup (filtered by role)' })
+  async findLookup(@CurrentUser() user: any, @Query('companyId') companyId?: string) {
+    if (!companyId || user?.role !== 'SUPER_ADMIN') {
+      return this.agencyService.findLookup(user);
+    }
+    const scopedUser = { ...user, companyId };
+    return this.agencyService.findLookup(scopedUser);
+  }
+
+  @Get('light')
+  @ApiOperation({ summary: 'Get lightweight paginated agencies list (filtered by role)' })
+  async findAllLight(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('q') q?: string,
+  ) {
+    const parsedPage = page ? Number(page) : 1;
+    const parsedPageSize = pageSize ? Number(pageSize) : 25;
+    return this.agencyService.findAllLight(user, parsedPage, parsedPageSize, q);
   }
 
   @Get(':id')

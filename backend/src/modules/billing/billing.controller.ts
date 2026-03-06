@@ -6,6 +6,7 @@ import {
   Param,
   UseGuards,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
@@ -49,6 +50,17 @@ export class BillingController {
   @ApiOperation({ summary: 'Get company invoices' })
   async getCompanyInvoices(@Param('companyId') companyId: string, @CurrentUser() user: any) {
     return this.billingService.getCompanyInvoices(companyId, user);
+  }
+
+  @Get('company/:companyId/health')
+  @ApiOperation({ summary: 'Get company billing health (recent invoices + overdue count)' })
+  async getCompanyBillingHealth(
+    @Param('companyId') companyId: string,
+    @CurrentUser() user: any,
+    @Query('limit') limit?: string,
+  ) {
+    const parsed = limit ? Number(limit) : 10;
+    return this.billingService.getCompanyBillingHealth(companyId, user, parsed);
   }
 
   @Get('invoices/pending')

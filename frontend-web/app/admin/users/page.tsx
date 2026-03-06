@@ -12,7 +12,7 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Users, Plus, Edit, Trash2, Key, LogIn } from 'lucide-react';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -27,8 +27,11 @@ export default function UsersPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [agencyFilter, setAgencyFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const { data: currentUser } = useQuery({
     queryKey: ['me'],
@@ -37,10 +40,33 @@ export default function UsersPage() {
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => userApi.getAll(),
+  const { data: agenciesLookup = [] } = useQuery({
+    queryKey: ['agencies', 'lookup'],
+    queryFn: async () => {
+      const res = await apiClient.get('/agencies/lookup');
+      return res.data as Array<{ id: string; name: string }>;
+    },
   });
+
+  const { data: usersPage, isLoading } = useQuery({
+    queryKey: ['users', 'light', currentPage, pageSize, deferredSearchTerm, agencyFilter],
+    queryFn: () => userApi.getLight(currentPage, pageSize, deferredSearchTerm, agencyFilter),
+  });
+
+  const users = usersPage?.items || [];
+  const totalUsers = usersPage?.total || 0;
+  const activeUsers = usersPage?.activeTotal || 0;
+  const totalPages = usersPage?.totalPages || 1;
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearchTerm, agencyFilter]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => userApi.delete(id),
@@ -106,41 +132,7 @@ export default function UsersPage() {
     },
   });
 
-  // Extract unique agencies for filter dropdown
-  const allAgencies = users
-    ? Array.from(
-        new Map(
-          users
-            .flatMap((u) => u.userAgencies || [])
-            .map((ua) => [ua.agency.id, ua.agency.name])
-        ).entries()
-      )
-        .map(([id, name]) => ({ id, name }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    : [];
-
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-
-  const filteredUsers = users?.filter((user) => {
-    const userName = (user.name || '').toLowerCase();
-    const userEmail = (user.email || '').toLowerCase();
-    const userRole = (user.role || '').toLowerCase();
-
-    const matchesSearch =
-      userName.includes(normalizedSearch) ||
-      userEmail.includes(normalizedSearch) ||
-      userRole.includes(normalizedSearch);
-
-    const matchesAgency =
-      !agencyFilter ||
-      user.userAgencies?.some((ua) => ua.agency.id === agencyFilter);
-
-    return matchesSearch && matchesAgency;
-  });
-
-  const totalUsers = users?.length || 0;
-  const visibleUsers = filteredUsers?.length || 0;
-  const activeUsers = users?.filter((user) => user.isActive).length || 0;
+  const visibleUsers = users.length;
 
   const getRoleStatus = (role: string): 'active' | 'pending' | 'completed' | 'inactive' => {
     switch (role) {
@@ -193,7 +185,7 @@ export default function UsersPage() {
                 className="px-3 py-2 border border-border rounded-lg bg-card text-text text-sm min-w-[220px]"
               >
                 <option value="">Toutes les agences</option>
-                {allAgencies.map((agency) => (
+                {agenciesLookup.map((agency) => (
                   <option key={agency.id} value={agency.id}>
                     {agency.name}
                   </option>
@@ -207,9 +199,40 @@ export default function UsersPage() {
             }}
           />
 
+          <div className="mb-4 flex items-center justify-between text-sm text-text-muted">
+            <span>
+              {totalUsers === 0
+                ? 'Aucun utilisateur'
+                : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalUsers)} sur ${totalUsers}`}
+            </span>
+            {totalUsers > pageSize && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Précédent
+                </Button>
+                <span className="text-xs text-text-muted">
+                  Page {currentPage}/{totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
+          </div>
+
           {isLoading ? (
             <LoadingState message="Chargement des utilisateurs..." />
-          ) : filteredUsers && filteredUsers.length > 0 ? (
+          ) : users.length > 0 ? (
             <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
@@ -223,7 +246,7 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">

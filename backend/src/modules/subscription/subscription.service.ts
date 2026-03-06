@@ -168,6 +168,105 @@ export class SubscriptionService {
     throw new ForbiddenException('Permissions insuffisantes pour consulter les abonnements. Seuls SUPER_ADMIN et COMPANY_ADMIN y ont accès.');
   }
 
+  async findByCompany(companyId: string, user: any) {
+    if (user.role !== 'SUPER_ADMIN' && user.companyId !== companyId) {
+      throw new ForbiddenException(
+        'Accès refusé : vous ne pouvez consulter que les abonnements de votre société',
+      );
+    }
+
+    return this.prisma.subscription.findUnique({
+      where: { companyId },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findAllLight(user: any, page = 1, pageSize = 25) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(1, Math.floor(pageSize)), 100) : 25;
+    const skip = (safePage - 1) * safePageSize;
+
+    const includeShape = {
+      company: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      plan: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      },
+    } as const;
+
+    if (user.role === 'SUPER_ADMIN') {
+      const [items, total] = await Promise.all([
+        this.prisma.subscription.findMany({
+          include: includeShape,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.subscription.count(),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages,
+      };
+    }
+
+    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+      const where = { companyId: user.companyId };
+      const [items, total] = await Promise.all([
+        this.prisma.subscription.findMany({
+          where,
+          include: includeShape,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.subscription.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages,
+      };
+    }
+
+    throw new ForbiddenException(
+      'Permissions insuffisantes pour consulter les abonnements. Seuls SUPER_ADMIN et COMPANY_ADMIN y ont accès.',
+    );
+  }
+
   /**
    * Récupérer un abonnement par ID
    */

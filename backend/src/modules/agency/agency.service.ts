@@ -73,6 +73,151 @@ export class AgencyService {
     return this.auditService.removeAuditFieldsFromArray(agencies);
   }
 
+  async findLookup(user: any) {
+    if (user.role === 'SUPER_ADMIN') {
+      return this.prisma.agency.findMany({
+        where: this.softDeleteService.addSoftDeleteFilter(
+          user.companyId ? { companyId: user.companyId } : {},
+        ),
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+      return this.prisma.agency.findMany({
+        where: this.softDeleteService.addSoftDeleteFilter({ companyId: user.companyId }),
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    if (user.agencyIds && user.agencyIds.length > 0) {
+      return this.prisma.agency.findMany({
+        where: this.softDeleteService.addSoftDeleteFilter({ id: { in: user.agencyIds } }),
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    return [];
+  }
+
+  async findAllLight(user: any, page = 1, pageSize = 25, q?: string) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(1, Math.floor(pageSize)), 100) : 25;
+    const skip = (safePage - 1) * safePageSize;
+    const search = q?.trim();
+
+    const baseInclude = {
+      company: true,
+      _count: {
+        select: {
+          vehicles: true,
+          bookings: true,
+          userAgencies: true,
+        },
+      },
+    } as const;
+
+    if (user.role === 'SUPER_ADMIN') {
+      const where = this.softDeleteService.addSoftDeleteFilter({
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { company: { name: { contains: search, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      });
+      const [itemsRaw, total] = await Promise.all([
+        this.prisma.agency.findMany({
+          where,
+          include: baseInclude,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.agency.count({ where }),
+      ]);
+      const items = this.auditService.removeAuditFieldsFromArray(itemsRaw);
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+      };
+    }
+
+    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+      const where = this.softDeleteService.addSoftDeleteFilter({
+        companyId: user.companyId,
+        ...(search
+          ? {
+              OR: [{ name: { contains: search, mode: 'insensitive' } }],
+            }
+          : {}),
+      });
+      const [itemsRaw, total] = await Promise.all([
+        this.prisma.agency.findMany({
+          where,
+          include: baseInclude,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.agency.count({ where }),
+      ]);
+      const items = this.auditService.removeAuditFieldsFromArray(itemsRaw);
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+      };
+    }
+
+    if (user.agencyIds && user.agencyIds.length > 0) {
+      const where = this.softDeleteService.addSoftDeleteFilter({
+        id: { in: user.agencyIds },
+        ...(search
+          ? {
+              OR: [{ name: { contains: search, mode: 'insensitive' } }],
+            }
+          : {}),
+      });
+      const [itemsRaw, total] = await Promise.all([
+        this.prisma.agency.findMany({
+          where,
+          include: baseInclude,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.agency.count({ where }),
+      ]);
+      const items = this.auditService.removeAuditFieldsFromArray(itemsRaw);
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+      };
+    }
+
+    return {
+      items: [],
+      total: 0,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages: 1,
+    };
+  }
+
   async findOne(id: string, user: any) {
     const agency = await this.prisma.agency.findFirst({
       where: this.softDeleteService.addSoftDeleteFilter({ id }),

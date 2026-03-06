@@ -11,7 +11,7 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { MapPin, Plus, Edit, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -20,12 +20,15 @@ import { toast } from '@/components/ui/toast';
 export default function AgenciesPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [agencyToDelete, setAgencyToDelete] = useState<Agency | null>(null);
 
-  const { data: agencies, isLoading } = useQuery({
-    queryKey: ['agencies'],
-    queryFn: () => agencyApi.getAll(),
+  const { data: agenciesPage, isLoading } = useQuery({
+    queryKey: ['agencies', 'light', currentPage, pageSize, deferredSearchTerm],
+    queryFn: () => agencyApi.getLight(currentPage, pageSize, deferredSearchTerm),
   });
 
   const deleteMutation = useMutation({
@@ -41,16 +44,18 @@ export default function AgenciesPage() {
     },
   });
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const agencies = agenciesPage?.items || [];
+  const totalAgencies = agenciesPage?.total || 0;
+  const visibleAgencies = agencies.length;
+  const totalPages = agenciesPage?.totalPages || 1;
 
-  const filteredAgencies = agencies?.filter((agency) => {
-    const agencyName = (agency.name || '').toLowerCase();
-    const companyName = (agency.company?.name || '').toLowerCase();
-    return agencyName.includes(normalizedSearch) || companyName.includes(normalizedSearch);
-  });
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
-  const totalAgencies = agencies?.length || 0;
-  const visibleAgencies = filteredAgencies?.length || 0;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearchTerm]);
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
@@ -83,9 +88,40 @@ export default function AgenciesPage() {
             onReset={() => setSearchTerm('')}
           />
 
+          <div className="mb-4 flex items-center justify-between text-sm text-text-muted">
+            <span>
+              {totalAgencies === 0
+                ? 'Aucune agence'
+                : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalAgencies)} sur ${totalAgencies}`}
+            </span>
+            {totalAgencies > pageSize && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Précédent
+                </Button>
+                <span className="text-xs text-text-muted">
+                  Page {currentPage}/{totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
+          </div>
+
           {isLoading ? (
             <LoadingState message="Chargement des agences..." />
-          ) : filteredAgencies && filteredAgencies.length > 0 ? (
+          ) : agencies.length > 0 ? (
             <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
@@ -98,7 +134,7 @@ export default function AgenciesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAgencies.map((agency) => (
+                  {agencies.map((agency) => (
                     <TableRow key={agency.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">

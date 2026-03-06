@@ -1,9 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { companyApi, Company } from '@/lib/api/company';
-import { agencyApi, Agency } from '@/lib/api/agency';
-import { userApi, User } from '@/lib/api/user';
+import { companyApi } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,19 +14,14 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 
 export default function AdminDashboard() {
-  const { data: companies, isLoading: companiesLoading } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyApi.getAll(),
+  const { data: adminStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-dashboard-stats'],
+    queryFn: () => companyApi.getAdminStats(),
   });
 
-  const { data: agencies, isLoading: agenciesLoading } = useQuery({
-    queryKey: ['agencies'],
-    queryFn: () => agencyApi.getAll(),
-  });
-
-  const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => userApi.getAll(),
+  const { data: recentCompanies, isLoading: companiesLoading } = useQuery({
+    queryKey: ['companies', 'recent', 5],
+    queryFn: () => companyApi.getRecent(5),
   });
 
   return (
@@ -45,21 +38,21 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
             <StatCard
               title="Entreprises"
-              value={companies?.length || 0}
+              value={adminStats?.companies || 0}
               icon={Building2}
-              isLoading={companiesLoading}
+              isLoading={statsLoading}
             />
             <StatCard
               title="Agences"
-              value={agencies?.length || 0}
+              value={adminStats?.agencies || 0}
               icon={MapPin}
-              isLoading={agenciesLoading}
+              isLoading={statsLoading}
             />
             <StatCard
               title="Utilisateurs"
-              value={users?.length || 0}
+              value={adminStats?.users || 0}
               icon={Users}
-              isLoading={usersLoading}
+              isLoading={statsLoading}
             />
           </div>
 
@@ -122,9 +115,9 @@ export default function AdminDashboard() {
             <CardContent>
               {companiesLoading ? (
                 <LoadingState message="Chargement des entreprises..." />
-              ) : companies && companies.length > 0 ? (
+              ) : recentCompanies && recentCompanies.length > 0 ? (
                 <div className="space-y-4">
-                  {companies.slice(0, 5).map((company) => (
+                  {recentCompanies.map((company) => (
                     <Card key={company.id} variant="outlined" padding="sm" className="hover:border-primary/50 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>

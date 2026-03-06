@@ -12,9 +12,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       let client: QueryClient;
       client = new QueryClient({
         mutationCache: new MutationCache({
-          onSuccess: async () => {
-            // Keep all query caches coherent after create/update/delete operations.
-            await client.invalidateQueries();
+          onSuccess: () => {
+            // Keep caches coherent without blocking mutation resolution in the UI.
+            void client.invalidateQueries({ refetchType: 'active' });
           },
         }),
         defaultOptions: {

@@ -50,15 +50,18 @@ export default function LoginPage() {
 
       // Rediriger selon le rôle
       const role = response.user.role;
+      let targetRoute = '/';
       if (role === 'SUPER_ADMIN') {
-        router.push('/admin');
+        targetRoute = '/admin';
       } else if (role === 'COMPANY_ADMIN') {
-        router.push('/company');
+        targetRoute = '/company';
       } else if (role === 'AGENCY_MANAGER' || role === 'AGENT') {
-        router.push('/agency');
-      } else {
-        router.push('/');
+        targetRoute = '/agency';
       }
+
+      // Prefetch + replace keeps auth navigation smoother and cleaner in history.
+      router.prefetch(targetRoute);
+      router.replace(targetRoute);
     } catch (err: any) {
       setError(
         err.response?.data?.message || 'Erreur de connexion. Vérifiez vos identifiants.',

@@ -47,9 +47,54 @@ export interface UpdateCompanyDto {
   isActive?: boolean;
 }
 
+export interface AdminDashboardStats {
+  companies: number;
+  agencies: number;
+  users: number;
+}
+
+export interface CompanyLookup {
+  id: string;
+  name: string;
+}
+
+export interface PaginatedCompaniesResponse {
+  items: Company[];
+  total: number;
+  activeTotal: number;
+  inactiveTotal: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export const companyApi = {
   getAll: async (): Promise<Company[]> => {
     const { data } = await apiClient.get<Company[]>('/companies');
+    return data;
+  },
+
+  getRecent: async (limit = 5): Promise<Company[]> => {
+    const { data } = await apiClient.get<Company[]>('/companies/recent', {
+      params: { limit },
+    });
+    return data;
+  },
+
+  getAdminStats: async (): Promise<AdminDashboardStats> => {
+    const { data } = await apiClient.get<AdminDashboardStats>('/companies/admin-stats');
+    return data;
+  },
+
+  getLookup: async (): Promise<CompanyLookup[]> => {
+    const { data } = await apiClient.get<CompanyLookup[]>('/companies/lookup');
+    return data;
+  },
+
+  getLight: async (page = 1, pageSize = 25, q?: string): Promise<PaginatedCompaniesResponse> => {
+    const { data } = await apiClient.get<PaginatedCompaniesResponse>('/companies/light', {
+      params: { page, pageSize, q: q || undefined },
+    });
     return data;
   },
 

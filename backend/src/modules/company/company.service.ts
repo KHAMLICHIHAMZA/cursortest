@@ -55,6 +55,121 @@ export class CompanyService {
     return this.auditService.removeAuditFieldsFromArray(companies);
   }
 
+  async findAllLight(page = 1, pageSize = 25, q?: string) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(1, Math.floor(pageSize)), 100) : 25;
+    const skip = (safePage - 1) * safePageSize;
+    const search = q?.trim();
+    const where = this.softDeleteService.addSoftDeleteFilter({
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    });
+
+    const [itemsRaw, total, activeTotal] = await Promise.all([
+      this.prisma.company.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              agencies: true,
+              users: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: safePageSize,
+      }),
+      this.prisma.company.count({ where }),
+      this.prisma.company.count({ where: { ...where, isActive: true } }),
+    ]);
+
+    const items = this.auditService.removeAuditFieldsFromArray(itemsRaw);
+    const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+
+    return {
+      items,
+      total,
+      activeTotal,
+      inactiveTotal: total - activeTotal,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages,
+    };
+  }
+
+  async findRecent(limit = 5) {
+    const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 20) : 5;
+    const companies = await this.prisma.company.findMany({
+      where: this.softDeleteService.addSoftDeleteFilter(),
+      include: {
+        _count: {
+          select: {
+            agencies: true,
+            users: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: safeLimit,
+    });
+
+    return this.auditService.removeAuditFieldsFromArray(companies);
+  }
+
+  async getAdminStats() {
+    const [companies, agencies, users] = await Promise.all([
+      this.prisma.company.count({
+        where: this.softDeleteService.addSoftDeleteFilter(),
+      }),
+      this.prisma.agency.count({
+        where: this.softDeleteService.addSoftDeleteFilter(),
+      }),
+      this.prisma.user.count({
+        where: this.softDeleteService.addSoftDeleteFilter(),
+      }),
+    ]);
+
+    return { companies, agencies, users };
+  }
+
+  async findAllLookup() {
+    return this.prisma.company.findMany({
+      where: this.softDeleteService.addSoftDeleteFilter(),
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findSummary(id: string) {
+    const company = await this.prisma.company.findFirst({
+      where: this.softDeleteService.addSoftDeleteFilter({ id }),
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        currency: true,
+        suspendedAt: true,
+        suspendedReason: true,
+      },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Société introuvable');
+    }
+
+    return company;
+  }
+
   async findOne(id: string) {
     const company = await this.prisma.company.findFirst({
       where: this.softDeleteService.addSoftDeleteFilter({ id }),

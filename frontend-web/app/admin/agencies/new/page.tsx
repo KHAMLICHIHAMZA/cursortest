@@ -25,8 +25,8 @@ export default function NewAgencyPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: companies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyApi.getAll(),
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
   });
 
   const createMutation = useMutation({

@@ -12,7 +12,7 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Building2, Plus, Edit, Trash2, Power } from 'lucide-react';
-import { useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -20,12 +20,15 @@ import { RouteGuard } from '@/components/auth/route-guard';
 export default function CompaniesPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
-  const { data: companies, isLoading } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyApi.getAll(),
+  const { data: companiesPage, isLoading } = useQuery({
+    queryKey: ['companies', 'light', currentPage, pageSize, deferredSearchTerm],
+    queryFn: () => companyApi.getLight(currentPage, pageSize, deferredSearchTerm),
   });
 
   const deleteMutation = useMutation({
@@ -45,15 +48,21 @@ export default function CompaniesPage() {
     },
   });
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-  const filteredCompanies = companies?.filter((company) => {
-    const name = (company.name || '').toLowerCase();
-    const phone = (company.phone || '').toLowerCase();
-    return name.includes(normalizedSearch) || phone.includes(normalizedSearch);
-  });
+  const companies = companiesPage?.items || [];
+  const totalCompanies = companiesPage?.total || 0;
+  const activeCount = companiesPage?.activeTotal || 0;
+  const inactiveCount = companiesPage?.inactiveTotal || 0;
+  const totalPages = companiesPage?.totalPages || 1;
 
-  const activeCount = companies?.filter((company) => company.isActive).length || 0;
-  const inactiveCount = (companies?.length || 0) - activeCount;
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearchTerm]);
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
@@ -70,7 +79,7 @@ export default function CompaniesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <Card className="p-4 border-l-4 border-l-primary/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Total</p>
-              <p className="mt-1 text-3xl font-bold text-text">{companies?.length || 0}</p>
+              <p className="mt-1 text-3xl font-bold text-text">{totalCompanies}</p>
             </Card>
             <Card className="p-4 border-l-4 border-l-green-500/40">
               <p className="text-xs uppercase tracking-wide text-text-muted">Actives</p>
@@ -90,9 +99,40 @@ export default function CompaniesPage() {
             onReset={() => setSearchTerm('')}
           />
 
+          <div className="mb-4 flex items-center justify-between text-sm text-text-muted">
+            <span>
+              {totalCompanies === 0
+                ? 'Aucune entreprise'
+                : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCompanies)} sur ${totalCompanies}`}
+            </span>
+            {totalCompanies > pageSize && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Précédent
+                </Button>
+                <span className="text-xs text-text-muted">
+                  Page {currentPage}/{totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
+          </div>
+
           {isLoading ? (
             <LoadingState message="Chargement des entreprises..." />
-          ) : filteredCompanies && filteredCompanies.length > 0 ? (
+          ) : companies.length > 0 ? (
             <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
@@ -106,7 +146,7 @@ export default function CompaniesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCompanies.map((company) => (
+                  {companies.map((company) => (
                     <TableRow key={company.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">

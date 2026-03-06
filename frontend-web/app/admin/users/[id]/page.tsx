@@ -29,8 +29,9 @@ export default function EditUserPage() {
   });
 
   const { data: agencies } = useQuery({
-    queryKey: ['agencies'],
-    queryFn: () => agencyApi.getAll(),
+    queryKey: ['agencies', 'lookup', user?.companyId],
+    queryFn: () => agencyApi.getLookup(user?.companyId),
+    enabled: !!user?.companyId,
   });
 
   const [formData, setFormData] = useState<UpdateUserDto>({
@@ -106,7 +107,7 @@ export default function EditUserPage() {
     );
   }
 
-  const availableAgencies = agencies?.filter((a) => a.companyId === user.companyId) || [];
+  const availableAgencies = agencies || [];
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>

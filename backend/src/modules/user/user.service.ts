@@ -72,6 +72,99 @@ export class UserService {
     return this.sanitizeUsers(this.auditService.removeAuditFieldsFromArray(users));
   }
 
+  async findAllLight(user: any, page = 1, pageSize = 25, q?: string, agencyId?: string) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(1, Math.floor(pageSize)), 100) : 25;
+    const skip = (safePage - 1) * safePageSize;
+    const search = q?.trim();
+    const normalizedAgencyId = agencyId?.trim();
+    const include = {
+      company: true,
+      userAgencies: {
+        include: {
+          agency: true,
+        },
+      },
+    } as const;
+
+    if (user.role === 'SUPER_ADMIN') {
+      const where = this.softDeleteService.addSoftDeleteFilter({
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+        ...(normalizedAgencyId
+          ? {
+              userAgencies: {
+                some: { agencyId: normalizedAgencyId },
+              },
+            }
+          : {}),
+      });
+      const [itemsRaw, total, activeTotal] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          include,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.user.count({ where }),
+        this.prisma.user.count({
+          where: this.softDeleteService.addSoftDeleteFilter({ isActive: true }),
+        }),
+      ]);
+
+      const items = this.sanitizeUsers(this.auditService.removeAuditFieldsFromArray(itemsRaw));
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+      return { items, total, activeTotal, page: safePage, pageSize: safePageSize, totalPages };
+    }
+
+    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+      const where = this.softDeleteService.addSoftDeleteFilter({
+        companyId: user.companyId,
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+        ...(normalizedAgencyId
+          ? {
+              userAgencies: {
+                some: { agencyId: normalizedAgencyId },
+              },
+            }
+          : {}),
+      });
+      const [itemsRaw, total, activeTotal] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          include,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.user.count({ where }),
+        this.prisma.user.count({ where: { ...where, isActive: true } }),
+      ]);
+
+      const items = this.sanitizeUsers(this.auditService.removeAuditFieldsFromArray(itemsRaw));
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+      return { items, total, activeTotal, page: safePage, pageSize: safePageSize, totalPages };
+    }
+
+    throw new ForbiddenException(
+      'Permissions insuffisantes : seuls SUPER_ADMIN et COMPANY_ADMIN peuvent lister les utilisateurs',
+    );
+  }
+
   async findOne(id: string, user: any) {
     const includeRelations = {
       company: true,

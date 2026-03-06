@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -34,6 +35,48 @@ export class CompanyController {
   @ApiOperation({ summary: 'Get all companies (SUPER_ADMIN only)' })
   async findAll() {
     return this.companyService.findAll();
+  }
+
+  @Get('recent')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get recent companies (SUPER_ADMIN only)' })
+  async findRecent(@Query('limit') limit?: string) {
+    const parsed = limit ? Number(limit) : 5;
+    return this.companyService.findRecent(parsed);
+  }
+
+  @Get('admin-stats')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get lightweight admin dashboard stats (SUPER_ADMIN only)' })
+  async getAdminStats() {
+    return this.companyService.getAdminStats();
+  }
+
+  @Get('light')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get lightweight paginated companies list (SUPER_ADMIN only)' })
+  async findAllLight(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('q') q?: string,
+  ) {
+    const parsedPage = page ? Number(page) : 1;
+    const parsedPageSize = pageSize ? Number(pageSize) : 25;
+    return this.companyService.findAllLight(parsedPage, parsedPageSize, q);
+  }
+
+  @Get('lookup')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get lightweight company lookup list (SUPER_ADMIN only)' })
+  async findAllLookup() {
+    return this.companyService.findAllLookup();
+  }
+
+  @Get(':id/summary')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get lightweight company summary by ID (SUPER_ADMIN only)' })
+  async findSummary(@Param('id') id: string) {
+    return this.companyService.findSummary(id);
   }
 
   @Get('me')

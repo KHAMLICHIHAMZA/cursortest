@@ -176,6 +176,49 @@ export class BillingService {
     });
   }
 
+  async getCompanyBillingHealth(companyId: string, user: any, limit = 10) {
+    if (user.role !== 'SUPER_ADMIN' && user.companyId !== companyId) {
+      throw new ForbiddenException(
+        'Accès refusé : vous ne pouvez consulter que les factures de votre propre société',
+      );
+    }
+
+    const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : 10;
+    const now = new Date();
+
+    const [overduePendingCount, recentInvoices] = await Promise.all([
+      this.prisma.paymentSaas.count({
+        where: {
+          companyId,
+          status: PaymentStatus.PENDING,
+          dueDate: { lt: now },
+        },
+      }),
+      this.prisma.paymentSaas.findMany({
+        where: { companyId },
+        include: {
+          subscription: {
+            include: {
+              plan: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { dueDate: 'desc' },
+        take: safeLimit,
+      }),
+    ]);
+
+    return {
+      overduePendingCount,
+      recentInvoices,
+    };
+  }
+
   /**
    * Récupérer les factures en attente de paiement
    */

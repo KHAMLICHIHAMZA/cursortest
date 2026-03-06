@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
+import { companyApi, CompanyLookup } from '@/lib/api/company';
 import { Plus, Trash2, RefreshCw, AlertCircle, CheckCircle, Info, ArrowLeft, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -31,21 +32,28 @@ interface Plan {
   price: number;
 }
 
-interface Company {
-  id: string;
-  name: string;
+interface PaginatedSubscriptionsResponse {
+  items: Subscription[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export default function SubscriptionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { data: subscriptions = [], isLoading } = useQuery<Subscription[]>({
-    queryKey: ['subscriptions'],
+  const { data: subscriptionsPage, isLoading } = useQuery<PaginatedSubscriptionsResponse>({
+    queryKey: ['subscriptions', 'light', currentPage, pageSize],
     queryFn: async () => {
-      const res = await apiClient.get('/subscriptions');
+      const res = await apiClient.get('/subscriptions/light', {
+        params: { page: currentPage, pageSize },
+      });
       return res.data;
     },
   });
@@ -56,14 +64,13 @@ export default function SubscriptionsPage() {
       const res = await apiClient.get('/plans');
       return res.data;
     },
+    enabled: showModal,
   });
 
-  const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ['companies'],
-    queryFn: async () => {
-      const res = await apiClient.get('/companies');
-      return res.data;
-    },
+  const { data: companies = [] } = useQuery<CompanyLookup[]>({
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
+    enabled: showModal,
   });
 
   const createMutation = useMutation({
@@ -113,6 +120,16 @@ export default function SubscriptionsPage() {
       setEditingSubscription(null);
     },
   });
+
+  const subscriptions = subscriptionsPage?.items || [];
+  const totalItems = subscriptionsPage?.total || 0;
+  const totalPages = subscriptionsPage?.totalPages || 1;
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -397,6 +414,37 @@ export default function SubscriptionsPage() {
             )}
           </DialogContent>
         </Dialog>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-text-muted">
+        <span>
+          {totalItems === 0
+            ? 'Aucun abonnement'
+            : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} sur ${totalItems}`}
+        </span>
+        {totalItems > pageSize && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              Précédent
+            </Button>
+            <span className="text-xs text-text-muted">
+              Page {currentPage}/{totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Suivant
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="border rounded-lg">

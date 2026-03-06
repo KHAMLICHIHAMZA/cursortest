@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   UseGuards,
   Delete,
 } from '@nestjs/common';
@@ -39,6 +40,24 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Get all subscriptions (filtered by role)' })
   async findAll(@CurrentUser() user: any) {
     return this.subscriptionService.findAll(user);
+  }
+
+  @Get('light')
+  @ApiOperation({ summary: 'Get lightweight subscriptions list (filtered by role)' })
+  async findAllLight(
+    @CurrentUser() user: any,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const parsedPage = page ? Number(page) : 1;
+    const parsedPageSize = pageSize ? Number(pageSize) : 25;
+    return this.subscriptionService.findAllLight(user, parsedPage, parsedPageSize);
+  }
+
+  @Get('company/:companyId')
+  @ApiOperation({ summary: 'Get subscription by company ID' })
+  async findByCompany(@Param('companyId') companyId: string, @CurrentUser() user: any) {
+    return this.subscriptionService.findByCompany(companyId, user);
   }
 
   @Get(':id')
