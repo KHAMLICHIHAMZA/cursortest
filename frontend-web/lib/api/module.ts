@@ -31,6 +31,17 @@ export interface ActiveModule {
   source: 'company';
 }
 
+export interface ModuleDependency {
+  id: string;
+  moduleCode: ModuleCode;
+  dependsOnCode: ModuleCode;
+}
+
+export interface CreateModuleDependencyDto {
+  moduleCode: ModuleCode;
+  dependsOnCode: ModuleCode;
+}
+
 export const moduleApi = {
   /**
    * Récupérer les modules activés pour une Company
@@ -80,5 +91,19 @@ export const moduleApi = {
    */
   deactivateAgencyModule: async (agencyId: string, moduleCode: ModuleCode): Promise<void> => {
     await apiClient.delete(`/modules/agency/${agencyId}/${moduleCode}`);
+  },
+
+  getDependencies: async (): Promise<ModuleDependency[]> => {
+    const { data } = await apiClient.get<ModuleDependency[]>('/modules/dependencies');
+    return data;
+  },
+
+  createDependency: async (dto: CreateModuleDependencyDto): Promise<ModuleDependency> => {
+    const { data } = await apiClient.post<ModuleDependency>('/modules/dependencies', dto);
+    return data;
+  },
+
+  deleteDependency: async (moduleCode: ModuleCode, dependsOnCode: ModuleCode): Promise<void> => {
+    await apiClient.delete(`/modules/dependencies/${moduleCode}/${dependsOnCode}`);
   },
 };

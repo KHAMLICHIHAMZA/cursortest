@@ -14,6 +14,8 @@ export interface PlanPricingRule {
   extraModulePriceMad: number;
   allowAgencyOverageOnCreate: boolean;
   allowAdditionalModulesOnCreate: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Plan {

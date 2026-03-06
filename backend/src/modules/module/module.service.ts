@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ModuleCode } from '@prisma/client';
+import { CreateModuleDependencyDto } from './dto/create-module-dependency.dto';
 
 /**
  * Service de gestion des modules SaaS
@@ -277,6 +278,44 @@ export class ModuleService {
     return this.prisma.moduleDependency.findMany({
       orderBy: { moduleCode: 'asc' },
     });
+  }
+
+  async createModuleDependency(dto: CreateModuleDependencyDto, user: any) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Seul SUPER_ADMIN peut gerer les dependances des modules');
+    }
+    if (dto.moduleCode === dto.dependsOnCode) {
+      throw new BadRequestException('Un module ne peut pas dependre de lui-meme');
+    }
+
+    const existing = await this.prisma.moduleDependency.findUnique({
+      where: {
+        moduleCode_dependsOnCode: {
+          moduleCode: dto.moduleCode,
+          dependsOnCode: dto.dependsOnCode,
+        },
+      },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.moduleDependency.create({
+      data: {
+        moduleCode: dto.moduleCode,
+        dependsOnCode: dto.dependsOnCode,
+      },
+    });
+  }
+
+  async deleteModuleDependency(moduleCode: ModuleCode, dependsOnCode: ModuleCode, user: any) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Seul SUPER_ADMIN peut gerer les dependances des modules');
+    }
+    await this.prisma.moduleDependency.deleteMany({
+      where: { moduleCode, dependsOnCode },
+    });
+    return { deleted: true };
   }
 
   /**

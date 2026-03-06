@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Body,
   Delete,
   Param,
   UseGuards,
@@ -14,6 +15,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ReadOnlyGuard } from '../../common/guards/read-only.guard';
 import { ModuleCode } from '@prisma/client';
+import { CreateModuleDependencyDto } from './dto/create-module-dependency.dto';
 
 @ApiTags('Modules')
 @Controller('modules')
@@ -39,6 +41,24 @@ export class ModuleController {
   @ApiOperation({ summary: 'Get module dependencies (SUPER_ADMIN only)' })
   async getModuleDependencies(@CurrentUser() user: any) {
     return this.moduleService.getModuleDependencies(user);
+  }
+
+  @Post('dependencies')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Create module dependency (SUPER_ADMIN only)' })
+  async createModuleDependency(@Body() dto: CreateModuleDependencyDto, @CurrentUser() user: any) {
+    return this.moduleService.createModuleDependency(dto, user);
+  }
+
+  @Delete('dependencies/:moduleCode/:dependsOnCode')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Delete module dependency (SUPER_ADMIN only)' })
+  async deleteModuleDependency(
+    @Param('moduleCode') moduleCode: ModuleCode,
+    @Param('dependsOnCode') dependsOnCode: ModuleCode,
+    @CurrentUser() user: any,
+  ) {
+    return this.moduleService.deleteModuleDependency(moduleCode, dependsOnCode, user);
   }
 
   @Post('company/:companyId/:moduleCode/activate')

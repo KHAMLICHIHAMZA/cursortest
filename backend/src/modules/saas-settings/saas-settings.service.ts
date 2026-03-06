@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpdateSaasSettingsDto } from './dto/update-saas-settings.dto';
+import { SimulateSaasPricingDto } from './dto/simulate-saas-pricing.dto';
 import {
   DEFAULT_SAAS_SETTINGS,
   SAAS_SETTINGS_RULE_KEYS,
@@ -125,6 +126,151 @@ export class SaasSettingsService {
     }
 
     return this.getSettings();
+  }
+
+  async getSettingsAudit() {
+    const keys = Object.values(SAAS_SETTINGS_RULE_KEYS);
+    return this.prisma.businessRule.findMany({
+      where: {
+        key: { in: keys },
+        companyId: null,
+        agencyId: null,
+      },
+      orderBy: [{ updatedAt: 'desc' }],
+      select: {
+        id: true,
+        key: true,
+        value: true,
+        description: true,
+        version: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async simulatePricing(dto: SimulateSaasPricingDto) {
+    const settings = await this.getSettings();
+
+    const selectedPlan = dto.planId
+      ? await this.prisma.plan.findUnique({
+          where: { id: dto.planId },
+          include: { planModules: true, planQuotas: true, pricingRule: true },
+        })
+      : null;
+
+    if (dto.planId && !selectedPlan) {
+      throw new NotFoundException('Plan introuvable');
+    }
+
+    if (selectedPlan && !selectedPlan.isActive) {
+      throw new BadRequestException('Le plan selectionne est inactif');
+    }
+
+    const uniqueAdditionalModules = Array.from(new Set(dto.additionalModuleCodes || []));
+    const planModuleCodes = selectedPlan?.planModules.map((pm) => pm.moduleCode) || [];
+    const extraModuleCodes = uniqueAdditionalModules.filter(
+      (code) => !planModuleCodes.includes(code),
+    );
+    const allModuleCodes = Array.from(new Set([...planModuleCodes, ...extraModuleCodes]));
+
+    const effectiveExtraAgencyPriceMad =
+      selectedPlan?.pricingRule?.extraAgencyPriceMad ?? settings.extraAgencyPriceMad;
+    const effectiveExtraModulePriceMad =
+      selectedPlan?.pricingRule?.extraModulePriceMad ?? settings.extraModulePriceMad;
+    const effectiveAllowAgencyOverageOnCreate =
+      selectedPlan?.pricingRule?.allowAgencyOverageOnCreate ??
+      settings.allowAgencyOverageOnCreate;
+    const effectiveAllowAdditionalModulesOnCreate =
+      selectedPlan?.pricingRule?.allowAdditionalModulesOnCreate ??
+      settings.allowAdditionalModulesOnCreate;
+
+    const planAgencyQuota = selectedPlan?.planQuotas.find(
+      (q) =>
+        q.quotaKey === 'agencies' ||
+        q.quotaKey === 'max_agencies' ||
+        q.quotaKey === 'maxAgencies',
+    );
+    const baseQuota = planAgencyQuota?.quotaValue;
+    const requestedMaxAgencies =
+      dto.maxAgencies ??
+      (baseQuota !== undefined && baseQuota >= 0 ? baseQuota : undefined);
+
+    const extraAgenciesCount =
+      requestedMaxAgencies !== undefined && baseQuota !== undefined && baseQuota >= 0
+        ? Math.max(0, requestedMaxAgencies - baseQuota)
+        : 0;
+
+    const validationErrors: string[] = [];
+    if (!effectiveAllowAgencyOverageOnCreate && extraAgenciesCount > 0) {
+      validationErrors.push(
+        "Le depassement du quota d'agences est desactive par la regle active.",
+      );
+    }
+    if (!effectiveAllowAdditionalModulesOnCreate && extraModuleCodes.length > 0) {
+      validationErrors.push(
+        "L'ajout de modules hors pack est desactive par la regle active.",
+      );
+    }
+
+    if (allModuleCodes.length > 0) {
+      const dependencies = await this.prisma.moduleDependency.findMany({
+        where: { moduleCode: { in: allModuleCodes } },
+      });
+      for (const dep of dependencies) {
+        if (!allModuleCodes.includes(dep.dependsOnCode)) {
+          validationErrors.push(
+            `Le module ${dep.moduleCode} requiert ${dep.dependsOnCode}.`,
+          );
+        }
+      }
+    }
+
+    const basePlanPrice = selectedPlan?.price ?? 0;
+    const monthlyAmount =
+      basePlanPrice +
+      extraAgenciesCount * effectiveExtraAgencyPriceMad +
+      extraModuleCodes.length * effectiveExtraModulePriceMad;
+
+    return {
+      input: {
+        planId: dto.planId ?? null,
+        maxAgencies: requestedMaxAgencies ?? null,
+        additionalModuleCodes: uniqueAdditionalModules,
+      },
+      appliedRules: {
+        source: {
+          extraAgencyPriceMad: selectedPlan?.pricingRule?.extraAgencyPriceMad !== undefined ? 'plan' : 'global',
+          extraModulePriceMad: selectedPlan?.pricingRule?.extraModulePriceMad !== undefined ? 'plan' : 'global',
+          allowAgencyOverageOnCreate:
+            selectedPlan?.pricingRule?.allowAgencyOverageOnCreate !== undefined
+              ? 'plan'
+              : 'global',
+          allowAdditionalModulesOnCreate:
+            selectedPlan?.pricingRule?.allowAdditionalModulesOnCreate !== undefined
+              ? 'plan'
+              : 'global',
+        },
+        values: {
+          extraAgencyPriceMad: effectiveExtraAgencyPriceMad,
+          extraModulePriceMad: effectiveExtraModulePriceMad,
+          allowAgencyOverageOnCreate: effectiveAllowAgencyOverageOnCreate,
+          allowAdditionalModulesOnCreate: effectiveAllowAdditionalModulesOnCreate,
+        },
+      },
+      breakdown: {
+        basePlanPrice,
+        includedModules: planModuleCodes,
+        extraModules: extraModuleCodes,
+        requestedMaxAgencies: requestedMaxAgencies ?? null,
+        includedAgenciesQuota: baseQuota ?? null,
+        extraAgenciesCount,
+      },
+      monthlyAmount,
+      canProceed: validationErrors.length === 0,
+      validationErrors,
+    };
   }
 }
 
