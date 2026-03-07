@@ -47,6 +47,12 @@ export interface UpdateCompanyDto {
   isActive?: boolean;
 }
 
+export interface InitializeCompanySubscriptionDto {
+  planId: string;
+  maxAgencies?: number;
+  additionalModuleCodes?: string[];
+}
+
 export interface AdminDashboardStats {
   companies: number;
   agencies: number;
@@ -110,6 +116,17 @@ export const companyApi = {
 
   create: async (dto: CreateCompanyDto): Promise<Company> => {
     const { data } = await apiClient.post<Company>('/companies', dto);
+    return data;
+  },
+
+  initializeSubscription: async (
+    id: string,
+    dto: InitializeCompanySubscriptionDto,
+  ): Promise<{ companyId: string; subscription: any }> => {
+    const { data } = await apiClient.post<{ companyId: string; subscription: any }>(
+      `/companies/${id}/initial-subscription`,
+      dto,
+    );
     return data;
   },
 

@@ -1,36 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { companyApi, CreateCompanyDto } from '@/lib/api/company';
-import { planApi, Plan } from '@/lib/api/plan';
-import { saasSettingsApi } from '@/lib/api/saas-settings';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle } from 'lucide-react';
-
-const MODULE_LABELS: Record<string, string> = {
-  VEHICLES: 'Véhicules',
-  BOOKINGS: 'Réservations',
-  INVOICES: 'Facturation',
-  MAINTENANCE: 'Maintenance',
-  FINES: 'Amendes',
-  ANALYTICS: 'Analytics',
-  GPS: 'GPS',
-  CONTRACTS: 'Contrats',
-  JOURNAL: 'Journal',
-  CHARGES: 'Charges',
-  NOTIFICATIONS: 'Notifications',
-};
-
-const ALL_MODULE_CODES = Object.keys(MODULE_LABELS);
 
 export default function NewCompanyPage() {
   const router = useRouter();
@@ -44,25 +22,20 @@ export default function NewCompanyPage() {
     adminEmail: '',
     adminName: '',
   });
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [isCustomMaxAgencies, setIsCustomMaxAgencies] = useState(false);
-  const [additionalModuleCodes, setAdditionalModuleCodes] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const { data: plans = [] } = useQuery<Plan[]>({
-    queryKey: ['plans'],
-    queryFn: () => planApi.getAll(),
-  });
-  const { data: saasSettings } = useQuery({
-    queryKey: ['saas-settings'],
-    queryFn: () => saasSettingsApi.get(),
+  const [addressForm, setAddressForm] = useState({
+    line1: '',
+    line2: '',
+    city: '',
+    postalCode: '',
+    country: 'Maroc',
   });
 
   const createMutation = useMutation({
     mutationFn: (data: CreateCompanyDto) => companyApi.create(data),
     onSuccess: (createdCompany) => {
-      toast.success('Entreprise créée. Configurez maintenant les modules.');
-      router.push(`/admin/companies/${createdCompany.id}?section=modules`);
+      toast.success('Entreprise créée. Passez à l étape pack puis modules.');
+      router.push(`/admin/companies/${createdCompany.id}?section=subscription`);
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Erreur lors de la création';
@@ -70,93 +43,6 @@ export default function NewCompanyPage() {
       toast.error(message);
     },
   });
-
-  const selectedPlan = useMemo(
-    () => plans.find((p) => p.id === selectedPlanId) || null,
-    [plans, selectedPlanId],
-  );
-
-  const selectedPlanAgencyQuota = useMemo(() => {
-    if (!selectedPlan) return undefined;
-    const quota = selectedPlan.planQuotas.find(
-      (q) =>
-        q.quotaKey === 'agencies' ||
-        q.quotaKey === 'max_agencies' ||
-        q.quotaKey === 'maxAgencies',
-    );
-    return quota?.quotaValue;
-  }, [selectedPlan]);
-
-  useEffect(() => {
-    if (!selectedPlan || isCustomMaxAgencies) return;
-
-    if (selectedPlanAgencyQuota === undefined || selectedPlanAgencyQuota === -1) {
-      setFormData((prev) => ({ ...prev, maxAgencies: undefined }));
-      return;
-    }
-
-    setFormData((prev) => ({ ...prev, maxAgencies: selectedPlanAgencyQuota }));
-  }, [selectedPlan, selectedPlanAgencyQuota, isCustomMaxAgencies]);
-
-  const planModuleCodes = useMemo(
-    () => (selectedPlan ? selectedPlan.planModules.map((m) => m.moduleCode) : []),
-    [selectedPlan],
-  );
-
-  const availableAdditionalModules = useMemo(
-    () => ALL_MODULE_CODES.filter((code) => !planModuleCodes.includes(code)),
-    [planModuleCodes],
-  );
-
-  useEffect(() => {
-    setAdditionalModuleCodes((prev) => prev.filter((code) => availableAdditionalModules.includes(code)));
-  }, [availableAdditionalModules]);
-
-  const extraAgenciesCount = useMemo(() => {
-    if (
-      selectedPlanAgencyQuota === undefined ||
-      selectedPlanAgencyQuota < 0 ||
-      formData.maxAgencies == null
-    ) {
-      return 0;
-    }
-    return Math.max(0, formData.maxAgencies - selectedPlanAgencyQuota);
-  }, [selectedPlanAgencyQuota, formData.maxAgencies]);
-
-  const estimatedMonthlyAmount = useMemo(() => {
-    if (!selectedPlan) return undefined;
-    const extraAgencyUnitPrice =
-      selectedPlan.pricingRule?.extraAgencyPriceMad ??
-      saasSettings?.extraAgencyPriceMad ??
-      0;
-    const extraModuleUnitPrice =
-      selectedPlan.pricingRule?.extraModulePriceMad ??
-      saasSettings?.extraModulePriceMad ??
-      0;
-    return selectedPlan.price + extraAgenciesCount * extraAgencyUnitPrice + additionalModuleCodes.length * extraModuleUnitPrice;
-  }, [
-    selectedPlan,
-    extraAgenciesCount,
-    additionalModuleCodes.length,
-    saasSettings?.extraAgencyPriceMad,
-    saasSettings?.extraModulePriceMad,
-  ]);
-
-  const effectiveAllowAgencyOverageOnCreate = useMemo(
-    () =>
-      selectedPlan?.pricingRule?.allowAgencyOverageOnCreate ??
-      saasSettings?.allowAgencyOverageOnCreate ??
-      true,
-    [selectedPlan, saasSettings],
-  );
-
-  const effectiveAllowAdditionalModulesOnCreate = useMemo(
-    () =>
-      selectedPlan?.pricingRule?.allowAdditionalModulesOnCreate ??
-      saasSettings?.allowAdditionalModulesOnCreate ??
-      true,
-    [selectedPlan, saasSettings],
-  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,39 +68,25 @@ export default function NewCompanyPage() {
       return;
     }
 
-    if (
-      selectedPlan &&
-      !effectiveAllowAgencyOverageOnCreate &&
-      extraAgenciesCount > 0
-    ) {
-      setErrors({
-        submit:
-          "Le depassement du quota d'agences est desactive par la regle tarifaire active (plan/global).",
-      });
-      return;
-    }
+    const normalizedAddress = [
+      [addressForm.line1.trim(), addressForm.line2.trim()].filter(Boolean).join(', '),
+      [addressForm.postalCode.trim(), addressForm.city.trim()].filter(Boolean).join(' '),
+      addressForm.country.trim(),
+    ]
+      .filter(Boolean)
+      .join(' - ');
 
-    const payload = selectedPlanId
-      ? {
-          ...formData,
-          planId: selectedPlanId,
-          additionalModuleCodes: effectiveAllowAdditionalModulesOnCreate
-            ? additionalModuleCodes
-            : [],
-        }
-      : formData;
-    createMutation.mutate(payload);
+    const payloadBase = {
+      ...formData,
+      address: normalizedAddress || undefined,
+    };
+    createMutation.mutate(payloadBase);
   };
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="p-4">
-            <p className="text-sm text-text-muted">
-              Workflow: création entreprise + plan initial, puis configuration détaillée des modules à l&apos;étape suivante.
-            </p>
-          </Card>
           <FormCard
             title="Nouvelle entreprise"
             description="Remplissez les informations pour créer une nouvelle entreprise"
@@ -289,45 +161,6 @@ export default function NewCompanyPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="maxAgencies" className="block text-sm font-medium text-text mb-2">
-                  Nombre max d&apos;agences
-                </label>
-                <Input
-                  id="maxAgencies"
-                  type="number"
-                  min="0"
-                  value={formData.maxAgencies ?? ''}
-                  onChange={(e) => {
-                    setIsCustomMaxAgencies(true);
-                    setFormData({ ...formData, maxAgencies: e.target.value ? parseInt(e.target.value) : undefined });
-                  }}
-                  placeholder="Illimite si vide"
-                />
-                <p className="text-xs text-text-muted mt-1">
-                  Laisser vide pour illimité
-                  {selectedPlanAgencyQuota !== undefined && (
-                    <>. Quota du pack: {selectedPlanAgencyQuota === -1 ? 'Illimité' : selectedPlanAgencyQuota}</>
-                  )}
-                </p>
-                {isCustomMaxAgencies && selectedPlan && (
-                  <button
-                    type="button"
-                    className="mt-1 text-xs text-primary hover:underline"
-                    onClick={() => {
-                      setIsCustomMaxAgencies(false);
-                      if (selectedPlanAgencyQuota === undefined || selectedPlanAgencyQuota === -1) {
-                        setFormData((prev) => ({ ...prev, maxAgencies: undefined }));
-                      } else {
-                        setFormData((prev) => ({ ...prev, maxAgencies: selectedPlanAgencyQuota }));
-                      }
-                    }}
-                  >
-                    Revenir au quota du pack
-                  </button>
-                )}
-              </div>
-
-              <div>
                 <label htmlFor="bookingNumberMode" className="block text-sm font-medium text-text mb-2">
                   Mode N° reservation
                 </label>
@@ -355,16 +188,43 @@ export default function NewCompanyPage() {
               />
             </div>
 
-            <div>
-              <label htmlFor="address" className="block text-sm font-medium text-text mb-2">
-                Adresse
-              </label>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-text">Adresse</label>
               <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Adresse complete"
+                id="addressLine1"
+                value={addressForm.line1}
+                onChange={(e) => setAddressForm((prev) => ({ ...prev, line1: e.target.value }))}
+                placeholder="Adresse ligne 1 (n°, rue, avenue...)"
               />
+              <Input
+                id="addressLine2"
+                value={addressForm.line2}
+                onChange={(e) => setAddressForm((prev) => ({ ...prev, line2: e.target.value }))}
+                placeholder="Adresse ligne 2 (immeuble, etage, quartier...)"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input
+                  id="addressPostalCode"
+                  value={addressForm.postalCode}
+                  onChange={(e) => setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }))}
+                  placeholder="Code postal"
+                />
+                <Input
+                  id="addressCity"
+                  value={addressForm.city}
+                  onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))}
+                  placeholder="Ville"
+                />
+                <Input
+                  id="addressCountry"
+                  value={addressForm.country}
+                  onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))}
+                  placeholder="Pays"
+                />
+              </div>
+              <p className="text-xs text-text-muted">
+                Format enregistre: ligne 1/2, code postal + ville, pays.
+              </p>
             </div>
 
             <div className="border-t border-border pt-6">
@@ -403,164 +263,10 @@ export default function NewCompanyPage() {
 
             <div className="border-t border-border pt-6">
               <h2 className="text-lg font-semibold text-text mb-2">Plan / Package</h2>
-              <p className="text-sm text-text-muted mb-4">
-                Sélectionnez un plan pour créer l&apos;abonnement initial. Les modules inclus sont activés automatiquement, puis vous pourrez ajouter/retirer des modules à l&apos;étape suivante.
+              <p className="text-sm text-text-muted">
+                Le choix du pack se fait maintenant apres creation de l entreprise (Etape 2),
+                avec le detail prix/quotas/modules et les dependances automatiques.
               </p>
-
-              {plans.length === 0 ? (
-                <p className="text-sm text-text-muted italic">Aucun plan disponible. Créez-en un depuis la page Plans.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {plans.map((plan) => {
-                    const isSelected = selectedPlanId === plan.id;
-                    return (
-                      <button
-                        key={plan.id}
-                        type="button"
-                        onClick={() => setSelectedPlanId(isSelected ? null : plan.id)}
-                        className={`relative text-left p-4 rounded-xl border-2 transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                            : 'border-border hover:border-primary/40 bg-card'
-                        }`}
-                      >
-                        {isSelected && (
-                          <CheckCircle className="absolute top-3 right-3 w-5 h-5 text-primary" />
-                        )}
-                        <h3 className="font-semibold text-text">{plan.name}</h3>
-                        <p className="text-2xl font-bold text-primary mt-1">
-                          {plan.price} <span className="text-sm font-normal text-text-muted">MAD/mois</span>
-                        </p>
-                        {plan.description && (
-                          <p className="text-xs text-text-muted mt-1">{plan.description}</p>
-                        )}
-                        <div className="flex flex-wrap gap-1 mt-3">
-                          {plan.planModules.map((m) => (
-                            <Badge key={m.moduleCode} variant="outline" className="text-[10px]">
-                              {MODULE_LABELS[m.moduleCode] || m.moduleCode}
-                            </Badge>
-                          ))}
-                        </div>
-                        {plan.planQuotas.length > 0 && (
-                          <div className="mt-2 text-xs text-text-muted space-y-0.5">
-                            {plan.planQuotas.map((q) => (
-                              <p key={q.quotaKey}>
-                                {q.quotaKey === 'agencies' ? 'Agences' : q.quotaKey === 'users' ? 'Utilisateurs' : q.quotaKey === 'vehicles' ? 'Véhicules' : q.quotaKey}
-                                : {q.quotaValue === -1 ? 'Illimité' : q.quotaValue}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {selectedPlan && (
-                <Card className="mt-4 p-4 border border-primary/30 bg-primary/5">
-                  <h3 className="font-semibold text-text">Résumé du pack sélectionné</h3>
-                  <p className="text-sm text-text-muted mt-1">
-                    Prix de base appliqué à la création: <span className="text-text font-medium">{selectedPlan.price} MAD/mois</span>
-                  </p>
-                  <div className="mt-3 text-sm text-text-muted space-y-1">
-                    <p>
-                      Agences incluses dans le pack:{' '}
-                      <span className="text-text">
-                        {selectedPlanAgencyQuota === undefined
-                          ? 'Non défini'
-                          : selectedPlanAgencyQuota === -1
-                            ? 'Illimité'
-                            : selectedPlanAgencyQuota}
-                      </span>
-                    </p>
-                    <p>
-                      Limite agences configurée pour l&apos;entreprise:{' '}
-                      <span className="text-text">
-                        {formData.maxAgencies === undefined ? 'Illimité' : formData.maxAgencies}
-                      </span>
-                    </p>
-                    <p>
-                      Agences supplémentaires facturées:{' '}
-                      <span className="text-text">{extraAgenciesCount}</span>
-                    </p>
-                    <p>
-                      Modules supplémentaires sélectionnés:{' '}
-                      <span className="text-text">{additionalModuleCodes.length}</span>
-                    </p>
-                  </div>
-                  {selectedPlanAgencyQuota !== undefined &&
-                    selectedPlanAgencyQuota >= 0 &&
-                    formData.maxAgencies != null &&
-                    formData.maxAgencies > selectedPlanAgencyQuota && (
-                      <p className="mt-3 text-sm text-amber-500">
-                        La limite d&apos;agences dépasse le quota du pack. Le montant estimé inclut automatiquement ce dépassement.
-                      </p>
-                    )}
-                  <p className="mt-2 text-xs text-text-muted">
-                    Les modules inclus sont activés automatiquement. Vous pourrez ajouter d&apos;autres modules après création (Étape 2).
-                  </p>
-                  <div className="mt-4 text-xs text-text-muted space-y-1">
-                    <p>
-                      Prix agence supplementaire (global):{' '}
-                      <span className="text-text">
-                        {(selectedPlan.pricingRule?.extraAgencyPriceMad ?? saasSettings?.extraAgencyPriceMad ?? 0)} MAD/mois
-                      </span>
-                    </p>
-                    <p>
-                      Prix module supplementaire (global):{' '}
-                      <span className="text-text">
-                        {(selectedPlan.pricingRule?.extraModulePriceMad ?? saasSettings?.extraModulePriceMad ?? 0)} MAD/mois
-                      </span>
-                    </p>
-                    <p>
-                      Source de regle: <span className="text-text">{selectedPlan.pricingRule ? 'Plan (prioritaire)' : 'Global SaaS'}</span>
-                    </p>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-xs font-medium text-text mb-2">Modules additionnels à activer dès création</p>
-                    {!effectiveAllowAdditionalModulesOnCreate && (
-                      <p className="text-xs text-amber-500 mb-2">
-                        L ajout de modules additionnels a la creation est desactive par la regle tarifaire active.
-                      </p>
-                    )}
-                    {availableAdditionalModules.length === 0 ? (
-                      <p className="text-xs text-text-muted">Tous les modules sont déjà inclus dans ce pack.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {availableAdditionalModules.map((code) => {
-                          const checked = additionalModuleCodes.includes(code);
-                          return (
-                            <button
-                              key={code}
-                              type="button"
-                              disabled={!effectiveAllowAdditionalModulesOnCreate}
-                              onClick={() =>
-                                setAdditionalModuleCodes((prev) =>
-                                  checked ? prev.filter((c) => c !== code) : [...prev, code],
-                                )
-                              }
-                              className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${
-                                checked
-                                  ? 'border-primary bg-primary/15 text-text'
-                                  : 'border-border bg-card text-text-muted hover:border-primary/40'
-                              } ${!effectiveAllowAdditionalModulesOnCreate ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              {MODULE_LABELS[code] || code}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-4 text-sm">
-                    Montant mensuel estimé:{' '}
-                    <span className="font-semibold text-text">
-                      {estimatedMonthlyAmount ?? selectedPlan.price} MAD/mois
-                    </span>
-                  </p>
-                </Card>
-              )}
             </div>
 
           {errors.submit && (

@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CompanyService } from './company.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { InitializeCompanySubscriptionDto } from './dto/initialize-company-subscription.dto';
 import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -108,6 +109,17 @@ export class CompanyController {
   @ApiOperation({ summary: 'Create a new company' })
   async create(@Body() createCompanyDto: CreateCompanyDto, @CurrentUser() user: any) {
     return this.companyService.create(createCompanyDto, user);
+  }
+
+  @Post(':id/initial-subscription')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Initialize company plan/subscription after company creation' })
+  async initializeSubscription(
+    @Param('id') id: string,
+    @Body() dto: InitializeCompanySubscriptionDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.companyService.initializeSubscription(id, dto, user);
   }
 
   @Patch(':id')

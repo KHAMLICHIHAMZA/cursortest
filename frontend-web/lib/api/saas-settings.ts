@@ -29,7 +29,7 @@ export interface SimulateSaasPricingResponse {
   };
   appliedRules: {
     source: {
-      extraAgencyPriceMad: 'plan' | 'global';
+      extraAgencyPriceMad: 'plan' | 'global' | 'fallback_pack';
       extraModulePriceMad: 'plan' | 'global';
       allowAgencyOverageOnCreate: 'plan' | 'global';
       allowAdditionalModulesOnCreate: 'plan' | 'global';

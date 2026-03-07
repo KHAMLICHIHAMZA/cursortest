@@ -22,6 +22,17 @@ export class SaasSettingsService {
     return value === 'true' || value === '1';
   }
 
+  /**
+   * Legacy safeguard: when surcharge config is 0, derive a non-zero overage
+   * price from the selected plan.
+   */
+  private resolveFallbackExtraAgencyPrice(planPrice: number, includedAgenciesQuota?: number): number {
+    if (includedAgenciesQuota !== undefined && includedAgenciesQuota > 0) {
+      return Math.max(1, Math.ceil(planPrice / includedAgenciesQuota));
+    }
+    return Math.max(1, planPrice);
+  }
+
   async getSettings(): Promise<SaasSettings> {
     const keys = Object.values(SAAS_SETTINGS_RULE_KEYS);
     const rules = await this.prisma.businessRule.findMany({
@@ -175,10 +186,15 @@ export class SaasSettingsService {
     );
     const allModuleCodes = Array.from(new Set([...planModuleCodes, ...extraModuleCodes]));
 
-    const effectiveExtraAgencyPriceMad =
-      selectedPlan?.pricingRule?.extraAgencyPriceMad ?? settings.extraAgencyPriceMad;
+    // Backward-compatible behavior: if legacy plan pricing rule is 0, use global settings.
+    const configuredExtraAgencyPriceMad =
+      selectedPlan?.pricingRule && selectedPlan.pricingRule.extraAgencyPriceMad > 0
+        ? selectedPlan.pricingRule.extraAgencyPriceMad
+        : settings.extraAgencyPriceMad;
     const effectiveExtraModulePriceMad =
-      selectedPlan?.pricingRule?.extraModulePriceMad ?? settings.extraModulePriceMad;
+      selectedPlan?.pricingRule && selectedPlan.pricingRule.extraModulePriceMad > 0
+        ? selectedPlan.pricingRule.extraModulePriceMad
+        : settings.extraModulePriceMad;
     const effectiveAllowAgencyOverageOnCreate =
       selectedPlan?.pricingRule?.allowAgencyOverageOnCreate ??
       settings.allowAgencyOverageOnCreate;
@@ -193,6 +209,14 @@ export class SaasSettingsService {
         q.quotaKey === 'maxAgencies',
     );
     const baseQuota = planAgencyQuota?.quotaValue;
+    const fallbackExtraAgencyPriceMad = this.resolveFallbackExtraAgencyPrice(
+      selectedPlan?.price ?? 0,
+      baseQuota,
+    );
+    const effectiveExtraAgencyPriceMad =
+      configuredExtraAgencyPriceMad > 0
+        ? configuredExtraAgencyPriceMad
+        : fallbackExtraAgencyPriceMad;
     const requestedMaxAgencies =
       dto.maxAgencies ??
       (baseQuota !== undefined && baseQuota >= 0 ? baseQuota : undefined);
@@ -241,8 +265,16 @@ export class SaasSettingsService {
       },
       appliedRules: {
         source: {
-          extraAgencyPriceMad: selectedPlan?.pricingRule?.extraAgencyPriceMad !== undefined ? 'plan' : 'global',
-          extraModulePriceMad: selectedPlan?.pricingRule?.extraModulePriceMad !== undefined ? 'plan' : 'global',
+          extraAgencyPriceMad:
+            selectedPlan?.pricingRule && selectedPlan.pricingRule.extraAgencyPriceMad > 0
+              ? 'plan'
+              : settings.extraAgencyPriceMad > 0
+                ? 'global'
+                : 'fallback_pack',
+          extraModulePriceMad:
+            selectedPlan?.pricingRule && selectedPlan.pricingRule.extraModulePriceMad > 0
+              ? 'plan'
+              : 'global',
           allowAgencyOverageOnCreate:
             selectedPlan?.pricingRule?.allowAgencyOverageOnCreate !== undefined
               ? 'plan'

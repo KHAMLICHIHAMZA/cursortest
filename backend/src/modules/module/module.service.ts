@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ModuleCode } from '@prisma/client';
+import { ModuleCode, SubscriptionStatus } from '@prisma/client';
 import { CreateModuleDependencyDto } from './dto/create-module-dependency.dto';
 
 /**
@@ -39,24 +39,26 @@ export class ModuleService {
       throw new NotFoundException('Société introuvable');
     }
 
-    // Vérifier les dépendances
-    await this.checkModuleDependencies(moduleCode, companyId);
+    // Vérifier qu'un abonnement actif existe avant activation de modules payants.
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { companyId },
+      select: { status: true },
+    });
+    if (!subscription || subscription.status !== SubscriptionStatus.ACTIVE) {
+      throw new BadRequestException(
+        "Impossible d'activer des modules sans abonnement actif. Choisissez d'abord un pack.",
+      );
+    }
 
-    // Activer ou créer le CompanyModule
-    return this.prisma.companyModule.upsert({
+    // Activer le module demandé + ses dépendances manquantes.
+    await this.activateCompanyModuleWithDependencies(companyId, moduleCode, new Set<ModuleCode>());
+
+    return this.prisma.companyModule.findUnique({
       where: {
         companyId_moduleCode: {
           companyId,
           moduleCode,
         },
-      },
-      create: {
-        companyId,
-        moduleCode,
-        isActive: true,
-      },
-      update: {
-        isActive: true,
       },
     });
   }
@@ -418,6 +420,44 @@ export class ModuleService {
         );
       }
     }
+  }
+
+  private async activateCompanyModuleWithDependencies(
+    companyId: string,
+    moduleCode: ModuleCode,
+    visited: Set<ModuleCode>,
+  ) {
+    if (visited.has(moduleCode)) return;
+    visited.add(moduleCode);
+
+    const dependencies = await this.prisma.moduleDependency.findMany({
+      where: { moduleCode },
+    });
+
+    for (const dep of dependencies) {
+      await this.activateCompanyModuleWithDependencies(
+        companyId,
+        dep.dependsOnCode,
+        visited,
+      );
+    }
+
+    await this.prisma.companyModule.upsert({
+      where: {
+        companyId_moduleCode: {
+          companyId,
+          moduleCode,
+        },
+      },
+      create: {
+        companyId,
+        moduleCode,
+        isActive: true,
+      },
+      update: {
+        isActive: true,
+      },
+    });
   }
 }
 

@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyApi, UpdateCompanyDto } from '@/lib/api/company';
 import { moduleApi, ModuleCode, CompanyModule } from '@/lib/api/module';
+import { planApi } from '@/lib/api/plan';
+import { subscriptionApi } from '@/lib/api/subscription';
+import { saasSettingsApi } from '@/lib/api/saas-settings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -28,6 +31,11 @@ const ALL_MODULES: { code: ModuleCode; label: string; description: string }[] = 
   { code: 'CHARGES', label: 'Charges', description: 'Charges et dépenses' },
   { code: 'NOTIFICATIONS', label: 'Notifications', description: 'Notifications in-app' },
 ];
+
+const MODULE_LABELS: Record<ModuleCode, string> = ALL_MODULES.reduce((acc, item) => {
+  acc[item.code] = item.label;
+  return acc;
+}, {} as Record<ModuleCode, string>);
 
 export default function EditCompanyPage() {
   const router = useRouter();
@@ -72,9 +80,12 @@ export default function EditCompanyPage() {
   }, [company]);
 
   useEffect(() => {
-    if (searchParams.get('section') !== 'modules') return;
+    const sectionName = searchParams.get('section');
+    if (sectionName !== 'modules' && sectionName !== 'subscription') return;
     const timer = setTimeout(() => {
-      const section = document.getElementById('modules-section');
+      const section = document.getElementById(
+        sectionName === 'subscription' ? 'subscription-section' : 'modules-section',
+      );
       section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 250);
     return () => clearTimeout(timer);
@@ -85,6 +96,99 @@ export default function EditCompanyPage() {
     queryKey: ['company-modules', id],
     queryFn: () => moduleApi.getCompanyModules(id),
     enabled: !!id,
+  });
+
+  const { data: subscription, isLoading: subscriptionLoading } = useQuery({
+    queryKey: ['subscription-by-company', id],
+    queryFn: () => subscriptionApi.getByCompany(id),
+    enabled: !!id,
+  });
+
+  const { data: plans = [] } = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => planApi.getAll(),
+  });
+
+  const { data: saasSettings } = useQuery({
+    queryKey: ['saas-settings'],
+    queryFn: () => saasSettingsApi.get(),
+  });
+
+  const { data: moduleDependencies = [] } = useQuery({
+    queryKey: ['module-dependencies'],
+    queryFn: () => moduleApi.getDependencies(),
+  });
+
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [draftMaxAgencies, setDraftMaxAgencies] = useState<string>('');
+  const [additionalModuleCodes, setAdditionalModuleCodes] = useState<ModuleCode[]>([]);
+  const [packError, setPackError] = useState<string>('');
+
+  const selectedPlan = useMemo(
+    () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
+    [plans, selectedPlanId],
+  );
+
+  const selectedPlanQuotaAgencies = useMemo(() => {
+    if (!selectedPlan) return undefined;
+    const quota = selectedPlan.planQuotas.find(
+      (q) =>
+        q.quotaKey === 'agencies' ||
+        q.quotaKey === 'max_agencies' ||
+        q.quotaKey === 'maxAgencies',
+    );
+    return quota?.quotaValue;
+  }, [selectedPlan]);
+
+  const selectedPlanModuleCodes = useMemo(
+    () => (selectedPlan ? selectedPlan.planModules.map((mod) => mod.moduleCode as ModuleCode) : []),
+    [selectedPlan],
+  );
+
+  const additionalModuleCandidates = useMemo(
+    () => ALL_MODULES.map((m) => m.code).filter((code) => !selectedPlanModuleCodes.includes(code)),
+    [selectedPlanModuleCodes],
+  );
+
+  const dependencyMap = useMemo(() => {
+    const map = new Map<ModuleCode, ModuleCode[]>();
+    for (const dep of moduleDependencies) {
+      const current = map.get(dep.moduleCode) ?? [];
+      current.push(dep.dependsOnCode);
+      map.set(dep.moduleCode, current);
+    }
+    return map;
+  }, [moduleDependencies]);
+
+  const dependentMap = useMemo(() => {
+    const map = new Map<ModuleCode, ModuleCode[]>();
+    for (const dep of moduleDependencies) {
+      const current = map.get(dep.dependsOnCode) ?? [];
+      current.push(dep.moduleCode);
+      map.set(dep.dependsOnCode, current);
+    }
+    return map;
+  }, [moduleDependencies]);
+
+  const simulationInputMaxAgencies =
+    draftMaxAgencies.trim() === '' ? undefined : Number(draftMaxAgencies);
+  const { data: pricingSimulation } = useQuery({
+    queryKey: [
+      'saas-pricing-simulation',
+      selectedPlanId,
+      simulationInputMaxAgencies ?? null,
+      additionalModuleCodes.join(','),
+    ],
+    queryFn: () =>
+      saasSettingsApi.simulatePricing({
+        planId: selectedPlanId || undefined,
+        maxAgencies:
+          simulationInputMaxAgencies !== undefined && Number.isFinite(simulationInputMaxAgencies)
+            ? simulationInputMaxAgencies
+            : undefined,
+        additionalModuleCodes,
+      }),
+    enabled: !!selectedPlanId,
   });
 
   const [togglingModule, setTogglingModule] = useState<string | null>(null);
@@ -104,6 +208,26 @@ export default function EditCompanyPage() {
     },
   });
 
+  const initializeSubscriptionMutation = useMutation({
+    mutationFn: (payload: {
+      planId: string;
+      maxAgencies?: number;
+      additionalModuleCodes?: string[];
+    }) => companyApi.initializeSubscription(id, payload),
+    onSuccess: () => {
+      toast.success('Pack applique avec succes. Passez a l activation des modules.');
+      queryClient.invalidateQueries({ queryKey: ['subscription-by-company', id] });
+      queryClient.invalidateQueries({ queryKey: ['company', id] });
+      queryClient.invalidateQueries({ queryKey: ['company-modules', id] });
+      router.replace(`/admin/companies/${id}?section=modules`);
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Erreur lors de l initialisation du pack';
+      setPackError(message);
+      toast.error(message);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -116,16 +240,109 @@ export default function EditCompanyPage() {
     updateMutation.mutate(formData);
   };
 
+  const getDependenciesRecursively = (startCode: ModuleCode): ModuleCode[] => {
+    const result = new Set<ModuleCode>();
+    const stack = [startCode];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (!current) continue;
+      const deps = dependencyMap.get(current) ?? [];
+      for (const dep of deps) {
+        if (!result.has(dep)) {
+          result.add(dep);
+          stack.push(dep);
+        }
+      }
+    }
+    return Array.from(result);
+  };
+
+  const hasSelectedDependents = (code: ModuleCode, selectedCodes: ModuleCode[]) => {
+    const dependents = dependentMap.get(code) ?? [];
+    return selectedCodes.some((selected) => dependents.includes(selected));
+  };
+
+  const toggleAdditionalModule = (code: ModuleCode) => {
+    setPackError('');
+    if (additionalModuleCodes.includes(code)) {
+      const dependents = dependentMap.get(code) ?? [];
+      const blockers = additionalModuleCodes.filter((selected) => dependents.includes(selected));
+      if (blockers.length > 0) {
+        toast.error(
+          `Impossible de retirer ${MODULE_LABELS[code] || code}: requis par ${blockers
+            .map((item) => MODULE_LABELS[item] || item)
+            .join(', ')}`,
+        );
+        return;
+      }
+    }
+
+    setAdditionalModuleCodes((prev) => {
+      if (prev.includes(code)) {
+        return prev.filter((item) => item !== code);
+      }
+
+      const next = new Set<ModuleCode>(prev);
+      next.add(code);
+      const deps = getDependenciesRecursively(code)
+        .filter((depCode) => !selectedPlanModuleCodes.includes(depCode));
+      deps.forEach((depCode) => next.add(depCode));
+      return Array.from(next);
+    });
+  };
+
+  const handleInitializeSubscription = () => {
+    if (!selectedPlanId) {
+      setPackError('Selectionnez un pack pour continuer.');
+      return;
+    }
+    setPackError('');
+    const parsed =
+      draftMaxAgencies.trim() === '' ? undefined : Number.parseInt(draftMaxAgencies, 10);
+    const maxAgencies = Number.isFinite(parsed as number) ? parsed : undefined;
+
+    initializeSubscriptionMutation.mutate({
+      planId: selectedPlanId,
+      maxAgencies,
+      additionalModuleCodes,
+    });
+  };
+
   const isModuleActive = (code: ModuleCode): boolean => {
     if (!companyModules) return false;
     const mod = companyModules.find((m: CompanyModule) => m.moduleCode === code);
     return mod?.isActive ?? false;
   };
 
+  const requiredByActiveMap = useMemo(() => {
+    const map = new Map<ModuleCode, ModuleCode[]>();
+    const activeCodes = new Set<ModuleCode>(
+      (companyModules || [])
+        .filter((item: CompanyModule) => item.isActive)
+        .map((item: CompanyModule) => item.moduleCode),
+    );
+
+    for (const dep of moduleDependencies) {
+      if (!activeCodes.has(dep.moduleCode)) continue;
+      const current = map.get(dep.dependsOnCode) ?? [];
+      current.push(dep.moduleCode);
+      map.set(dep.dependsOnCode, current);
+    }
+
+    return map;
+  }, [companyModules, moduleDependencies]);
+
   const handleToggleModule = async (code: ModuleCode) => {
     setTogglingModule(code);
     try {
       if (isModuleActive(code)) {
+        const requiredBy = requiredByActiveMap.get(code) ?? [];
+        if (requiredBy.length > 0) {
+          toast.error(
+            `Module requis par: ${requiredBy.map((c) => MODULE_LABELS[c] || c).join(', ')}`,
+          );
+          return;
+        }
         await moduleApi.deactivateCompanyModule(id, code);
         toast.success(`Module ${code} désactivé`);
       } else {
@@ -308,6 +525,184 @@ export default function EditCompanyPage() {
             )}
           </FormCard>
 
+          <Card id="subscription-section">
+            <CardHeader>
+              <CardTitle>Pack et abonnement initial</CardTitle>
+              <p className="text-sm text-text-muted mt-1">
+                Étape 2: choisissez le pack après création. Les modules dépendants sont auto-ajoutés.
+              </p>
+              {searchParams.get('section') === 'subscription' && (
+                <p className="text-xs text-primary mt-2">
+                  Étape 2 en cours: choisissez un pack, puis finalisez les modules.
+                </p>
+              )}
+            </CardHeader>
+            <CardContent>
+              {subscriptionLoading ? (
+                <LoadingState message="Chargement de l abonnement..." />
+              ) : subscription ? (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-1 text-sm">
+                  <p>
+                    Pack actif: <span className="font-medium text-text">{subscription.plan?.name || '-'}</span>
+                  </p>
+                  <p>
+                    Montant actuel: <span className="font-medium text-text">{subscription.amount} MAD/mois</span>
+                  </p>
+                  <p className="text-xs text-text-muted">
+                    Un abonnement existe déjà pour cette entreprise. Passez directement à la gestion des modules.
+                  </p>
+                  <div className="pt-2">
+                    <Button variant="secondary" onClick={() => router.replace(`/admin/companies/${id}?section=modules`)}>
+                      Aller aux modules
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-2">Pack</label>
+                    <select
+                      value={selectedPlanId}
+                      onChange={(e) => {
+                        setSelectedPlanId(e.target.value);
+                        setAdditionalModuleCodes([]);
+                        setPackError('');
+                      }}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+                    >
+                      <option value="">Choisir un pack</option>
+                      {plans
+                        .filter((plan) => plan.isActive)
+                        .map((plan) => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.name} - {plan.price} MAD/mois
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {selectedPlan && (
+                    <>
+                      <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+                        <p>
+                          Prix pack: <span className="font-medium text-text">{selectedPlan.price} MAD/mois</span>
+                        </p>
+                        <p>
+                          Agences incluses:{' '}
+                          <span className="text-text">
+                            {selectedPlanQuotaAgencies === undefined
+                              ? 'Non défini'
+                              : selectedPlanQuotaAgencies === -1
+                                ? 'Illimité'
+                                : selectedPlanQuotaAgencies}
+                          </span>
+                        </p>
+                        <p>
+                          Modules inclus:{' '}
+                          <span className="text-text">
+                            {selectedPlanModuleCodes.map((code) => MODULE_LABELS[code] || code).join(', ')}
+                          </span>
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-text mb-2">
+                          Nombre max d agences (optionnel)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={draftMaxAgencies}
+                          onChange={(e) => setDraftMaxAgencies(e.target.value)}
+                          placeholder={
+                            selectedPlanQuotaAgencies === -1
+                              ? 'Illimite'
+                              : selectedPlanQuotaAgencies !== undefined
+                                ? String(selectedPlanQuotaAgencies)
+                                : 'Laisser vide'
+                          }
+                        />
+                        <p className="text-xs text-text-muted mt-1">
+                          Laisser vide pour reprendre le quota du pack.
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium text-text mb-2">Modules additionnels</p>
+                        <div className="flex flex-wrap gap-2">
+                          {additionalModuleCandidates.map((code) => {
+                            const checked = additionalModuleCodes.includes(code);
+                            const lockedByDependents = hasSelectedDependents(code, additionalModuleCodes);
+                            const deps = dependencyMap.get(code) ?? [];
+                            return (
+                              <button
+                                key={code}
+                                type="button"
+                                onClick={() => toggleAdditionalModule(code)}
+                                className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${
+                                  checked
+                                    ? 'border-primary bg-primary/15 text-text'
+                                    : 'border-border bg-card text-text-muted hover:border-primary/40'
+                                } ${lockedByDependents ? 'opacity-80' : ''}`}
+                                title={
+                                  deps.length > 0
+                                    ? `Dependances: ${deps.map((d) => MODULE_LABELS[d] || d).join(', ')}`
+                                    : undefined
+                                }
+                              >
+                                {MODULE_LABELS[code] || code}
+                                {deps.length > 0 ? ' *' : ''}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-text-muted mt-2">
+                          * Les dependances sont auto-ajoutees et verrouillees si un module actif en depend.
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {pricingSimulation && (
+                    <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+                      <p>
+                        Montant estime: <span className="font-semibold text-text">{pricingSimulation.monthlyAmount} MAD/mois</span>
+                      </p>
+                      <p>
+                        Agences supplementaires facturees:{' '}
+                        <span className="text-text">{pricingSimulation.breakdown.extraAgenciesCount}</span>
+                      </p>
+                      {pricingSimulation.validationErrors.length > 0 && (
+                        <p className="text-amber-500 text-xs">
+                          {pricingSimulation.validationErrors.join(' | ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {packError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500 text-sm">
+                      {packError}
+                    </div>
+                  )}
+
+                  <div className="pt-1">
+                    <Button
+                      variant="primary"
+                      onClick={handleInitializeSubscription}
+                      disabled={initializeSubscriptionMutation.isPending || !selectedPlanId}
+                    >
+                      {initializeSubscriptionMutation.isPending ? 'Application du pack...' : 'Appliquer ce pack'}
+                    </Button>
+                    {!saasSettings?.allowAdditionalModulesOnCreate && (
+                      <p className="text-xs text-amber-500 mt-2">Ajout de modules additionnels limite par la regle SaaS.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Section Modules */}
           <Card id="modules-section">
             <CardHeader>
@@ -317,18 +712,24 @@ export default function EditCompanyPage() {
               </p>
               {searchParams.get('section') === 'modules' && (
                 <p className="text-xs text-primary mt-2">
-                  Étape 2 : finalisez ici l&apos;activation des modules.
+                  Étape 3 : finalisez ici l&apos;activation des modules.
                 </p>
               )}
             </CardHeader>
             <CardContent>
-              {modulesLoading ? (
+              {!subscription ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
+                  Choisissez et appliquez un pack avant d activer les modules.
+                </div>
+              ) : modulesLoading ? (
                 <LoadingState message="Chargement des modules..." />
               ) : (
                 <div className="space-y-3">
                   {ALL_MODULES.map((mod) => {
                     const active = isModuleActive(mod.code);
                     const toggling = togglingModule === mod.code;
+                    const requiredBy = requiredByActiveMap.get(mod.code) ?? [];
+                    const lockDeactivation = active && requiredBy.length > 0;
                     return (
                       <div
                         key={mod.code}
@@ -341,13 +742,18 @@ export default function EditCompanyPage() {
                         <div>
                           <h4 className="font-medium text-text">{mod.label}</h4>
                           <p className="text-sm text-text-muted">{mod.description}</p>
+                          {lockDeactivation && (
+                            <p className="text-xs text-amber-500 mt-1">
+                              Requis par: {requiredBy.map((c) => MODULE_LABELS[c] || c).join(', ')}
+                            </p>
+                          )}
                         </div>
                         <button
                           onClick={() => handleToggleModule(mod.code)}
-                          disabled={toggling}
+                          disabled={toggling || lockDeactivation}
                           className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${
                             active ? 'bg-primary' : 'bg-border'
-                          } ${toggling ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                          } ${toggling || lockDeactivation ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <span
                             className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${

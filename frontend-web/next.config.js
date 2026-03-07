@@ -12,20 +12,6 @@ const nextConfig = {
     }
     return config;
   },
-  // Permet l'accès depuis le réseau
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
-          },
-        ],
-      },
-    ];
-  },
 };
 
 module.exports = nextConfig;
