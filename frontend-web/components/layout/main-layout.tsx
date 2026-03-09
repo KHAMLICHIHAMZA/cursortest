@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
 import { agencyApi } from '@/lib/api/agency';
+import { apiClient } from '@/lib/api/client';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/toast';
 
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -17,9 +21,18 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileAddressLine1, setProfileAddressLine1] = useState('');
+  const [profileAddressLine2, setProfileAddressLine2] = useState('');
+  const [profileAddressCity, setProfileAddressCity] = useState('');
+  const [profileAddressPostalCode, setProfileAddressPostalCode] = useState('');
+  const [profileAddressCountry, setProfileAddressCountry] = useState('');
+  const [profileDateOfBirth, setProfileDateOfBirth] = useState('');
 
   useEffect(() => {
     const imp = localStorage.getItem('impersonating');
@@ -58,6 +71,43 @@ export function MainLayout({ children }: MainLayoutProps) {
     retry: false,
   });
 
+  useEffect(() => {
+    if (!user) return;
+    setProfileName(user.name || '');
+    setProfilePhone(user.phone || '');
+    const details = user.addressDetails || {};
+    setProfileAddressLine1(details.line1 || user.address || '');
+    setProfileAddressLine2(details.line2 || '');
+    setProfileAddressCity(details.city || '');
+    setProfileAddressPostalCode(details.postalCode || '');
+    setProfileAddressCountry(details.country || '');
+    setProfileDateOfBirth(
+      user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().slice(0, 10) : '',
+    );
+  }, [user]);
+
+  const saveRequiredProfileMutation = useMutation({
+    mutationFn: (payload: {
+      name: string;
+      phone: string;
+      addressDetails: {
+        line1: string;
+        line2?: string;
+        city: string;
+        postalCode: string;
+        country: string;
+      };
+      dateOfBirth: string;
+    }) => apiClient.patch('/users/me', payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+      toast.success('Profil complété avec succès');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Impossible d’enregistrer le profil');
+    },
+  });
+
   const isCompanyAdmin = user?.role === 'COMPANY_ADMIN';
   const { data: companyAgencies } = useQuery({
     queryKey: ['company-agencies', user?.companyId],
@@ -74,9 +124,50 @@ export function MainLayout({ children }: MainLayoutProps) {
   const effectiveAgencyId = user?.agencyIds?.[0] 
     || (effectiveAgencyRole && companyAgencies?.[0]?.id) 
     || undefined;
+  const isProfileCompletionLocked =
+    user?.role !== 'SUPER_ADMIN' && !!user?.profileCompletionRequired;
+
+  const handleSubmitRequiredProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !profileName.trim()
+      || !profilePhone.trim()
+      || !profileAddressLine1.trim()
+      || !profileAddressCity.trim()
+      || !profileAddressPostalCode.trim()
+      || !profileAddressCountry.trim()
+      || !profileDateOfBirth
+    ) {
+      toast.error('Complétez tous les champs obligatoires');
+      return;
+    }
+    const birthDate = new Date(profileDateOfBirth);
+    if (Number.isNaN(birthDate.getTime())) {
+      toast.error('Date de naissance invalide');
+      return;
+    }
+    const now = new Date();
+    if (birthDate > now) {
+      toast.error('La date de naissance ne peut pas être dans le futur');
+      return;
+    }
+
+    saveRequiredProfileMutation.mutate({
+      name: profileName.trim(),
+      phone: profilePhone.trim(),
+      addressDetails: {
+        line1: profileAddressLine1.trim(),
+        line2: profileAddressLine2.trim() || undefined,
+        city: profileAddressCity.trim(),
+        postalCode: profileAddressPostalCode.trim(),
+        country: profileAddressCountry.trim(),
+      },
+      dateOfBirth: birthDate.toISOString(),
+    });
+  };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background relative">
       <Sidebar 
         userRole={user?.role} 
         companyId={user?.companyId}
@@ -120,6 +211,79 @@ export function MainLayout({ children }: MainLayoutProps) {
           {children}
         </main>
       </div>
+      {isProfileCompletionLocked && (
+        <div className="fixed inset-0 z-[120] bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 md:p-8 shadow-2xl">
+            <h2 className="text-xl md:text-2xl font-bold text-text">Compléter votre profil</h2>
+            <p className="text-sm text-text-muted mt-2">
+              Première connexion détectée. Vous devez compléter ces informations avant d’utiliser l’application.
+            </p>
+            <form className="mt-6 space-y-4" onSubmit={handleSubmitRequiredProfile}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text mb-1">Nom complet *</label>
+                  <Input
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Ex: Hamza Khamlichi"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-text mb-1">Téléphone *</label>
+                  <Input
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="Ex: +212600000000"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-text mb-1">Date de naissance *</label>
+                <Input
+                  type="date"
+                  value={profileDateOfBirth}
+                  onChange={(e) => setProfileDateOfBirth(e.target.value)}
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="block text-sm text-text">Adresse *</label>
+                <Input
+                  value={profileAddressLine1}
+                  onChange={(e) => setProfileAddressLine1(e.target.value)}
+                  placeholder="Ligne 1 (numéro, rue...)"
+                />
+                <Input
+                  value={profileAddressLine2}
+                  onChange={(e) => setProfileAddressLine2(e.target.value)}
+                  placeholder="Ligne 2 (bâtiment, quartier...)"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Input
+                    value={profileAddressPostalCode}
+                    onChange={(e) => setProfileAddressPostalCode(e.target.value)}
+                    placeholder="Code postal"
+                  />
+                  <Input
+                    value={profileAddressCity}
+                    onChange={(e) => setProfileAddressCity(e.target.value)}
+                    placeholder="Ville"
+                  />
+                  <Input
+                    value={profileAddressCountry}
+                    onChange={(e) => setProfileAddressCountry(e.target.value)}
+                    placeholder="Pays"
+                  />
+                </div>
+              </div>
+              <div className="pt-2">
+                <Button type="submit" variant="primary" isLoading={saveRequiredProfileMutation.isPending}>
+                  Enregistrer et continuer
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
