@@ -25,6 +25,24 @@ const mapBookingStatus = (status: string): BookingStatus => {
   return (statusMap[status] || status) as BookingStatus;
 };
 
+const hydrateCheckInData = <T extends Record<string, any>>(booking: T): T => {
+  if (!booking || booking.odometerStart !== undefined) return booking;
+  const docs = Array.isArray((booking as any).documents) ? (booking as any).documents : [];
+  const checkInDoc = docs.find((doc: any) => String(doc?.key || '').startsWith('checkin-'));
+  if (!checkInDoc?.description) return booking;
+  try {
+    const parsed = JSON.parse(checkInDoc.description);
+    return {
+      ...booking,
+      odometerStart: parsed?.odometerStart ?? booking.odometerStart,
+      fuelLevelStart: parsed?.fuelLevelStart ?? booking.fuelLevelStart,
+      notesStart: parsed?.notesStart ?? booking.notesStart,
+    };
+  } catch {
+    return booking;
+  }
+};
+
 export const bookingService = {
   async getBookings(agencyId?: string): Promise<Booking[]> {
     // Si agencyId n'est pas fourni, ne pas l'envoyer en paramètre
@@ -46,13 +64,14 @@ export const bookingService = {
   async getBooking(id: string): Promise<Booking & { client?: any; vehicle?: any }> {
     const response = await api.get<any>(`/bookings/${id}`);
     // Map backend status to mobile status and totalPrice to price
-    return {
+    const normalized = {
       ...response.data,
       price: response.data.totalPrice || response.data.price || 0,
       status: mapBookingStatus(response.data.status),
       client: response.data.client,
       vehicle: response.data.vehicle,
     };
+    return hydrateCheckInData(normalized);
   },
 
   async createBooking(data: CreateBookingInput): Promise<Booking> {
