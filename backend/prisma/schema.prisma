@@ -369,6 +369,9 @@ model User {
   email     String  @unique
   password  String
   name      String
+  phone     String?
+  address   String?
+  dateOfBirth DateTime?
   role      Role
   companyId String?
   isActive  Boolean @default(true)
@@ -440,6 +443,7 @@ model Vehicle {
   imageUrl           String? // URL de l'image du véhicule
   horsepower         Int? // Puissance en CV
   color              String? // Couleur du véhicule
+  maintenanceAlertIntervalKm Int? // Palier personnalisé d'alerte entretien (null => règle SaaS globale)
 
   // Informations financieres / amortissement
   purchasePrice     Float?    // Prix d'achat du vehicule
@@ -1652,22 +1656,38 @@ model ModuleDependency {
 // maintenance préventive/corrective, charges exceptionnelles
 enum ChargeCategory {
   INSURANCE             // Assurance (annuelle)
+  GENERAL_INSURANCE     // Assurance générale (agence/société)
   VIGNETTE              // Vignette / Dariba (annuelle)
   BANK_INSTALLMENT      // Mensualité bancaire (mensuelle)
   PREVENTIVE_MAINTENANCE // Maintenance préventive
   CORRECTIVE_MAINTENANCE // Maintenance corrective
   FUEL                  // Carburant
+  SALARY                // Salaires
+  OFFICE_RENT           // Loyer de bureau
+  TAX                   // Fiscalité
+  ADMIN_EXPENSE         // Charges administratives
+  MARKETING_EXPENSE     // Dépenses marketing
+  UTILITIES_EXPENSE     // Charges utilitaires
+  EXTERNAL_SERVICE      // Services externes
   EXCEPTIONAL           // Charges exceptionnelles (hors amendes)
   OTHER                 // Autre
+}
+
+enum ChargeScope {
+  VEHICLE
+  AGENCY
+  COMPANY
 }
 
 model Charge {
   id        String         @id @default(cuid())
   companyId String
   agencyId  String
-  vehicleId String         // Spec: charge rattachée AU VÉHICULE (obligatoire)
+  vehicleId String?        // Optionnel si scope AGENCY/COMPANY
   bookingId String?        // Optionnel: charge liée à une réservation
 
+  scope       ChargeScope    @default(VEHICLE)
+  costCenter  String?
   category    ChargeCategory
   description String
   amount      Decimal        @db.Decimal(10, 2)
@@ -1682,12 +1702,14 @@ model Charge {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   agency  Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([agencyId])
   @@index([vehicleId])
   @@index([bookingId])
+  @@index([scope])
+  @@index([costCenter])
   @@index([category])
   @@index([date])
 }

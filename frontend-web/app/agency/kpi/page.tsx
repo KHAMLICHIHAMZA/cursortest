@@ -22,6 +22,7 @@ interface KpiResult {
   avgBookingValue: number;
   vehicleCount: number;
   chargesByCategory: Record<string, number>;
+  chargesByCostCenter: Record<string, number>;
   totalPurchaseValue: number;
   periodAmortization: number;
   trueMargin: number;
@@ -44,6 +45,7 @@ interface VehicleProfit {
   revenue: number;
   charges: number;
   profit: number;
+  allocatedSharedCharges: number;
   purchasePrice: number | null;
   amortization: number;
   trueProfit: number;
@@ -56,12 +58,32 @@ interface VehicleProfit {
 const CATEGORY_LABELS: Record<string, string> = {
   BANK_INSTALLMENT: 'Mensualite bancaire',
   INSURANCE: 'Assurance',
+  GENERAL_INSURANCE: 'Assurance generale',
   VIGNETTE: 'Vignette / Dariba',
   FUEL: 'Carburant',
   PREVENTIVE_MAINTENANCE: 'Maintenance preventive',
   CORRECTIVE_MAINTENANCE: 'Reparation / Maintenance corrective',
+  SALARY: 'Salaires',
+  OFFICE_RENT: 'Loyer bureau',
+  TAX: 'Fiscalite',
+  ADMIN_EXPENSE: 'Charge administrative',
+  MARKETING_EXPENSE: 'Depense marketing',
+  UTILITIES_EXPENSE: 'Charge utilitaire',
+  EXTERNAL_SERVICE: 'Service externe',
   EXCEPTIONAL: 'Charge exceptionnelle',
   OTHER: 'Autre',
+};
+
+const COST_CENTER_LABELS: Record<string, string> = {
+  SALAIRES: 'Salaires',
+  LOYER_BUREAU: 'Loyer bureau',
+  ADMINISTRATIF: 'Administratif',
+  MARKETING: 'Marketing',
+  UTILITIES: 'Charges utilitaires',
+  SERVICES_EXTERNES: 'Services externes',
+  ASSURANCES_GENERALES: 'Assurances générales',
+  FISCALITE: 'Fiscalité',
+  AUTRE: 'Autre',
 };
 
 /** Format a date to YYYY-MM-DD in the local timezone (avoids UTC shift at midnight) */
@@ -246,6 +268,23 @@ export default function AgencyKpiPage() {
               </div>
             </Card>
           )}
+          {Object.keys(kpi.chargesByCostCenter || {}).length > 0 && (
+            <Card className="p-5">
+              <h2 className="text-lg font-semibold text-text mb-4">Charges par centre de coût</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(kpi.chargesByCostCenter).map(([center, amount]) => (
+                  <div key={center} className="flex justify-between items-center bg-background rounded-lg p-3">
+                    <span className="text-text-muted text-sm">
+                      {COST_CENTER_LABELS[center] || center}
+                    </span>
+                    <span className="font-semibold text-text">
+                      {Number(amount).toLocaleString('fr-FR')} MAD
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
           {/* Financement du parc */}
           {kpi.financing && (
             <Card className="p-5">
@@ -322,6 +361,7 @@ export default function AgencyKpiPage() {
                 <TableHead className="text-right">CA</TableHead>
                 <TableHead className="text-right">Charges</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
+                <TableHead className="text-right">Charges allouées</TableHead>
                 <TableHead className="text-right">Prix achat</TableHead>
                 <TableHead className="text-right">Amortis.</TableHead>
                 <TableHead className="text-center">Financement</TableHead>
@@ -340,6 +380,9 @@ export default function AgencyKpiPage() {
                     <Badge status={v.profit >= 0 ? 'success' : 'error'}>
                       {v.profit.toLocaleString('fr-FR')} MAD
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-right text-text-muted">
+                    {v.allocatedSharedCharges?.toLocaleString('fr-FR') || 0} MAD
                   </TableCell>
                   <TableCell className="text-right text-text-muted">
                     {v.purchasePrice != null ? `${v.purchasePrice.toLocaleString('fr-FR')} MAD` : '-'}

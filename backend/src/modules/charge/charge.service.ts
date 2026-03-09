@@ -1,12 +1,19 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { Prisma, ChargeCategory } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { Prisma, ChargeCategory } from "@prisma/client";
 
 export interface CreateChargeDto {
   agencyId: string;
-  vehicleId: string;   // Spec: charge rattachée AU VÉHICULE (obligatoire)
+  vehicleId?: string;
   bookingId?: string;
-  category: string;     // INSURANCE, VIGNETTE, BANK_INSTALLMENT, PREVENTIVE_MAINTENANCE, CORRECTIVE_MAINTENANCE, FUEL, EXCEPTIONAL, OTHER
+  scope?: "VEHICLE" | "AGENCY" | "COMPANY";
+  costCenter?: string;
+  category: string; // INSURANCE, VIGNETTE, BANK_INSTALLMENT, PREVENTIVE_MAINTENANCE, CORRECTIVE_MAINTENANCE, FUEL, EXCEPTIONAL, OTHER
   description: string;
   amount: number;
   date: string;
@@ -16,29 +23,102 @@ export interface CreateChargeDto {
 
 export interface KpiResult {
   period: string;
-  revenue: number;          // CA (chiffre d'affaires)
-  charges: number;          // Total charges
-  margin: number;           // Marge = revenue - charges
-  marginRate: number;       // Taux de marge (%)
-  occupancyRate: number;    // Taux d'occupation (%)
+  revenue: number; // CA (chiffre d'affaires)
+  charges: number; // Total charges
+  margin: number; // Marge = revenue - charges
+  marginRate: number; // Taux de marge (%)
+  occupancyRate: number; // Taux d'occupation (%)
   totalBookings: number;
   avgBookingValue: number;
   vehicleCount: number;
   chargesByCategory: Record<string, number>;
-  totalPurchaseValue: number;   // Somme des prix d'achat
-  periodAmortization: number;   // Amortissement pro-rata sur la periode
-  trueMargin: number;           // CA - charges - amortissement
-  trueMarginRate: number;       // (trueMargin / CA) * 100
-  monthlyInstallments: number;  // Total charges BANK_INSTALLMENT
+  chargesByCostCenter: Record<string, number>;
+  totalPurchaseValue: number; // Somme des prix d'achat
+  periodAmortization: number; // Amortissement pro-rata sur la periode
+  trueMargin: number; // CA - charges - amortissement
+  trueMarginRate: number; // (trueMargin / CA) * 100
+  monthlyInstallments: number; // Total charges BANK_INSTALLMENT
   financing: {
-    cashVehicles: number;          // Nombre de vehicules payes comptant
-    creditVehicles: number;        // Nombre de vehicules en credit
-    mixedVehicles: number;         // Nombre de vehicules en mixte
-    totalDownPayments: number;     // Total des apports
-    expectedMonthlyTotal: number;  // Total des mensualites attendues (sur la base vehicule)
-    actualMonthlyCharges: number;  // Total des charges BANK_INSTALLMENT enregistrees
-    coherenceGap: number;          // Ecart: expected - actual (0 = coherent)
+    cashVehicles: number; // Nombre de vehicules payes comptant
+    creditVehicles: number; // Nombre de vehicules en credit
+    mixedVehicles: number; // Nombre de vehicules en mixte
+    totalDownPayments: number; // Total des apports
+    expectedMonthlyTotal: number; // Total des mensualites attendues (sur la base vehicule)
+    actualMonthlyCharges: number; // Total des charges BANK_INSTALLMENT enregistrees
+    coherenceGap: number; // Ecart: expected - actual (0 = coherent)
   };
+}
+
+const ALLOWED_COST_CENTERS = [
+  "SALAIRES",
+  "LOYER_BUREAU",
+  "ADMINISTRATIF",
+  "MARKETING",
+  "UTILITIES",
+  "SERVICES_EXTERNES",
+  "ASSURANCES_GENERALES",
+  "FISCALITE",
+  "AUTRE",
+] as const;
+
+type AllowedCostCenter = (typeof ALLOWED_COST_CENTERS)[number];
+
+const VEHICLE_ALLOWED_CATEGORIES = [
+  "INSURANCE",
+  "VIGNETTE",
+  "BANK_INSTALLMENT",
+  "PREVENTIVE_MAINTENANCE",
+  "CORRECTIVE_MAINTENANCE",
+  "FUEL",
+  "EXCEPTIONAL",
+  "OTHER",
+] as const;
+
+const COST_CENTER_CATEGORY_MAP: Record<AllowedCostCenter, readonly string[]> = {
+  SALAIRES: ["SALARY"],
+  LOYER_BUREAU: ["OFFICE_RENT"],
+  ADMINISTRATIF: ["ADMIN_EXPENSE"],
+  MARKETING: ["MARKETING_EXPENSE"],
+  UTILITIES: ["UTILITIES_EXPENSE"],
+  SERVICES_EXTERNES: ["EXTERNAL_SERVICE"],
+  ASSURANCES_GENERALES: ["GENERAL_INSURANCE"],
+  FISCALITE: ["TAX"],
+  AUTRE: ["EXCEPTIONAL", "OTHER"],
+};
+
+function normalizeCostCenter(input?: string | null): AllowedCostCenter | null {
+  if (!input) return null;
+  const normalized = String(input).trim().toUpperCase();
+  if (!normalized) return null;
+  if ((ALLOWED_COST_CENTERS as readonly string[]).includes(normalized)) {
+    return normalized as AllowedCostCenter;
+  }
+  throw new BadRequestException(
+    `Centre de coût invalide. Valeurs autorisées: ${ALLOWED_COST_CENTERS.join(", ")}`,
+  );
+}
+
+function getAllowedCategoriesForScope(
+  scope: "VEHICLE" | "AGENCY" | "COMPANY",
+  costCenter: AllowedCostCenter | null,
+): readonly string[] {
+  if (scope === "VEHICLE") return VEHICLE_ALLOWED_CATEGORIES;
+  if (!costCenter) return ["EXCEPTIONAL", "OTHER"];
+  return COST_CENTER_CATEGORY_MAP[costCenter] || ["EXCEPTIONAL", "OTHER"];
+}
+
+function validateCategoryForScope(params: {
+  scope: "VEHICLE" | "AGENCY" | "COMPANY";
+  costCenter: AllowedCostCenter | null;
+  category: string;
+}): void {
+  const { scope, costCenter, category } = params;
+  const allowed = getAllowedCategoriesForScope(scope, costCenter);
+  if (!allowed.includes(category)) {
+    throw new BadRequestException(
+      `Catégorie ${category} invalide pour la portée ${scope}${costCenter ? ` et centre de coût ${costCenter}` : ""}`,
+    );
+  }
 }
 
 /**
@@ -47,22 +127,26 @@ export interface KpiResult {
  * COMPANY_ADMIN: agency must belong to their company (verified via DB).
  * AGENCY_MANAGER / AGENT: must be assigned to the agency.
  */
-async function enforceAgencyAccess(prisma: PrismaService, user: any, agencyId?: string): Promise<void> {
+async function enforceAgencyAccess(
+  prisma: PrismaService,
+  user: any,
+  agencyId?: string,
+): Promise<void> {
   if (!agencyId) return;
-  if (user.role === 'SUPER_ADMIN') return;
-  if (user.role === 'COMPANY_ADMIN') {
+  if (user.role === "SUPER_ADMIN") return;
+  if (user.role === "COMPANY_ADMIN") {
     const agency = await prisma.agency.findUnique({
       where: { id: agencyId },
       select: { companyId: true },
     });
     if (!agency || agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+      throw new ForbiddenException("Vous n'avez pas accès à cette agence");
     }
     return;
   }
   // AGENCY_MANAGER / AGENT: must belong to the agency
   if (!user.agencyIds || !user.agencyIds.includes(agencyId)) {
-    throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+    throw new ForbiddenException("Vous n'avez pas accès à cette agence");
   }
 }
 
@@ -76,10 +160,10 @@ async function buildAgencyScope(
   user: any,
   filters?: { agencyId?: string },
 ): Promise<any> {
-  if (user.role === 'SUPER_ADMIN') {
+  if (user.role === "SUPER_ADMIN") {
     return filters?.agencyId ? { agencyId: filters.agencyId } : {};
   }
-  if (user.role === 'COMPANY_ADMIN') {
+  if (user.role === "COMPANY_ADMIN") {
     return {
       companyId: user.companyId,
       ...(filters?.agencyId ? { agencyId: filters.agencyId } : {}),
@@ -102,12 +186,46 @@ export class ChargeService {
 
   async create(user: any, dto: CreateChargeDto) {
     await enforceAgencyAccess(this.prisma, user, dto.agencyId);
+    const scope = dto.scope || "VEHICLE";
+    if (scope === "VEHICLE" && !dto.vehicleId) {
+      throw new BadRequestException(
+        "Une charge véhicule doit être rattachée à un véhicule",
+      );
+    }
+    if (scope !== "VEHICLE" && dto.vehicleId) {
+      throw new BadRequestException(
+        "Une charge d'agence/société ne peut pas être rattachée à un véhicule",
+      );
+    }
+    if (scope === "VEHICLE" && dto.vehicleId) {
+      const vehicle = await this.prisma.vehicle.findFirst({
+        where: { id: dto.vehicleId, agencyId: dto.agencyId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!vehicle) {
+        throw new BadRequestException(
+          "Véhicule introuvable ou non rattaché à l'agence",
+        );
+      }
+    }
+
+    const normalizedCostCenter = normalizeCostCenter(dto.costCenter);
+    const resolvedCostCenter =
+      scope === "VEHICLE" ? null : (normalizedCostCenter || "AUTRE");
+    validateCategoryForScope({
+      scope,
+      costCenter: resolvedCostCenter,
+      category: dto.category,
+    });
+
     return this.prisma.charge.create({
       data: {
         companyId: user.companyId,
         agencyId: dto.agencyId,
-        vehicleId: dto.vehicleId,
+        vehicleId: scope === "VEHICLE" ? dto.vehicleId : null,
         bookingId: dto.bookingId || null,
+        scope: scope as any,
+        costCenter: resolvedCostCenter,
         category: dto.category as ChargeCategory,
         description: dto.description,
         amount: new Prisma.Decimal(dto.amount),
@@ -119,16 +237,23 @@ export class ChargeService {
     });
   }
 
-  async findAll(user: any, filters?: {
-    agencyId?: string;
-    vehicleId?: string;
-    category?: string;
-    startDate?: string;
-    endDate?: string;
-  }) {
+  async findAll(
+    user: any,
+    filters?: {
+      agencyId?: string;
+      vehicleId?: string;
+      scope?: "VEHICLE" | "AGENCY" | "COMPANY";
+      costCenter?: string;
+      category?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+  ) {
     const where: any = await buildAgencyScope(this.prisma, user, filters);
 
     if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
+    if (filters?.scope) where.scope = filters.scope;
+    if (filters?.costCenter) where.costCenter = filters.costCenter;
     if (filters?.category) where.category = filters.category;
     if (filters?.startDate || filters?.endDate) {
       where.date = {};
@@ -138,9 +263,16 @@ export class ChargeService {
 
     return this.prisma.charge.findMany({
       where,
-      orderBy: { date: 'desc' },
+      orderBy: { date: "desc" },
       include: {
-        vehicle: { select: { id: true, brand: true, model: true, registrationNumber: true } },
+        vehicle: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationNumber: true,
+          },
+        },
       },
     });
   }
@@ -148,7 +280,7 @@ export class ChargeService {
   async findOne(id: string, user: any) {
     const charge = await this.prisma.charge.findUnique({ where: { id } });
     if (!charge || charge.companyId !== user.companyId) {
-      throw new NotFoundException('Charge introuvable');
+      throw new NotFoundException("Charge introuvable");
     }
     await enforceAgencyAccess(this.prisma, user, charge.agencyId);
     return charge;
@@ -157,12 +289,73 @@ export class ChargeService {
   async update(id: string, user: any, dto: Partial<CreateChargeDto>) {
     const charge = await this.findOne(id, user);
     const data: any = {};
+    const nextScope = (dto.scope || charge.scope || "VEHICLE") as
+      | "VEHICLE"
+      | "AGENCY"
+      | "COMPANY";
+
+    const requestedCostCenter =
+      dto.costCenter !== undefined ? normalizeCostCenter(dto.costCenter) : undefined;
+
+    if (dto.scope !== undefined) {
+      if (dto.scope === "VEHICLE" && !dto.vehicleId && !charge.vehicleId) {
+        throw new BadRequestException(
+          "Une charge véhicule doit être rattachée à un véhicule",
+        );
+      }
+      data.scope = dto.scope;
+      if (dto.scope !== "VEHICLE") {
+        data.vehicleId = null;
+        if (requestedCostCenter === undefined && !charge.costCenter) {
+          data.costCenter = "AUTRE";
+        }
+      } else {
+        data.costCenter = null;
+      }
+    }
+    if (dto.vehicleId !== undefined) {
+      if (nextScope !== "VEHICLE" && dto.vehicleId) {
+        throw new BadRequestException(
+          "Une charge d'agence/société ne peut pas être rattachée à un véhicule",
+        );
+      }
+      data.vehicleId = dto.vehicleId || null;
+    }
+    if (nextScope === "VEHICLE" && dto.vehicleId) {
+      const vehicle = await this.prisma.vehicle.findFirst({
+        where: { id: dto.vehicleId, agencyId: charge.agencyId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!vehicle) {
+        throw new BadRequestException(
+          "Véhicule introuvable ou non rattaché à l'agence",
+        );
+      }
+    }
+    if (requestedCostCenter !== undefined) {
+      data.costCenter = nextScope === "VEHICLE" ? null : requestedCostCenter;
+    }
     if (dto.category) data.category = dto.category;
     if (dto.description) data.description = dto.description;
     if (dto.amount !== undefined) data.amount = new Prisma.Decimal(dto.amount);
     if (dto.date) data.date = new Date(dto.date);
     if (dto.recurring !== undefined) data.recurring = dto.recurring;
-    if (dto.recurrencePeriod !== undefined) data.recurrencePeriod = dto.recurrencePeriod;
+    if (dto.recurrencePeriod !== undefined)
+      data.recurrencePeriod = dto.recurrencePeriod;
+
+    const finalScope = (data.scope || charge.scope || "VEHICLE") as
+      | "VEHICLE"
+      | "AGENCY"
+      | "COMPANY";
+    const finalCostCenter = (data.costCenter !== undefined
+      ? data.costCenter
+      : charge.costCenter) as AllowedCostCenter | null;
+    const finalCategory = (data.category || charge.category) as string;
+    validateCategoryForScope({
+      scope: finalScope,
+      costCenter: finalCostCenter,
+      category: finalCategory,
+    });
 
     return this.prisma.charge.update({ where: { id }, data });
   }
@@ -175,20 +368,28 @@ export class ChargeService {
   /**
    * Compute KPIs for a company/agency over a period
    */
-  async computeKpi(user: any, options: {
-    agencyId?: string;
-    vehicleId?: string;
-    startDate: string;
-    endDate: string;
-  }): Promise<KpiResult> {
+  async computeKpi(
+    user: any,
+    options: {
+      agencyId?: string;
+      vehicleId?: string;
+      startDate: string;
+      endDate: string;
+    },
+  ): Promise<KpiResult> {
     await enforceAgencyAccess(this.prisma, user, options.agencyId);
 
     const companyId = user.companyId;
     const start = new Date(options.startDate);
     const end = new Date(options.endDate);
-    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const totalDays = Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+    );
 
-    const agencyScope = await buildAgencyScope(this.prisma, user, { agencyId: options.agencyId });
+    const agencyScope = await buildAgencyScope(this.prisma, user, {
+      agencyId: options.agencyId,
+    });
 
     const whereBooking: any = {
       ...agencyScope,
@@ -215,18 +416,30 @@ export class ChargeService {
     const [bookings, charges, vehicles] = await Promise.all([
       this.prisma.booking.findMany({
         where: whereBooking,
-        select: { id: true, totalPrice: true, startDate: true, endDate: true, vehicleId: true },
+        select: {
+          id: true,
+          totalPrice: true,
+          startDate: true,
+          endDate: true,
+          vehicleId: true,
+        },
       }),
       this.prisma.charge.findMany({
         where: whereCharge,
-        select: { amount: true, category: true },
+        select: { amount: true, category: true, costCenter: true },
       }),
       this.prisma.vehicle.findMany({
         where: vehicleWhere,
         select: {
-          id: true, purchasePrice: true, acquisitionDate: true, amortizationYears: true,
-          financingType: true, downPayment: true, monthlyPayment: true,
-          financingDurationMonths: true, creditStartDate: true,
+          id: true,
+          purchasePrice: true,
+          acquisitionDate: true,
+          amortizationYears: true,
+          financingType: true,
+          downPayment: true,
+          monthlyPayment: true,
+          financingDurationMonths: true,
+          creditStartDate: true,
         },
       }),
     ]);
@@ -234,16 +447,26 @@ export class ChargeService {
     const vehicleCount = vehicles.length;
 
     // Revenue
-    const revenue = bookings.reduce((sum: number, b: any) => sum + (b.totalPrice || 0), 0);
+    const revenue = bookings.reduce(
+      (sum: number, b: any) => sum + (b.totalPrice || 0),
+      0,
+    );
 
     // Charges
-    const totalCharges = charges.reduce((sum: number, c: any) => sum + Number(c.amount), 0);
+    const totalCharges = charges.reduce(
+      (sum: number, c: any) => sum + Number(c.amount),
+      0,
+    );
 
     // Charges by category
     const chargesByCategory: Record<string, number> = {};
+    const chargesByCostCenter: Record<string, number> = {};
     for (const c of charges) {
       const cat = c.category;
       chargesByCategory[cat] = (chargesByCategory[cat] || 0) + Number(c.amount);
+      const center = (c as any).costCenter || "AUTRE";
+      chargesByCostCenter[center] =
+        (chargesByCostCenter[center] || 0) + Number(c.amount);
     }
 
     // Margin
@@ -255,7 +478,10 @@ export class ChargeService {
     for (const b of bookings) {
       const bStart = new Date(Math.max(b.startDate.getTime(), start.getTime()));
       const bEnd = new Date(Math.min(b.endDate.getTime(), end.getTime()));
-      const days = Math.max(0, Math.ceil((bEnd.getTime() - bStart.getTime()) / (1000 * 60 * 60 * 24)));
+      const days = Math.max(
+        0,
+        Math.ceil((bEnd.getTime() - bStart.getTime()) / (1000 * 60 * 60 * 24)),
+      );
       occupiedDays += days;
     }
     const maxDays = vehicleCount * totalDays;
@@ -278,7 +504,7 @@ export class ChargeService {
 
     const trueMargin = revenue - totalCharges - periodAmortization;
     const trueMarginRate = revenue > 0 ? (trueMargin / revenue) * 100 : 0;
-    const monthlyInstallments = chargesByCategory['BANK_INSTALLMENT'] || 0;
+    const monthlyInstallments = chargesByCategory["BANK_INSTALLMENT"] || 0;
 
     // Financing analysis
     let cashVehicles = 0;
@@ -288,12 +514,12 @@ export class ChargeService {
     let expectedMonthlyTotal = 0;
 
     for (const v of vehicles) {
-      if (v.financingType === 'CASH') {
+      if (v.financingType === "CASH") {
         cashVehicles++;
-      } else if (v.financingType === 'CREDIT') {
+      } else if (v.financingType === "CREDIT") {
         creditVehicles++;
         if (v.monthlyPayment) expectedMonthlyTotal += v.monthlyPayment;
-      } else if (v.financingType === 'MIXED') {
+      } else if (v.financingType === "MIXED") {
         mixedVehicles++;
         if (v.downPayment) totalDownPayments += v.downPayment;
         if (v.monthlyPayment) expectedMonthlyTotal += v.monthlyPayment;
@@ -315,6 +541,7 @@ export class ChargeService {
       avgBookingValue: Math.round(avgBookingValue * 100) / 100,
       vehicleCount,
       chargesByCategory,
+      chargesByCostCenter,
       totalPurchaseValue: Math.round(totalPurchaseValue * 100) / 100,
       periodAmortization: Math.round(periodAmortization * 100) / 100,
       trueMargin: Math.round(trueMargin * 100) / 100,
@@ -335,11 +562,14 @@ export class ChargeService {
   /**
    * Profitability per vehicle
    */
-  async vehicleProfitability(user: any, options: {
-    agencyId?: string;
-    startDate: string;
-    endDate: string;
-  }) {
+  async vehicleProfitability(
+    user: any,
+    options: {
+      agencyId?: string;
+      startDate: string;
+      endDate: string;
+    },
+  ) {
     await enforceAgencyAccess(this.prisma, user, options.agencyId);
 
     const start = new Date(options.startDate);
@@ -351,23 +581,42 @@ export class ChargeService {
     };
     if (options.agencyId) vehicleWhere.agencyId = options.agencyId;
     // Scope to user's agencies for non-admin roles
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN' && user.agencyIds?.length) {
+    if (
+      user.role !== "SUPER_ADMIN" &&
+      user.role !== "COMPANY_ADMIN" &&
+      user.agencyIds?.length
+    ) {
       if (!options.agencyId) {
         vehicleWhere.agencyId = { in: user.agencyIds };
       }
     }
 
-    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const totalDays = Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+    );
 
     const profitVehicles = await this.prisma.vehicle.findMany({
       where: vehicleWhere,
       select: {
-        id: true, brand: true, model: true, registrationNumber: true,
-        purchasePrice: true, acquisitionDate: true, amortizationYears: true,
-        financingType: true, downPayment: true, monthlyPayment: true,
-        financingDurationMonths: true, creditStartDate: true,
+        id: true,
+        brand: true,
+        model: true,
+        registrationNumber: true,
+        purchasePrice: true,
+        acquisitionDate: true,
+        amortizationYears: true,
+        financingType: true,
+        downPayment: true,
+        monthlyPayment: true,
+        financingDurationMonths: true,
+        creditStartDate: true,
         bookings: {
-          where: { startDate: { lte: end }, endDate: { gte: start }, deletedAt: null },
+          where: {
+            startDate: { lte: end },
+            endDate: { gte: start },
+            deletedAt: null,
+          },
           select: { totalPrice: true },
         },
         charges: {
@@ -377,36 +626,86 @@ export class ChargeService {
       },
     });
 
-    return profitVehicles.map((v: any) => {
-      const revenue = v.bookings.reduce((s: number, b: any) => s + (b.totalPrice || 0), 0);
-      const vCharges = v.charges.reduce((s: number, c: any) => s + Number(c.amount), 0);
+    const sharedChargesWhere: any = {
+      companyId: user.companyId,
+      date: { gte: start, lte: end },
+      scope: { in: ["AGENCY", "COMPANY"] },
+    };
+    if (options.agencyId) {
+      sharedChargesWhere.agencyId = options.agencyId;
+    } else if (
+      user.role !== "SUPER_ADMIN" &&
+      user.role !== "COMPANY_ADMIN" &&
+      user.agencyIds?.length
+    ) {
+      sharedChargesWhere.agencyId = { in: user.agencyIds };
+    }
+    const sharedCharges = await this.prisma.charge.findMany({
+      where: sharedChargesWhere,
+      select: { amount: true },
+    });
+    const totalSharedCharges = sharedCharges.reduce(
+      (sum, c) => sum + Number(c.amount),
+      0,
+    );
 
-      let amortization = 0;
-      if (v.purchasePrice && v.purchasePrice > 0) {
-        const years = v.amortizationYears || 5;
-        amortization = (v.purchasePrice / years / 365) * totalDays;
-      }
+    const vehicleRevenueRows = profitVehicles.map((v: any) =>
+      v.bookings.reduce((s: number, b: any) => s + (b.totalPrice || 0), 0),
+    );
+    const totalRevenueAllVehicles = vehicleRevenueRows.reduce(
+      (sum, revenue) => sum + revenue,
+      0,
+    );
+    const equalShare =
+      profitVehicles.length > 0 ? totalSharedCharges / profitVehicles.length : 0;
 
-      const trueProfit = revenue - vCharges - amortization;
+    return profitVehicles
+      .map((v: any, index: number) => {
+        const revenue = vehicleRevenueRows[index];
+        const vCharges = v.charges.reduce(
+          (s: number, c: any) => s + Number(c.amount),
+          0,
+        );
 
-      const installmentCharges = v.charges
-        .filter((c: any) => c.category === 'BANK_INSTALLMENT')
-        .reduce((s: number, c: any) => s + Number(c.amount), 0);
+        const allocatedSharedCharges =
+          totalRevenueAllVehicles > 0
+            ? (revenue / totalRevenueAllVehicles) * totalSharedCharges
+            : equalShare;
 
-      return {
-        vehicleId: v.id,
-        vehicle: `${v.brand} ${v.model} (${v.registrationNumber})`,
-        revenue: Math.round(revenue * 100) / 100,
-        charges: Math.round(vCharges * 100) / 100,
-        profit: Math.round((revenue - vCharges) * 100) / 100,
-        purchasePrice: v.purchasePrice ? Math.round(v.purchasePrice * 100) / 100 : null,
-        amortization: Math.round(amortization * 100) / 100,
-        trueProfit: Math.round(trueProfit * 100) / 100,
-        financingType: v.financingType || null,
-        monthlyPayment: v.monthlyPayment ? Math.round(v.monthlyPayment * 100) / 100 : null,
-        installmentCharges: Math.round(installmentCharges * 100) / 100,
-        bookingCount: v.bookings.length,
-      };
-    }).sort((a: any, b: any) => b.trueProfit - a.trueProfit);
+        let amortization = 0;
+        if (v.purchasePrice && v.purchasePrice > 0) {
+          const years = v.amortizationYears || 5;
+          amortization = (v.purchasePrice / years / 365) * totalDays;
+        }
+
+        const trueProfit =
+          revenue - vCharges - allocatedSharedCharges - amortization;
+
+        const installmentCharges = v.charges
+          .filter((c: any) => c.category === "BANK_INSTALLMENT")
+          .reduce((s: number, c: any) => s + Number(c.amount), 0);
+
+        return {
+          vehicleId: v.id,
+          vehicle: `${v.brand} ${v.model} (${v.registrationNumber})`,
+          revenue: Math.round(revenue * 100) / 100,
+          charges: Math.round(vCharges * 100) / 100,
+          profit: Math.round((revenue - vCharges) * 100) / 100,
+          allocatedSharedCharges:
+            Math.round(allocatedSharedCharges * 100) / 100,
+          purchasePrice: v.purchasePrice
+            ? Math.round(v.purchasePrice * 100) / 100
+            : null,
+          amortization: Math.round(amortization * 100) / 100,
+          trueProfit: Math.round(trueProfit * 100) / 100,
+          financingType: v.financingType || null,
+          monthlyPayment: v.monthlyPayment
+            ? Math.round(v.monthlyPayment * 100) / 100
+            : null,
+          installmentCharges: Math.round(installmentCharges * 100) / 100,
+          bookingCount: v.bookings.length,
+        };
+      })
+      .sort((a: any, b: any) => b.trueProfit - a.trueProfit);
   }
 }
