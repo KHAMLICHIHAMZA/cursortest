@@ -1,27 +1,36 @@
-import { Injectable, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PlanningService } from '../planning/planning.service';
-import { AuditService } from '../audit/audit.service';
-import { AuditService as CommonAuditService } from '../../common/services/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { InvoiceService } from '../invoice/invoice.service';
-import { CreateBookingDto } from './dto/create-booking.dto';
-import { UpdateBookingDto } from './dto/update-booking.dto';
-import { CheckInDto } from './dto/check-in.dto';
-import { CheckOutDto } from './dto/check-out.dto';
-import { OverrideLateFeeDto } from './dto/override-late-fee.dto';
-import { BusinessEventType, DocumentType, AuditAction } from '@prisma/client';
-import { OutboxService } from '../../common/services/outbox.service';
-import { ContractService } from '../contract/contract.service';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Logger,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PlanningService } from "../planning/planning.service";
+import { AuditService } from "../audit/audit.service";
+import { AuditService as CommonAuditService } from "../../common/services/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import { InvoiceService } from "../invoice/invoice.service";
+import { CreateBookingDto } from "./dto/create-booking.dto";
+import { UpdateBookingDto } from "./dto/update-booking.dto";
+import { CheckInDto } from "./dto/check-in.dto";
+import { CheckOutDto } from "./dto/check-out.dto";
+import { OverrideLateFeeDto } from "./dto/override-late-fee.dto";
+import { BusinessEventType, DocumentType, AuditAction } from "@prisma/client";
+import { OutboxService } from "../../common/services/outbox.service";
+import { ContractService } from "../contract/contract.service";
+import { InAppNotificationService } from "../in-app-notification/in-app-notification.service";
+import { SAAS_SETTINGS_RULE_KEYS } from "../saas-settings/saas-settings.types";
 
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
   private static readonly BOOKING_NUMBER_MAX_LEN = 32;
+  private static readonly MAINTENANCE_ALERT_INTERVAL_KM = 10000;
   // Local runtime constants (avoid relying on Prisma enum exports in tooling)
   private static readonly BookingNumberMode = {
-    AUTO: 'AUTO',
-    MANUAL: 'MANUAL',
+    AUTO: "AUTO",
+    MANUAL: "MANUAL",
   } as const;
 
   constructor(
@@ -33,16 +42,188 @@ export class BookingService {
     private invoiceService: InvoiceService,
     private outboxService: OutboxService,
     private contractService: ContractService,
+    private inAppNotificationService: InAppNotificationService,
   ) {}
 
+  private async getGlobalMaintenanceAlertIntervalKm(): Promise<number> {
+    const rule = await this.prisma.businessRule.findFirst({
+      where: {
+        key: SAAS_SETTINGS_RULE_KEYS.MAINTENANCE_MILEAGE_ALERT_INTERVAL_KM,
+        companyId: null,
+        agencyId: null,
+        isActive: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { value: true },
+    });
+    const parsed = Number(rule?.value);
+    if (!Number.isFinite(parsed)) {
+      return BookingService.MAINTENANCE_ALERT_INTERVAL_KM;
+    }
+    return Math.max(1000, Math.floor(parsed));
+  }
+
+  private async notifyMaintenanceMileageThreshold(params: {
+    vehicleId: string;
+    companyId: string;
+    agencyId: string;
+    registrationNumber: string;
+    oldMileage: number;
+    newMileage: number;
+    vehicleMaintenanceAlertIntervalKm?: number | null;
+  }): Promise<void> {
+    const {
+      vehicleId,
+      companyId,
+      agencyId,
+      registrationNumber,
+      oldMileage,
+      newMileage,
+      vehicleMaintenanceAlertIntervalKm,
+    } = params;
+    const vehicleInterval = Number(vehicleMaintenanceAlertIntervalKm);
+    const interval =
+      Number.isFinite(vehicleInterval) && vehicleInterval >= 1000
+        ? Math.floor(vehicleInterval)
+        : await this.getGlobalMaintenanceAlertIntervalKm();
+    if (newMileage < interval) return;
+
+    const reachedThreshold = Math.floor(newMileage / interval) * interval;
+    if (oldMileage >= reachedThreshold) return;
+
+    const alertTitle = `Alerte entretien: ${registrationNumber}`;
+    const existing = await (this.prisma as any).inAppNotification.findFirst({
+      where: {
+        companyId,
+        type: "SYSTEM_ALERT",
+        title: alertTitle,
+        message: { contains: `palier ${reachedThreshold} km` },
+      },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        companyId,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!recipients.length) return;
+
+    const message =
+      `Le véhicule ${registrationNumber} a atteint ${newMileage} km (palier ${reachedThreshold} km). ` +
+      `Planifiez la vidange/maintenance préventive.`;
+
+    await Promise.allSettled(
+      recipients.map((recipient) =>
+        this.inAppNotificationService.createNotification({
+          userId: recipient.id,
+          companyId,
+          agencyId,
+          type: "SYSTEM_ALERT",
+          title: alertTitle,
+          message,
+          actionUrl: "/agency/maintenance",
+          metadata: {
+            kind: "MAINTENANCE_MILEAGE_ALERT",
+            vehicleId,
+            registrationNumber,
+            oldMileage,
+            newMileage,
+            threshold: reachedThreshold,
+          },
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Notify agency managers that financial closure is pending after check-out.
+   * This is non-blocking and must not prevent check-out completion.
+   */
+  private async notifyFinancialClosurePending(params: {
+    bookingId: string;
+    agencyId: string;
+    companyId: string;
+    bookingNumber?: string | null;
+    vehicleRegistrationNumber?: string | null;
+  }): Promise<void> {
+    const {
+      bookingId,
+      agencyId,
+      companyId,
+      bookingNumber,
+      vehicleRegistrationNumber,
+    } = params;
+
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        role: "AGENCY_MANAGER",
+        isActive: true,
+        deletedAt: null,
+        userAgencies: {
+          some: { agencyId },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!recipients.length) return;
+
+    const existingNotifications = await (this.prisma as any).inAppNotification.findMany({
+      where: {
+        bookingId,
+        type: "CHECK_OUT_REMINDER",
+        userId: { in: recipients.map((r) => r.id) },
+      },
+      select: { userId: true },
+    });
+    const alreadyNotifiedUserIds = new Set(
+      existingNotifications.map((n: any) => n.userId),
+    );
+
+    const ref = bookingNumber || bookingId.slice(0, 8);
+    const vehicleRef = vehicleRegistrationNumber || "véhicule";
+    const title = `Clôture financière en attente (${ref})`;
+    const message =
+      `Le check-out de la réservation ${ref} est terminé pour ${vehicleRef}. ` +
+      `Merci de finaliser la clôture financière.`;
+
+    await Promise.allSettled(
+      recipients.map((recipient) =>
+        alreadyNotifiedUserIds.has(recipient.id)
+          ? Promise.resolve(null)
+          :
+        this.inAppNotificationService.createNotification({
+          userId: recipient.id,
+          companyId,
+          agencyId,
+          type: "CHECK_OUT_REMINDER",
+          title,
+          message,
+          actionUrl: `/agency/bookings/${bookingId}`,
+          bookingId,
+          metadata: {
+            event: "FINANCIAL_CLOSURE_PENDING",
+          },
+        }),
+      ),
+    );
+  }
+
   private normalizeBookingNumber(input: string): string {
-    return String(input || '').trim().toUpperCase();
+    return String(input || "")
+      .trim()
+      .toUpperCase();
   }
 
   private normalizeAndValidateManualBookingNumber(input: unknown): string {
-    const normalized = this.normalizeBookingNumber(String(input ?? ''));
+    const normalized = this.normalizeBookingNumber(String(input ?? ""));
     if (!normalized) {
-      throw new BadRequestException('Le numéro de réservation est requis');
+      throw new BadRequestException("Le numéro de réservation est requis");
     }
     if (normalized.length > BookingService.BOOKING_NUMBER_MAX_LEN) {
       throw new BadRequestException(
@@ -51,7 +232,7 @@ export class BookingService {
     }
     if (!/^[A-Z0-9]+$/.test(normalized)) {
       throw new BadRequestException(
-        'Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces',
+        "Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces",
       );
     }
     return normalized;
@@ -63,21 +244,29 @@ export class BookingService {
    * COMPANY_ADMIN: booking's agency must belong to their company.
    * AGENT/MANAGER: must be assigned to the booking's agency.
    */
-  private assertBookingAccess(booking: { agencyId: string; companyId?: string | null }, user: any): void {
-    if (user.role === 'SUPER_ADMIN') return;
-    if (user.role === 'COMPANY_ADMIN') {
+  private assertBookingAccess(
+    booking: { agencyId: string; companyId?: string | null },
+    user: any,
+  ): void {
+    if (user.role === "SUPER_ADMIN") return;
+    if (user.role === "COMPANY_ADMIN") {
       if (booking.companyId && booking.companyId !== user.companyId) {
-        throw new ForbiddenException('Vous n\'avez pas accès à cette réservation');
+        throw new ForbiddenException(
+          "Vous n'avez pas accès à cette réservation",
+        );
       }
       return;
     }
     // AGENT / AGENCY_MANAGER
     if (!user.agencyIds?.includes(booking.agencyId)) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette réservation');
+      throw new ForbiddenException("Vous n'avez pas accès à cette réservation");
     }
   }
 
-  private async getNextAutoBookingNumber(companyId: string, now: Date): Promise<string> {
+  private async getNextAutoBookingNumber(
+    companyId: string,
+    now: Date,
+  ): Promise<string> {
     const year = now.getFullYear();
     const seq = await (this.prisma as any).bookingNumberSequence.upsert({
       where: { companyId_year: { companyId, year } },
@@ -86,11 +275,19 @@ export class BookingService {
       select: { lastValue: true },
     });
     // Format: YYYY + 6 digits (reset annuel, alphanum)
-    return `${year}${String(seq.lastValue).padStart(6, '0')}`;
+    return `${year}${String(seq.lastValue).padStart(6, "0")}`;
   }
 
   async create(createBookingDto: CreateBookingDto, userId: string, user?: any) {
-    const { agencyId, vehicleId, clientId, startDate, endDate, totalPrice, status } = createBookingDto;
+    const {
+      agencyId,
+      vehicleId,
+      clientId,
+      startDate,
+      endDate,
+      totalPrice,
+      status,
+    } = createBookingDto;
 
     // Agency access validation
     if (user && agencyId) {
@@ -98,7 +295,7 @@ export class BookingService {
     }
 
     if (!totalPrice || totalPrice <= 0) {
-      throw new BadRequestException('Le prix total doit être supérieur à 0');
+      throw new BadRequestException("Le prix total doit être supérieur à 0");
     }
 
     const start = new Date(startDate);
@@ -114,7 +311,9 @@ export class BookingService {
     });
 
     if (!vehicle) {
-      throw new BadRequestException('Véhicule introuvable ou n\'appartient pas à cette agence');
+      throw new BadRequestException(
+        "Véhicule introuvable ou n'appartient pas à cette agence",
+      );
     }
 
     // Vérifier que le client existe et appartient à l'agence
@@ -127,12 +326,16 @@ export class BookingService {
     });
 
     if (!client) {
-      throw new BadRequestException('Client introuvable ou n\'appartient pas à cette agence');
+      throw new BadRequestException(
+        "Client introuvable ou n'appartient pas à cette agence",
+      );
     }
 
     // Vérifier le type de permis du client
     if (!client.licenseNumber) {
-      throw new BadRequestException('Le client doit avoir un numéro de permis valide pour louer un véhicule');
+      throw new BadRequestException(
+        "Le client doit avoir un numéro de permis valide pour louer un véhicule",
+      );
     }
 
     // ============================================
@@ -144,12 +347,12 @@ export class BookingService {
         userId,
         agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
-        entityId: 'N/A',
+        entityType: "Booking",
+        entityId: "N/A",
         description: `Réservation bloquée: le client ${client.name} (${clientId}) n'a pas de date d'expiration de permis`,
       });
       throw new BadRequestException(
-        'Le client doit avoir une date d\'expiration de permis valide pour louer un véhicule'
+        "Le client doit avoir une date d'expiration de permis valide pour louer un véhicule",
       );
     }
 
@@ -162,23 +365,31 @@ export class BookingService {
         userId,
         agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
-        entityId: 'N/A',
+        entityType: "Booking",
+        entityId: "N/A",
         description: `Réservation bloquée: le client ${client.name} (${clientId}) n'a pas de date d'expiration de permis`,
       });
       throw new BadRequestException(
-        `Le permis de conduite expire le ${licenseExpiry.toLocaleDateString('fr-FR')}, ` +
-        `avant la fin de la location prévue (${bookingEnd.toLocaleDateString('fr-FR')}). ` +
-        `La réservation est impossible.`
+        `Le permis de conduite expire le ${licenseExpiry.toLocaleDateString("fr-FR")}, ` +
+          `avant la fin de la location prévue (${bookingEnd.toLocaleDateString("fr-FR")}). ` +
+          `La réservation est impossible.`,
       );
     }
 
     // Vérifier la disponibilité via PlanningService (source de vérité)
-    const isAvailable = await this.planningService.getVehicleAvailability(vehicleId, start, end);
+    const isAvailable = await this.planningService.getVehicleAvailability(
+      vehicleId,
+      start,
+      end,
+    );
     if (!isAvailable) {
-      const conflicts = await this.planningService.detectConflicts(vehicleId, start, end);
+      const conflicts = await this.planningService.detectConflicts(
+        vehicleId,
+        start,
+        end,
+      );
       throw new ConflictException({
-        message: 'Le véhicule n\'est pas disponible pour cette période',
+        message: "Le véhicule n'est pas disponible pour cette période",
         conflicts,
       });
     }
@@ -193,14 +404,15 @@ export class BookingService {
     });
 
     if (!agency) {
-      throw new BadRequestException('Agence introuvable');
+      throw new BadRequestException("Agence introuvable");
     }
 
     const preparationTimeMinutes = agency.preparationTimeMinutes || 60; // Default 1h
 
     const companyId = agency.companyId;
-    const bookingNumberMode: 'AUTO' | 'MANUAL' =
-      ((agency as any).company?.bookingNumberMode as any) || BookingService.BookingNumberMode.AUTO;
+    const bookingNumberMode: "AUTO" | "MANUAL" =
+      ((agency as any).company?.bookingNumberMode as any) ||
+      BookingService.BookingNumberMode.AUTO;
 
     // ============================================
     // V2: BOOKING NUMBER (unique par company)
@@ -210,7 +422,7 @@ export class BookingService {
       const raw = createBookingDto.bookingNumber;
       if (!raw) {
         throw new BadRequestException(
-          'Le numéro de réservation est requis lorsque le mode est MANUEL',
+          "Le numéro de réservation est requis lorsque le mode est MANUEL",
         );
       }
       bookingNumberToUse = this.normalizeAndValidateManualBookingNumber(raw);
@@ -224,22 +436,27 @@ export class BookingService {
         select: { id: true },
       });
       if (existing) {
-        throw new ConflictException('Ce numéro de réservation existe déjà pour cette société');
+        throw new ConflictException(
+          "Ce numéro de réservation existe déjà pour cette société",
+        );
       }
     } else {
       if (createBookingDto.bookingNumber) {
         throw new BadRequestException(
-          'Le numéro de réservation ne peut pas être défini lorsque le mode est AUTOMATIQUE',
+          "Le numéro de réservation ne peut pas être défini lorsque le mode est AUTOMATIQUE",
         );
       }
-      bookingNumberToUse = await this.getNextAutoBookingNumber(companyId, new Date());
+      bookingNumberToUse = await this.getNextAutoBookingNumber(
+        companyId,
+        new Date(),
+      );
     }
 
     // Pour chaque booking actif, calculer la fin réelle avec préparation
     const activeBookings = await this.prisma.booking.findMany({
       where: {
         vehicleId,
-        status: { in: ['IN_PROGRESS', 'LATE'] },
+        status: { in: ["IN_PROGRESS", "LATE"] },
         deletedAt: null,
       },
       include: {
@@ -252,65 +469,83 @@ export class BookingService {
       const activeAgency = activeBooking.agency;
       const activePreparationTime = activeAgency.preparationTimeMinutes || 60;
       const preparationEnd = new Date(actualEndDate);
-      preparationEnd.setMinutes(preparationEnd.getMinutes() + activePreparationTime);
+      preparationEnd.setMinutes(
+        preparationEnd.getMinutes() + activePreparationTime,
+      );
 
       // Vérifier si la nouvelle réservation chevauche la période de préparation
       if (start < preparationEnd && end > actualEndDate) {
         await this.auditService.logBookingStatusChange(
           userId,
-          'N/A',
-          'CONFIRMED',
-          'BLOCKED',
+          "N/A",
+          "CONFIRMED",
+          "BLOCKED",
           agencyId,
         );
         throw new ConflictException({
-          message: `Le véhicule est indisponible jusqu'au ${preparationEnd.toLocaleString('fr-FR')} ` +
-                   `(temps de préparation après retour). La réservation chevauche cette période.`,
-          conflicts: [{
-            type: 'PREPARATION_TIME',
-            id: activeBooking.id,
-            startDate: actualEndDate,
-            endDate: preparationEnd,
-          }],
+          message:
+            `Le véhicule est indisponible jusqu'au ${preparationEnd.toLocaleString("fr-FR")} ` +
+            `(temps de préparation après retour). La réservation chevauche cette période.`,
+          conflicts: [
+            {
+              type: "PREPARATION_TIME",
+              id: activeBooking.id,
+              startDate: actualEndDate,
+              endDate: preparationEnd,
+            },
+          ],
         });
       }
     }
 
     // Extraire le type de permis du client depuis le champ note
-    const clientNote = client.note || '';
-    const licenseTypeMatch = clientNote.match(/Type permis:\s*([A-Z]+(?:\s+[A-Z]+)?)/i);
-    const clientLicenseType = licenseTypeMatch ? licenseTypeMatch[1].trim().toUpperCase() : null;
+    const clientNote = client.note || "";
+    const licenseTypeMatch = clientNote.match(
+      /Type permis:\s*([A-Z]+(?:\s+[A-Z]+)?)/i,
+    );
+    const clientLicenseType = licenseTypeMatch
+      ? licenseTypeMatch[1].trim().toUpperCase()
+      : null;
 
     // Déterminer le type de permis requis selon le type de véhicule
     // Pour l'instant, on considère que tous les véhicules nécessitent au minimum un permis B
     // Vous pouvez affiner cette logique selon vos besoins
-    const requiredLicenseTypes = ['B']; // Permis B minimum pour les voitures
-    
+    const requiredLicenseTypes = ["B"]; // Permis B minimum pour les voitures
+
     // Si le véhicule est un camion ou un bus, vérifier les permis C ou D
-    const vehicleModel = (vehicle.model || '').toLowerCase();
-    const vehicleBrand = (vehicle.brand || '').toLowerCase();
-    
-    if (vehicleModel.includes('camion') || vehicleModel.includes('truck') || 
-        vehicleBrand.includes('iveco') || vehicleBrand.includes('mercedes') && vehicleModel.includes('sprinter')) {
-      requiredLicenseTypes.push('C');
+    const vehicleModel = (vehicle.model || "").toLowerCase();
+    const vehicleBrand = (vehicle.brand || "").toLowerCase();
+
+    if (
+      vehicleModel.includes("camion") ||
+      vehicleModel.includes("truck") ||
+      vehicleBrand.includes("iveco") ||
+      (vehicleBrand.includes("mercedes") && vehicleModel.includes("sprinter"))
+    ) {
+      requiredLicenseTypes.push("C");
     }
-    
-    if (vehicleModel.includes('bus') || vehicleModel.includes('minibus') || 
-        vehicleBrand.includes('mercedes') && vehicleModel.includes('tourismo')) {
-      requiredLicenseTypes.push('D');
+
+    if (
+      vehicleModel.includes("bus") ||
+      vehicleModel.includes("minibus") ||
+      (vehicleBrand.includes("mercedes") && vehicleModel.includes("tourismo"))
+    ) {
+      requiredLicenseTypes.push("D");
     }
 
     // Vérifier si le client a le permis approprié
     if (clientLicenseType) {
-      const hasValidLicense = requiredLicenseTypes.some(required => {
+      const hasValidLicense = requiredLicenseTypes.some((required) => {
         // Vérifier si le permis du client correspond (ex: B, BE, C, CE, D, DE)
-        return clientLicenseType.includes(required) || 
-               clientLicenseType.startsWith(required);
+        return (
+          clientLicenseType.includes(required) ||
+          clientLicenseType.startsWith(required)
+        );
       });
 
       if (!hasValidLicense) {
         throw new BadRequestException(
-          `Le client n'a pas le type de permis approprié. Permis requis: ${requiredLicenseTypes.join(' ou ')}. Permis du client: ${clientLicenseType}`
+          `Le client n'a pas le type de permis approprié. Permis requis: ${requiredLicenseTypes.join(" ou ")}. Permis du client: ${clientLicenseType}`,
         );
       }
     } else {
@@ -330,10 +565,12 @@ export class BookingService {
         startDate: start,
         endDate: end,
         totalPrice: parseFloat(totalPrice.toString()),
-        status: status || 'DRAFT',
+        status: status || "DRAFT",
         // Caution fields
         depositRequired: createBookingDto.depositRequired ?? false,
-        depositAmount: createBookingDto.depositAmount ? parseFloat(createBookingDto.depositAmount.toString()) : null,
+        depositAmount: createBookingDto.depositAmount
+          ? parseFloat(createBookingDto.depositAmount.toString())
+          : null,
         depositDecisionSource: createBookingDto.depositDecisionSource ?? null,
       } as any,
       include: {
@@ -348,7 +585,7 @@ export class BookingService {
     });
 
     // Créer l'événement de planning si le booking est confirmé
-    if (booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS') {
+    if (booking.status === "CONFIRMED" || booking.status === "IN_PROGRESS") {
       await this.planningService.createBookingEvent(
         booking.id,
         vehicleId,
@@ -362,7 +599,9 @@ export class BookingService {
       // Mettre à jour le statut du véhicule selon spec
       await this.prisma.vehicle.update({
         where: { id: vehicleId },
-        data: { status: booking.status === 'CONFIRMED' ? 'RESERVED' : 'RENTED' },
+        data: {
+          status: booking.status === "CONFIRMED" ? "RESERVED" : "RENTED",
+        },
       });
     }
 
@@ -370,7 +609,7 @@ export class BookingService {
     this.businessEventLogService
       .logEvent(
         booking.agencyId,
-        'Booking',
+        "Booking",
         booking.id,
         BusinessEventType.BOOKING_CREATED,
         null,
@@ -383,9 +622,9 @@ export class BookingService {
 
     // V2 Domain Events (outbox backbone)
     await this.outboxService.enqueue({
-      aggregateType: 'Booking',
+      aggregateType: "Booking",
       aggregateId: booking.id,
-      eventType: 'BookingCreated',
+      eventType: "BookingCreated",
       payload: {
         bookingId: booking.id,
         companyId,
@@ -395,9 +634,9 @@ export class BookingService {
       deduplicationKey: `BookingCreated:${booking.id}`,
     });
     await this.outboxService.enqueue({
-      aggregateType: 'Booking',
+      aggregateType: "Booking",
       aggregateId: booking.id,
-      eventType: 'BookingNumberAssigned',
+      eventType: "BookingNumberAssigned",
       payload: {
         bookingId: booking.id,
         companyId,
@@ -415,7 +654,9 @@ export class BookingService {
       );
     } catch (error) {
       // Non-blocking: log error but don't fail booking creation
-      this.logger.warn(`Échec création contrat auto pour booking ${booking.id}: ${error.message}`);
+      this.logger.warn(
+        `Échec création contrat auto pour booking ${booking.id}: ${error.message}`,
+      );
     }
 
     // Remove audit fields from response
@@ -429,11 +670,11 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
     // Vérifier que le booking est en statut CONFIRMED
-    if (booking.status !== 'CONFIRMED') {
+    if (booking.status !== "CONFIRMED") {
       throw new BadRequestException(
         `La réservation doit être CONFIRMÉE pour effectuer le check-in. Statut actuel : ${booking.status}`,
       );
@@ -445,9 +686,9 @@ export class BookingService {
     // Si caution requise, elle doit être collectée avant check-in
     if (booking.depositRequired === true) {
       const statusCheckIn = checkInDto.depositStatusCheckIn;
-      if (statusCheckIn !== 'COLLECTED') {
+      if (statusCheckIn !== "COLLECTED") {
         throw new BadRequestException(
-          'La caution doit être collectée avant le check-in',
+          "La caution doit être collectée avant le check-in",
         );
       }
     }
@@ -465,12 +706,13 @@ export class BookingService {
         userId,
         agencyId: booking.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: id,
-        description: 'Clôture financière bloquée: montant récupéré dépasse la caution',
+        description:
+          "Clôture financière bloquée: montant récupéré dépasse la caution",
       });
       throw new BadRequestException(
-        'Le client doit avoir une date d\'expiration de permis valide. Le check-in est impossible.'
+        "Le client doit avoir une date d'expiration de permis valide. Le check-in est impossible.",
       );
     }
 
@@ -483,13 +725,14 @@ export class BookingService {
         userId,
         agencyId: booking.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: id,
-        description: 'Clôture financière bloquée: montant récupéré dépasse la caution',
+        description:
+          "Clôture financière bloquée: montant récupéré dépasse la caution",
       });
       throw new BadRequestException(
-        `Le permis de conduite est expiré ou expire aujourd'hui (${licenseExpiry.toLocaleDateString('fr-FR')}). ` +
-        `Le check-in est impossible.`
+        `Le permis de conduite est expiré ou expire aujourd'hui (${licenseExpiry.toLocaleDateString("fr-FR")}). ` +
+          `Le check-in est impossible.`,
       );
     }
 
@@ -501,14 +744,15 @@ export class BookingService {
         userId,
         agencyId: booking.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: id,
-        description: 'Clôture financière bloquée: montant récupéré dépasse la caution',
+        description:
+          "Clôture financière bloquée: montant récupéré dépasse la caution",
       });
       throw new BadRequestException(
-        `Le permis de conduite expire le ${licenseExpiry.toLocaleDateString('fr-FR')}, ` +
-        `avant la fin de la location (${bookingEnd.toLocaleDateString('fr-FR')}). ` +
-        `Le check-in est impossible.`
+        `Le permis de conduite expire le ${licenseExpiry.toLocaleDateString("fr-FR")}, ` +
+          `avant la fin de la location (${bookingEnd.toLocaleDateString("fr-FR")}). ` +
+          `Le check-in est impossible.`,
       );
     }
 
@@ -521,14 +765,14 @@ export class BookingService {
       bookingId: string;
       description?: string;
     }> = [];
-    
+
     // Photos avant
     for (const photoUrl of checkInDto.photosBefore) {
       documents.push({
         type: DocumentType.PHOTO,
-        title: 'Photo avant check-in',
+        title: "Photo avant check-in",
         url: photoUrl,
-        key: photoUrl.split('/').pop() || '',
+        key: photoUrl.split("/").pop() || "",
         bookingId: id,
       });
     }
@@ -536,9 +780,9 @@ export class BookingService {
     // Photo permis
     documents.push({
       type: DocumentType.DRIVING_LICENSE,
-      title: 'Photo permis de conduire',
+      title: "Photo permis de conduire",
       url: checkInDto.driverLicensePhoto,
-      key: checkInDto.driverLicensePhoto.split('/').pop() || '',
+      key: checkInDto.driverLicensePhoto.split("/").pop() || "",
       bookingId: id,
     });
 
@@ -546,9 +790,9 @@ export class BookingService {
     if (checkInDto.identityDocument) {
       documents.push({
         type: DocumentType.ID_CARD,
-        title: 'Pièce d\'identité',
+        title: "Pièce d'identité",
         url: checkInDto.identityDocument,
-        key: checkInDto.identityDocument.split('/').pop() || '',
+        key: checkInDto.identityDocument.split("/").pop() || "",
         bookingId: id,
       });
     }
@@ -557,9 +801,9 @@ export class BookingService {
     if (checkInDto.depositDocument) {
       documents.push({
         type: DocumentType.OTHER,
-        title: 'Document caution',
+        title: "Document caution",
         url: checkInDto.depositDocument,
-        key: checkInDto.depositDocument.split('/').pop() || '',
+        key: checkInDto.depositDocument.split("/").pop() || "",
         bookingId: id,
       });
     }
@@ -585,9 +829,9 @@ export class BookingService {
     // Créer un document JSON pour les données de check-in
     documents.push({
       type: DocumentType.OTHER,
-      title: 'Données check-in',
+      title: "Données check-in",
       description: JSON.stringify(checkInData),
-      url: '',
+      url: "",
       key: `checkin-${id}`,
       bookingId: id,
     });
@@ -596,8 +840,8 @@ export class BookingService {
     const updatedBooking = await this.prisma.$transaction(async (tx) => {
       // Mettre à jour le statut à IN_PROGRESS (ACTIVE dans le mobile)
       const updateData: any = {
-        status: 'IN_PROGRESS',
-          ...this.commonAuditService.addUpdateAuditFields({}, userId),
+        status: "IN_PROGRESS",
+        ...this.commonAuditService.addUpdateAuditFields({}, userId),
       };
 
       // Mettre à jour le statut de la caution si fourni
@@ -627,7 +871,7 @@ export class BookingService {
       // Mettre à jour le statut du véhicule
       await tx.vehicle.update({
         where: { id: booking.vehicleId },
-        data: { status: 'RENTED' },
+        data: { status: "RENTED" },
       });
 
       return this.commonAuditService.removeAuditFields(booking);
@@ -636,14 +880,33 @@ export class BookingService {
     // Créer un événement de log métier
     await this.businessEventLogService.logEvent(
       updatedBooking.agencyId,
-      'Booking',
+      "Booking",
       id,
       BusinessEventType.BOOKING_STATUS_CHANGED,
-      { status: 'CONFIRMED' },
-      { status: 'IN_PROGRESS', odometerStart: checkInDto.odometerStart, fuelLevelStart: checkInDto.fuelLevelStart },
+      { status: "CONFIRMED" },
+      {
+        status: "IN_PROGRESS",
+        odometerStart: checkInDto.odometerStart,
+        fuelLevelStart: checkInDto.fuelLevelStart,
+      },
       userId,
       updatedBooking.agency.companyId,
     );
+
+    try {
+      await this.notifyFinancialClosurePending({
+        bookingId: id,
+        agencyId: updatedBooking.agencyId,
+        companyId: updatedBooking.agency.companyId,
+        bookingNumber: (updatedBooking as any).bookingNumber,
+        vehicleRegistrationNumber: (updatedBooking as any).vehicle
+          ?.registrationNumber,
+      });
+    } catch (error: any) {
+      this.logger.warn(
+        `Notification clôture financière non envoyée: ${error?.message || error}`,
+      );
+    }
 
     return this.commonAuditService.removeAuditFields(updatedBooking);
   }
@@ -655,19 +918,24 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
     // Vérifier que le booking est en statut IN_PROGRESS (ACTIVE)
-    if (booking.status !== 'IN_PROGRESS' && booking.status !== 'LATE') {
+    if (booking.status !== "IN_PROGRESS" && booking.status !== "LATE") {
       throw new BadRequestException(
         `La réservation doit être EN COURS ou EN RETARD pour effectuer le check-out. Statut actuel : ${booking.status}`,
       );
     }
 
     // Valider l'encaissement espèces si cashCollected est true
-    if (checkOutDto.cashCollected === true && (!checkOutDto.cashAmount || checkOutDto.cashAmount <= 0)) {
-      throw new BadRequestException('Le montant en espèces est requis et doit être supérieur à 0 si des espèces sont collectées');
+    if (
+      checkOutDto.cashCollected === true &&
+      (!checkOutDto.cashAmount || checkOutDto.cashAmount <= 0)
+    ) {
+      throw new BadRequestException(
+        "Le montant en espèces est requis et doit être supérieur à 0 si des espèces sont collectées",
+      );
     }
 
     // Récupérer les données de check-in pour vérifier odometerStart
@@ -694,6 +962,14 @@ export class BookingService {
         `Le kilométrage de fin (${checkOutDto.odometerEnd}) doit être supérieur ou égal au kilométrage de début (${odometerStart})`,
       );
     }
+    if (
+      typeof booking.vehicle?.mileage === "number" &&
+      checkOutDto.odometerEnd < booking.vehicle.mileage
+    ) {
+      throw new BadRequestException(
+        `Le kilométrage de fin (${checkOutDto.odometerEnd}) ne peut pas être inférieur au kilométrage actuel du véhicule (${booking.vehicle.mileage})`,
+      );
+    }
 
     // ============================================
     // CALCUL AUTOMATIQUE DES FRAIS DE RETARD (R4)
@@ -715,7 +991,7 @@ export class BookingService {
       if (delayHours <= 1) {
         lateFeeRate = 0.25; // 25%
       } else if (delayHours <= 2) {
-        lateFeeRate = 0.50; // 50%
+        lateFeeRate = 0.5; // 50%
       } else if (delayHours <= 4) {
         lateFeeRate = 0.75; // 75% (interpolation)
       } else {
@@ -727,10 +1003,10 @@ export class BookingService {
 
     const actualReturnDate = new Date(); // Date actuelle
     const calculatedLateFee = calculateLateFee(booking, actualReturnDate);
-    
+
     // Utiliser le frais de retard calculé automatiquement (sauf si override manuel)
-    const lateFeeAmount = booking.lateFeeOverride 
-      ? booking.lateFeeAmount 
+    const lateFeeAmount = booking.lateFeeOverride
+      ? booking.lateFeeAmount
       : calculatedLateFee;
 
     // Créer les documents pour les photos
@@ -747,9 +1023,9 @@ export class BookingService {
     for (const photoUrl of checkOutDto.photosAfter) {
       documents.push({
         type: DocumentType.PHOTO,
-        title: 'Photo après check-out',
+        title: "Photo après check-out",
         url: photoUrl,
-        key: photoUrl.split('/').pop() || '',
+        key: photoUrl.split("/").pop() || "",
         bookingId: id,
       });
     }
@@ -758,9 +1034,9 @@ export class BookingService {
     if (checkOutDto.cashReceipt) {
       documents.push({
         type: DocumentType.OTHER,
-        title: 'Reçu de paiement',
+        title: "Reçu de paiement",
         url: checkOutDto.cashReceipt,
-        key: checkOutDto.cashReceipt.split('/').pop() || '',
+        key: checkOutDto.cashReceipt.split("/").pop() || "",
         bookingId: id,
       });
     }
@@ -783,9 +1059,9 @@ export class BookingService {
     // Créer un document JSON pour les données de check-out
     documents.push({
       type: DocumentType.OTHER,
-      title: 'Données check-out',
+      title: "Données check-out",
       description: JSON.stringify(checkOutData),
-      url: '',
+      url: "",
       key: `checkout-${id}`,
       bookingId: id,
     });
@@ -794,7 +1070,12 @@ export class BookingService {
     let finalPrice = booking.totalPrice;
     if (checkOutDto.extraFees) finalPrice += checkOutDto.extraFees;
     // Utiliser le frais de retard calculé automatiquement
-    const lateFeeValue = typeof lateFeeAmount === 'number' ? lateFeeAmount : (lateFeeAmount ? Number(lateFeeAmount) : 0);
+    const lateFeeValue =
+      typeof lateFeeAmount === "number"
+        ? lateFeeAmount
+        : lateFeeAmount
+          ? Number(lateFeeAmount)
+          : 0;
     if (lateFeeValue > 0) finalPrice += lateFeeValue;
     if (checkOutDto.damageFee) finalPrice += checkOutDto.damageFee;
 
@@ -804,7 +1085,7 @@ export class BookingService {
       const booking = await tx.booking.update({
         where: { id },
         data: {
-          status: 'RETURNED',
+          status: "RETURNED",
           totalPrice: finalPrice,
           // Enregistrer les frais de retard calculés
           lateFeeAmount: lateFeeValue > 0 ? lateFeeValue : null,
@@ -829,7 +1110,10 @@ export class BookingService {
       // Mettre à jour le statut du véhicule
       await tx.vehicle.update({
         where: { id: booking.vehicleId },
-        data: { status: 'AVAILABLE' },
+        data: {
+          status: "AVAILABLE",
+          mileage: checkOutDto.odometerEnd,
+        },
       });
 
       return this.commonAuditService.removeAuditFields(booking);
@@ -863,13 +1147,13 @@ export class BookingService {
     // Créer un événement de log métier
     await this.businessEventLogService.logEvent(
       updatedBooking.agencyId,
-      'Booking',
+      "Booking",
       id,
       BusinessEventType.BOOKING_STATUS_CHANGED,
       { status: booking.status },
-      { 
-        status: 'RETURNED', 
-        odometerEnd: checkOutDto.odometerEnd, 
+      {
+        status: "RETURNED",
+        odometerEnd: checkOutDto.odometerEnd,
         fuelLevelEnd: checkOutDto.fuelLevelEnd,
         extraFees: checkOutDto.extraFees,
         lateFeeAmount: lateFeeAmount,
@@ -882,13 +1166,16 @@ export class BookingService {
     return this.commonAuditService.removeAuditFields(updatedBooking);
   }
 
-  private isValidStatusTransition(currentStatus: string, newStatus: string): boolean {
+  private isValidStatusTransition(
+    currentStatus: string,
+    newStatus: string,
+  ): boolean {
     const validTransitions: Record<string, string[]> = {
-      DRAFT: ['PENDING', 'CANCELLED'],
-      PENDING: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
-      IN_PROGRESS: ['RETURNED', 'LATE'],
-      LATE: ['RETURNED'],
+      DRAFT: ["PENDING", "CANCELLED"],
+      PENDING: ["CONFIRMED", "CANCELLED"],
+      CONFIRMED: ["IN_PROGRESS", "CANCELLED", "NO_SHOW"],
+      IN_PROGRESS: ["RETURNED", "LATE"],
+      LATE: ["RETURNED"],
       RETURNED: [],
       CANCELLED: [],
       NO_SHOW: [],
@@ -904,10 +1191,11 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
-    const { startDate, endDate, status, totalPrice, bookingNumber } = updateBookingDto as any;
+    const { startDate, endDate, status, totalPrice, bookingNumber } =
+      updateBookingDto as any;
 
     // V2: bookingNumber is locked once an invoice exists (InvoiceIssued)
     if (bookingNumber !== undefined) {
@@ -917,7 +1205,7 @@ export class BookingService {
       });
       if (existingInvoice) {
         throw new ForbiddenException(
-          'Le numéro de réservation est verrouillé car une facture a été émise',
+          "Le numéro de réservation est verrouillé car une facture a été émise",
         );
       }
     }
@@ -945,7 +1233,7 @@ export class BookingService {
 
       if (conflicts.length > 0) {
         throw new ConflictException({
-          message: 'Le véhicule n\'est pas disponible pour cette période',
+          message: "Le véhicule n'est pas disponible pour cette période",
           conflicts,
         });
       }
@@ -958,9 +1246,11 @@ export class BookingService {
     if (startDate) updateData.startDate = new Date(startDate);
     if (endDate) updateData.endDate = new Date(endDate);
     if (status) updateData.status = status;
-    if (totalPrice !== undefined) updateData.totalPrice = parseFloat(totalPrice.toString());
+    if (totalPrice !== undefined)
+      updateData.totalPrice = parseFloat(totalPrice.toString());
     if (bookingNumber !== undefined) {
-      const normalized = this.normalizeAndValidateManualBookingNumber(bookingNumber);
+      const normalized =
+        this.normalizeAndValidateManualBookingNumber(bookingNumber);
       const existing = await this.prisma.booking.findFirst({
         where: {
           companyId: (booking as any).companyId,
@@ -971,13 +1261,18 @@ export class BookingService {
         select: { id: true },
       });
       if (existing) {
-        throw new ConflictException('Ce numéro de réservation existe déjà pour cette société');
+        throw new ConflictException(
+          "Ce numéro de réservation existe déjà pour cette société",
+        );
       }
       updateData.bookingNumber = normalized;
     }
 
     // Add audit fields
-    const dataWithAudit = this.commonAuditService.addUpdateAuditFields(updateData, userId);
+    const dataWithAudit = this.commonAuditService.addUpdateAuditFields(
+      updateData,
+      userId,
+    );
 
     const updatedBooking = await this.prisma.booking.update({
       where: { id },
@@ -999,9 +1294,9 @@ export class BookingService {
       (updatedBooking as any).bookingNumber !== (booking as any).bookingNumber
     ) {
       await this.outboxService.enqueue({
-        aggregateType: 'Booking',
+        aggregateType: "Booking",
         aggregateId: updatedBooking.id,
-        eventType: 'BookingNumberEdited',
+        eventType: "BookingNumberEdited",
         payload: {
           bookingId: updatedBooking.id,
           companyId: (updatedBooking as any).companyId,
@@ -1014,7 +1309,10 @@ export class BookingService {
 
     // Mettre à jour l'événement de planning
     await this.planningService.deleteBookingEvents(booking.id);
-    if (updatedBooking.status === 'CONFIRMED' || updatedBooking.status === 'IN_PROGRESS') {
+    if (
+      updatedBooking.status === "CONFIRMED" ||
+      updatedBooking.status === "IN_PROGRESS"
+    ) {
       await this.planningService.createBookingEvent(
         booking.id,
         booking.vehicleId,
@@ -1027,14 +1325,17 @@ export class BookingService {
     }
 
     // Mettre à jour le statut du véhicule
-    if (updatedBooking.status === 'RETURNED' || updatedBooking.status === 'CANCELLED') {
+    if (
+      updatedBooking.status === "RETURNED" ||
+      updatedBooking.status === "CANCELLED"
+    ) {
       await this.prisma.vehicle.update({
         where: { id: booking.vehicleId },
-        data: { status: 'AVAILABLE' },
+        data: { status: "AVAILABLE" },
       });
 
       // Créer temps de préparation si retourné
-      if (updatedBooking.status === 'RETURNED') {
+      if (updatedBooking.status === "RETURNED") {
         const isLate = new Date() > booking.endDate;
         await this.planningService.createPreparationTime(
           booking.id,
@@ -1044,22 +1345,26 @@ export class BookingService {
           isLate,
         );
       }
-    } else if (updatedBooking.status === 'CONFIRMED' || updatedBooking.status === 'IN_PROGRESS') {
+    } else if (
+      updatedBooking.status === "CONFIRMED" ||
+      updatedBooking.status === "IN_PROGRESS"
+    ) {
       await this.prisma.vehicle.update({
         where: { id: booking.vehicleId },
-        data: { status: 'RENTED' },
+        data: { status: "RENTED" },
       });
     }
 
     // Log business event
-    const eventType = status && status !== booking.status
-      ? BusinessEventType.BOOKING_STATUS_CHANGED
-      : BusinessEventType.BOOKING_UPDATED;
+    const eventType =
+      status && status !== booking.status
+        ? BusinessEventType.BOOKING_STATUS_CHANGED
+        : BusinessEventType.BOOKING_UPDATED;
 
     this.businessEventLogService
       .logEvent(
         updatedBooking.agencyId,
-        'Booking',
+        "Booking",
         updatedBooking.id,
         eventType,
         previousState,
@@ -1079,44 +1384,49 @@ export class BookingService {
    */
   private async checkAndUpdateLateBookings(bookings: any[]): Promise<void> {
     const now = new Date();
-    const lateBookings = bookings.filter(
-      (booking) =>
-        booking.status === 'IN_PROGRESS' &&
-        new Date(booking.endDate) < now,
-    );
+    const lateBookingIds = bookings
+      .filter(
+        (booking) =>
+          booking.status === "IN_PROGRESS" && new Date(booking.endDate) < now,
+      )
+      .map((booking) => booking.id);
 
     // Mettre à jour les bookings en retard en batch
-    if (lateBookings.length > 0) {
-      await Promise.all(
-        lateBookings.map((booking) =>
-          this.prisma.booking.update({
-            where: { id: booking.id },
-            data: { status: 'LATE' },
-          }),
-        ),
-      );
+    if (lateBookingIds.length > 0) {
+      await this.prisma.booking.updateMany({
+        where: {
+          id: { in: lateBookingIds },
+          status: "IN_PROGRESS",
+        },
+        data: { status: "LATE" },
+      });
     }
   }
 
-  async findAll(user: any, filters?: any) {
-    let where: any = {
+  private async buildBookingWhere(
+    user: any,
+    filters?: any,
+  ): Promise<any | null> {
+    const where: any = {
       deletedAt: null,
     };
 
     const bookingNumberFilterRaw = filters?.bookingNumber;
     const bookingNumberFilter =
-      bookingNumberFilterRaw != null && String(bookingNumberFilterRaw).trim() !== ''
+      bookingNumberFilterRaw != null &&
+      String(bookingNumberFilterRaw).trim() !== ""
         ? this.normalizeBookingNumber(String(bookingNumberFilterRaw))
         : null;
 
     // Filter by role
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       if (filters?.agencyId) where.agencyId = filters.agencyId;
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
-      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
-    } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+      if (bookingNumberFilter)
+        where.bookingNumber = { contains: bookingNumberFilter };
+    } else if (user.role === "COMPANY_ADMIN" && user.companyId) {
       where.agency = { companyId: user.companyId };
       if (filters?.agencyId) {
         const agency = await this.prisma.agency.findFirst({
@@ -1125,25 +1435,58 @@ export class BookingService {
         if (agency) {
           where.agencyId = filters.agencyId;
         } else {
-          return [];
+          return null;
         }
       }
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
-      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
+      if (bookingNumberFilter)
+        where.bookingNumber = { contains: bookingNumberFilter };
     } else if (user.agencyIds && user.agencyIds.length > 0) {
       where.agencyId = { in: user.agencyIds };
       if (filters?.agencyId && user.agencyIds.includes(filters.agencyId)) {
         where.agencyId = filters.agencyId;
       } else if (filters?.agencyId) {
-        return [];
+        return null;
       }
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.clientId) where.clientId = filters.clientId;
       if (filters?.status) where.status = filters.status;
-      if (bookingNumberFilter) where.bookingNumber = { contains: bookingNumberFilter };
+      if (bookingNumberFilter)
+        where.bookingNumber = { contains: bookingNumberFilter };
     } else {
+      return null;
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      const dateFilter: any = {};
+      if (filters?.startDate) {
+        dateFilter.gte = new Date(filters.startDate);
+      }
+      if (filters?.endDate) {
+        dateFilter.lte = new Date(filters.endDate);
+      }
+      where.startDate = dateFilter;
+    }
+
+    return where;
+  }
+
+  private normalizeBookingRows(bookings: any[]) {
+    const now = new Date();
+    return bookings.map((booking) => {
+      const withLateStatus =
+        booking.status === "IN_PROGRESS" && new Date(booking.endDate) < now
+          ? { ...booking, status: "LATE" }
+          : booking;
+      return this.commonAuditService.removeAuditFields(withLateStatus);
+    });
+  }
+
+  async findAll(user: any, filters?: any) {
+    const where = await this.buildBookingWhere(user, filters);
+    if (!where) {
       return [];
     }
 
@@ -1151,29 +1494,174 @@ export class BookingService {
       where,
       include: {
         agency: {
-          include: { company: true },
+          select: {
+            id: true,
+            name: true,
+            companyId: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         },
-        vehicle: true,
-        client: true,
+        vehicle: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            registrationNumber: true,
+            dailyRate: true,
+          },
+        },
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            licenseExpiryDate: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Vérifier et mettre à jour automatiquement les bookings en retard
     await this.checkAndUpdateLateBookings(bookings);
 
-    // Mettre à jour les statuts en mémoire pour éviter un second appel DB
-    const updatedBookings = bookings.map((booking) => {
-      if (
-        booking.status === 'IN_PROGRESS' &&
-        new Date(booking.endDate) < new Date()
-      ) {
-        return { ...booking, status: 'LATE' };
-      }
-      return this.commonAuditService.removeAuditFields(booking);
-    });
+    return this.normalizeBookingRows(bookings);
+  }
 
-    return updatedBookings;
+  async findAllLight(user: any, page = 1, pageSize = 20, filters?: any) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize)
+      ? Math.min(Math.max(1, Math.floor(pageSize)), 100)
+      : 20;
+    const skip = (safePage - 1) * safePageSize;
+
+    const where = await this.buildBookingWhere(user, filters);
+    if (!where) {
+      return {
+        items: [],
+        total: 0,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: 1,
+      };
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma.booking.findMany({
+        where,
+        include: {
+          agency: {
+            select: {
+              id: true,
+              name: true,
+              companyId: true,
+            },
+          },
+          vehicle: {
+            select: {
+              id: true,
+              brand: true,
+              model: true,
+              registrationNumber: true,
+            },
+          },
+          client: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: safePageSize,
+      }),
+      this.prisma.booking.count({ where }),
+    ]);
+
+    await this.checkAndUpdateLateBookings(rows);
+
+    const items = this.normalizeBookingRows(rows);
+    const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+    return {
+      items,
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+      totalPages,
+    };
+  }
+
+  async getSummary(user: any, filters?: any) {
+    const where = await this.buildBookingWhere(user, filters);
+    if (!where) {
+      return {
+        total: 0,
+        active: 0,
+        completed: 0,
+        late: 0,
+        cancelled: 0,
+        estimatedRevenue: 0,
+      };
+    }
+
+    const [
+      total,
+      active,
+      completed,
+      late,
+      cancelled,
+      revenueAgg,
+      groupedByAgency,
+    ] = await Promise.all([
+      this.prisma.booking.count({ where }),
+      this.prisma.booking.count({ where: { ...where, status: "IN_PROGRESS" } }),
+      this.prisma.booking.count({ where: { ...where, status: "RETURNED" } }),
+      this.prisma.booking.count({ where: { ...where, status: "LATE" } }),
+      this.prisma.booking.count({ where: { ...where, status: "CANCELLED" } }),
+      this.prisma.booking.aggregate({
+        where: { ...where, status: "RETURNED" },
+        _sum: { totalPrice: true },
+      }),
+      (this.prisma.booking as any).groupBy({
+        by: ["agencyId"],
+        where,
+        _count: { _all: true },
+        orderBy: { _count: { agencyId: "desc" } },
+        take: 10,
+      }),
+    ]);
+
+    const agencyIds = groupedByAgency.map((item: any) => item.agencyId);
+    const agencies = agencyIds.length
+      ? await this.prisma.agency.findMany({
+          where: { id: { in: agencyIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const agencyNameById = new Map(
+      agencies.map((agency) => [agency.id, agency.name]),
+    );
+
+    return {
+      total,
+      active,
+      completed,
+      late,
+      cancelled,
+      estimatedRevenue: Number(revenueAgg._sum.totalPrice || 0),
+      topAgencies: groupedByAgency.map((item: any) => ({
+        agencyId: item.agencyId,
+        agencyName: agencyNameById.get(item.agencyId) || "Agence",
+        bookings: Number(item._count?._all || 0),
+      })),
+    };
   }
 
   async findOne(id: string, user: any) {
@@ -1191,7 +1679,7 @@ export class BookingService {
             documents: {
               where: {
                 type: {
-                  in: ['ID_CARD', 'DRIVING_LICENSE', 'OTHER'],
+                  in: ["ID_CARD", "DRIVING_LICENSE", "OTHER"],
                 },
               },
             },
@@ -1205,7 +1693,7 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
     // Agency access check
@@ -1221,7 +1709,7 @@ export class BookingService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
     // Agency access check
@@ -1234,7 +1722,11 @@ export class BookingService {
     await this.planningService.deleteBookingEvents(id);
 
     // Add audit fields for soft delete
-    const deleteData = this.commonAuditService.addDeleteAuditFields({}, user.id || user.userId, reason);
+    const deleteData = this.commonAuditService.addDeleteAuditFields(
+      {},
+      user.id || user.userId,
+      reason,
+    );
 
     // Soft delete
     await this.prisma.booking.update({
@@ -1245,10 +1737,10 @@ export class BookingService {
     // Remettre le véhicule en disponible
     await this.prisma.vehicle.update({
       where: { id: booking.vehicleId },
-      data: { status: 'AVAILABLE' },
+      data: { status: "AVAILABLE" },
     });
 
-    return { message: 'Réservation supprimée avec succès' };
+    return { message: "Réservation supprimée avec succès" };
   }
 
   /**
@@ -1260,68 +1752,75 @@ export class BookingService {
       where: { id },
       include: {
         incidents: {
-          where: { status: 'DISPUTED' },
+          where: { status: "DISPUTED" },
         },
         payments: true,
       },
     });
 
     if (!booking) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
     // ============================================
     // VALIDATION DOMMAGES & LITIGES (R5)
     // ============================================
     // Vérifier qu'il n'y a pas de litige en cours
-    if (booking.incidents.some((inc) => inc.status === 'DISPUTED')) {
+    if (booking.incidents.some((inc) => inc.status === "DISPUTED")) {
       await this.auditService.log({
         userId,
         agencyId: booking.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: id,
-        description: 'Clôture financière bloquée: montant récupéré dépasse la caution',
+        description:
+          "Clôture financière bloquée: montant récupéré dépasse la caution",
       });
       throw new BadRequestException(
-        'La clôture financière est bloquée: un ou plusieurs incidents sont en litige (DISPUTED). ' +
-        'Veuillez résoudre les litiges avant de procéder à la clôture.'
+        "La clôture financière est bloquée: un ou plusieurs incidents sont en litige (DISPUTED). " +
+          "Veuillez résoudre les litiges avant de procéder à la clôture.",
       );
     }
 
     // Vérifier que la caution n'est pas en DISPUTED
-    if (booking.depositStatusFinal === 'DISPUTED') {
+    if (booking.depositStatusFinal === "DISPUTED") {
       await this.auditService.log({
         userId,
         agencyId: booking.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: id,
-        description: 'Clôture financière bloquée: montant récupéré dépasse la caution',
+        description:
+          "Clôture financière bloquée: montant récupéré dépasse la caution",
       });
       throw new BadRequestException(
-        'La clôture financière est bloquée: la caution est en litige (DISPUTED). ' +
-        'Veuillez résoudre le litige avant de procéder à la clôture.'
+        "La clôture financière est bloquée: la caution est en litige (DISPUTED). " +
+          "Veuillez résoudre le litige avant de procéder à la clôture.",
       );
     }
 
     // Calculer le montant total récupéré (ne jamais dépasser la caution)
     const totalCollected = booking.payments
-      .filter((p) => p.status === 'PAID')
+      .filter((p) => p.status === "PAID")
       .reduce((sum, p) => sum + p.amount, 0);
 
-    const maxAllowed = booking.depositAmount ? (typeof booking.depositAmount === 'number' ? booking.depositAmount : Number(booking.depositAmount)) : 0;
+    const maxAllowed = booking.depositAmount
+      ? typeof booking.depositAmount === "number"
+        ? booking.depositAmount
+        : Number(booking.depositAmount)
+      : 0;
     if (totalCollected > maxAllowed) {
       await this.auditService.log({
         userId,
         agencyId: booking.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: id,
-        description: 'Clôture financière bloquée: montant récupéré dépasse la caution',
+        description:
+          "Clôture financière bloquée: montant récupéré dépasse la caution",
       });
       throw new BadRequestException(
-        `Le montant total récupéré (${totalCollected}) ne peut pas dépasser la caution (${maxAllowed})`
+        `Le montant total récupéré (${totalCollected}) ne peut pas dépasser la caution (${maxAllowed})`,
       );
     }
 
@@ -1333,7 +1832,9 @@ export class BookingService {
       await this.invoiceService.generateInvoice(id, userId);
     } catch (error) {
       // Si erreur, logger mais ne pas bloquer la clôture
-      this.logger.warn(`Facture non générée lors de la clôture financière: ${error.message}`);
+      this.logger.warn(
+        `Facture non générée lors de la clôture financière: ${error.message}`,
+      );
     }
 
     // Mettre à jour le statut final de la caution si nécessaire
@@ -1346,7 +1847,11 @@ export class BookingService {
    * Override des frais de retard par Agency Manager
    * Règle: Override possible UNIQUEMENT par Agency Manager avec justification loggée
    */
-  async overrideLateFee(id: string, overrideDto: OverrideLateFeeDto, userId: string) {
+  async overrideLateFee(
+    id: string,
+    overrideDto: OverrideLateFeeDto,
+    userId: string,
+  ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
       include: {
@@ -1355,7 +1860,7 @@ export class BookingService {
     });
 
     if (!booking) {
-      throw new BadRequestException('Réservation introuvable');
+      throw new BadRequestException("Réservation introuvable");
     }
 
     // Vérifier que l'utilisateur est Agency Manager ou SUPER_ADMIN
@@ -1364,14 +1869,19 @@ export class BookingService {
       select: { role: true },
     });
 
-    if (!user || (user.role !== 'AGENCY_MANAGER' && user.role !== 'SUPER_ADMIN')) {
-      throw new ForbiddenException('Seuls les gestionnaires d\'agence ou SUPER_ADMIN peuvent modifier les frais de retard');
+    if (
+      !user ||
+      (user.role !== "AGENCY_MANAGER" && user.role !== "SUPER_ADMIN")
+    ) {
+      throw new ForbiddenException(
+        "Seuls les gestionnaires d'agence ou SUPER_ADMIN peuvent modifier les frais de retard",
+      );
     }
 
     // Vérifier que le booking est en statut RETURNED
-    if (booking.status !== 'RETURNED') {
+    if (booking.status !== "RETURNED") {
       throw new BadRequestException(
-        'Les frais de retard ne peuvent être modifiés que pour un booking en statut RETURNED'
+        "Les frais de retard ne peuvent être modifiés que pour un booking en statut RETURNED",
       );
     }
 
@@ -1387,11 +1897,14 @@ export class BookingService {
     // Logger l'audit avec justification
     await this.auditService.logUpdate(
       userId,
-      'Booking',
+      "Booking",
       id,
       `Override des frais de retard: ${booking.lateFeeAmount || 0} MAD → ${overrideDto.newAmount} MAD. Justification: ${overrideDto.justification}`,
       { lateFeeAmount: booking.lateFeeAmount },
-      { lateFeeAmount: overrideDto.newAmount, justification: overrideDto.justification },
+      {
+        lateFeeAmount: overrideDto.newAmount,
+        justification: overrideDto.justification,
+      },
       booking.agency.companyId,
       booking.agencyId,
     );
@@ -1399,15 +1912,21 @@ export class BookingService {
     // Log business event
     await this.businessEventLogService.logEvent(
       booking.agencyId,
-      'Booking',
+      "Booking",
       id,
       BusinessEventType.BOOKING_UPDATED,
       { lateFeeAmount: booking.lateFeeAmount },
-      { lateFeeAmount: overrideDto.newAmount, lateFeeReason: overrideDto.justification },
+      {
+        lateFeeAmount: overrideDto.newAmount,
+        lateFeeReason: overrideDto.justification,
+      },
       userId,
       booking.agency.companyId,
     );
 
-    return { message: 'Frais de retard modifiés avec succès', lateFeeAmount: overrideDto.newAmount };
+    return {
+      message: "Frais de retard modifiés avec succès",
+      lateFeeAmount: overrideDto.newAmount,
+    };
   }
 }
