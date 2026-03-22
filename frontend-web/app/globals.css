@@ -4,61 +4,67 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ══════════════════════════════════════════════
+   DARK THEME - Automotive Orange on Navy
+   Inspired by MADAR Logistics aesthetic
+   ══════════════════════════════════════════════ */
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --background: 29 31 35;
-  --card: 44 47 54;
-  --card-hover: 57 62 72;
-  --primary: 62 123 250;
-  --primary-hover: 51 109 235;
+  --background: 12 15 25;            /* #0C0F19 - deep navy */
+  --card: 20 24 38;                  /* #141826 - card surface */
+  --card-hover: 28 33 50;            /* #1C2132 - card hover */
+  --primary: 255 107 74;             /* #FF6B4A - coral orange */
+  --primary-hover: 255 130 102;      /* #FF8266 - lighter orange */
   --primary-foreground: 255 255 255;
-  --text: 229 231 235;
-  --text-muted: 156 163 175;
-  --border: 55 65 81;
-  --success: 16 185 129;
-  --warning: 245 158 11;
-  --error: 239 68 68;
-  --info: 59 130 246;
+  --text: 241 245 249;               /* #F1F5F9 - slate-100 */
+  --text-muted: 148 163 184;         /* #94A3B8 - slate-400 */
+  --border: 45 55 75;                /* #2D374B - navy border */
+  --success: 34 197 94;              /* #22C55E - green */
+  --warning: 251 191 36;             /* #FBBF24 - amber */
+  --error: 239 68 68;                /* #EF4444 - red */
+  --info: 56 189 248;                /* #38BDF8 - sky blue */
 
-  /* v0 design system — surfaces & text aliases (synced with data-theme) */
-  --surface-0: 32 34 38;
-  --surface-1: 44 47 54;
-  --surface-2: 52 56 64;
-  --surface-3: 57 62 72;
-  --foreground: 229 231 235;
-  --foreground-muted: 156 163 175;
-  --foreground-subtle: 120 128 138;
-  --border-hover: 70 78 90;
-  --radius: 0.625rem;
+  /* v0 design system — surfaces & text aliases */
+  --surface-0: 16 20 32;             /* #101420 - sidebar */
+  --surface-1: 20 24 38;             /* #141826 - cards */
+  --surface-2: 28 33 50;             /* #1C2132 - elevated */
+  --surface-3: 38 45 65;             /* #262D41 - hover */
+  --foreground: 241 245 249;
+  --foreground-muted: 148 163 184;
+  --foreground-subtle: 100 116 139;  /* #64748B - slate-500 */
+  --border-hover: 60 70 95;
+  --radius: 0.5rem;
 }
 
+/* ══════════════════════════════════════════════
+   LIGHT THEME - Orange accent on warm white
+   ══════════════════════════════════════════════ */
 [data-theme='light'] {
   color-scheme: light;
-  /* Softer light palette: less pure white, stronger contrast */
-  --background: 240 244 250;
-  --card: 248 251 255;
-  --card-hover: 241 246 253;
-  --primary: 37 99 235;
-  --primary-hover: 29 78 216;
+  --background: 250 250 252;         /* #FAFAFC - warm white */
+  --card: 255 255 255;               /* #FFFFFF - pure white cards */
+  --card-hover: 248 250 252;         /* #F8FAFC - subtle hover */
+  --primary: 234 88 53;              /* #EA5835 - darker orange for light bg */
+  --primary-hover: 220 75 40;        /* #DC4B28 - deeper orange */
   --primary-foreground: 255 255 255;
-  --text: 15 23 42;
-  --text-muted: 87 99 118;
-  --border: 191 201 218;
-  --success: 5 150 105;
-  --warning: 217 119 6;
-  --error: 220 38 38;
-  --info: 37 99 235;
+  --text: 15 23 42;                  /* #0F172A - slate-900 */
+  --text-muted: 71 85 105;           /* #475569 - slate-600 */
+  --border: 226 232 240;             /* #E2E8F0 - slate-200 */
+  --success: 22 163 74;              /* #16A34A - green */
+  --warning: 217 119 6;              /* #D97706 - amber */
+  --error: 220 38 38;                /* #DC2626 - red */
+  --info: 37 99 235;                 /* #2563EB - blue */
 
-  --surface-0: 252 252 253;
-  --surface-1: 248 251 255;
-  --surface-2: 241 246 253;
-  --surface-3: 230 236 245;
+  --surface-0: 248 250 252;          /* #F8FAFC - sidebar */
+  --surface-1: 255 255 255;          /* #FFFFFF - cards */
+  --surface-2: 248 250 252;          /* #F8FAFC - elevated */
+  --surface-3: 241 245 249;          /* #F1F5F9 - hover */
   --foreground: 15 23 42;
-  --foreground-muted: 87 99 118;
-  --foreground-subtle: 120 128 145;
-  --border-hover: 173 184 204;
-  --radius: 0.625rem;
+  --foreground-muted: 71 85 105;
+  --foreground-subtle: 100 116 139;
+  --border-hover: 203 213 225;       /* #CBD5E1 - slate-300 */
+  --radius: 0.5rem;
 }
 
 * {
