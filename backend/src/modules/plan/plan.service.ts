@@ -2,15 +2,15 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreatePlanDto } from './dto/create-plan.dto';
-import { UpdatePlanDto } from './dto/update-plan.dto';
-import { AuditService } from '../../common/services/audit.service';
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { CreatePlanDto } from "./dto/create-plan.dto";
+import { UpdatePlanDto } from "./dto/update-plan.dto";
+import { AuditService } from "../../common/services/audit.service";
 
 /**
  * Service de gestion des Plans d'abonnement
- * 
+ *
  * Gère :
  * - CRUD des plans (Starter, Pro, Enterprise)
  * - Modules inclus dans chaque plan
@@ -27,7 +27,8 @@ export class PlanService {
    * Créer un nouveau plan
    */
   async create(createPlanDto: CreatePlanDto, user: any) {
-    const { name, description, price, moduleCodes, quotas, pricingRules } = createPlanDto;
+    const { name, description, price, moduleCodes, quotas, pricingRules } =
+      createPlanDto;
 
     // Vérifier que le nom est unique
     const existing = await this.prisma.plan.findUnique({
@@ -35,7 +36,7 @@ export class PlanService {
     });
 
     if (existing) {
-      throw new BadRequestException('Un plan avec ce nom existe déjà');
+      throw new BadRequestException("Un plan avec ce nom existe déjà");
     }
 
     // Créer le plan
@@ -75,8 +76,10 @@ export class PlanService {
           planId: plan.id,
           extraAgencyPriceMad: pricingRules.extraAgencyPriceMad ?? 0,
           extraModulePriceMad: pricingRules.extraModulePriceMad ?? 0,
-          allowAgencyOverageOnCreate: pricingRules.allowAgencyOverageOnCreate ?? true,
-          allowAdditionalModulesOnCreate: pricingRules.allowAdditionalModulesOnCreate ?? true,
+          allowAgencyOverageOnCreate:
+            pricingRules.allowAgencyOverageOnCreate ?? true,
+          allowAdditionalModulesOnCreate:
+            pricingRules.allowAdditionalModulesOnCreate ?? true,
         },
       });
     }
@@ -100,7 +103,7 @@ export class PlanService {
           },
         },
       },
-      orderBy: { price: 'asc' },
+      orderBy: { price: "asc" },
     });
   }
 
@@ -123,7 +126,7 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan introuvable');
+      throw new NotFoundException("Plan introuvable");
     }
 
     return plan;
@@ -138,10 +141,11 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan introuvable');
+      throw new NotFoundException("Plan introuvable");
     }
 
-    const { moduleCodes, quotas, pricingRules, ...scalarFields } = updatePlanDto;
+    const { moduleCodes, quotas, pricingRules, ...scalarFields } =
+      updatePlanDto;
 
     const dataWithAudit = this.auditService.addUpdateAuditFields(
       scalarFields,
@@ -185,8 +189,10 @@ export class PlanService {
           planId: id,
           extraAgencyPriceMad: pricingRules.extraAgencyPriceMad ?? 0,
           extraModulePriceMad: pricingRules.extraModulePriceMad ?? 0,
-          allowAgencyOverageOnCreate: pricingRules.allowAgencyOverageOnCreate ?? true,
-          allowAdditionalModulesOnCreate: pricingRules.allowAdditionalModulesOnCreate ?? true,
+          allowAgencyOverageOnCreate:
+            pricingRules.allowAgencyOverageOnCreate ?? true,
+          allowAdditionalModulesOnCreate:
+            pricingRules.allowAdditionalModulesOnCreate ?? true,
         },
         update: {
           ...(pricingRules.extraAgencyPriceMad !== undefined
@@ -196,10 +202,16 @@ export class PlanService {
             ? { extraModulePriceMad: pricingRules.extraModulePriceMad }
             : {}),
           ...(pricingRules.allowAgencyOverageOnCreate !== undefined
-            ? { allowAgencyOverageOnCreate: pricingRules.allowAgencyOverageOnCreate }
+            ? {
+                allowAgencyOverageOnCreate:
+                  pricingRules.allowAgencyOverageOnCreate,
+              }
             : {}),
           ...(pricingRules.allowAdditionalModulesOnCreate !== undefined
-            ? { allowAdditionalModulesOnCreate: pricingRules.allowAdditionalModulesOnCreate }
+            ? {
+                allowAdditionalModulesOnCreate:
+                  pricingRules.allowAdditionalModulesOnCreate,
+              }
             : {}),
         },
       });
@@ -224,13 +236,13 @@ export class PlanService {
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan introuvable');
+      throw new NotFoundException("Plan introuvable");
     }
 
     // Vérifier qu'aucun abonnement n'utilise ce plan
     if (plan._count.subscriptions > 0) {
       throw new BadRequestException(
-        'Impossible de supprimer un plan utilisé par des abonnements actifs',
+        "Impossible de supprimer un plan utilisé par des abonnements actifs",
       );
     }
 
@@ -241,5 +253,3 @@ export class PlanService {
     });
   }
 }
-
-

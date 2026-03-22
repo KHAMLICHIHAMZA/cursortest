@@ -4,25 +4,25 @@ import {
   ExecutionContext,
   ForbiddenException,
   BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AgencyStatus } from '@prisma/client';
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { AgencyStatus } from "@prisma/client";
 
 /**
  * Guard qui vérifie que l'Agency est ACTIVE
- * 
+ *
  * Bloque l'accès si :
  * - Agency.status !== ACTIVE
  * - Agency n'existe pas
  * - Agency n'appartient pas à la Company de l'utilisateur (sauf SUPER_ADMIN)
- * 
+ *
  * SUPER_ADMIN : Bypass (pas de vérification)
- * 
+ *
  * L'agencyId peut être fourni via :
  * - @Param('agencyId') dans l'URL
  * - @Body() dans le payload
  * - @Query('agencyId') dans les query params
- * 
+ *
  * @example
  * @UseGuards(JwtAuthGuard, RequireActiveAgencyGuard)
  * @Get(':agencyId/vehicles')
@@ -37,11 +37,11 @@ export class RequireActiveAgencyGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Utilisateur non authentifié');
+      throw new ForbiddenException("Utilisateur non authentifié");
     }
 
     // SUPER_ADMIN bypass
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       return true;
     }
 
@@ -74,13 +74,15 @@ export class RequireActiveAgencyGuard implements CanActivate {
     });
 
     if (!agency || agency.deletedAt) {
-      throw new BadRequestException('Agence introuvable');
+      throw new BadRequestException("Agence introuvable");
     }
 
     // Vérifier que l'agence appartient à la Company de l'utilisateur (sauf SUPER_ADMIN)
-    if (user.role !== 'SUPER_ADMIN' && user.companyId) {
+    if (user.role !== "SUPER_ADMIN" && user.companyId) {
       if (agency.companyId !== user.companyId) {
-        throw new ForbiddenException('Cette agence n\'appartient pas à votre société');
+        throw new ForbiddenException(
+          "Cette agence n'appartient pas à votre société",
+        );
       }
     }
 
@@ -88,12 +90,11 @@ export class RequireActiveAgencyGuard implements CanActivate {
     if (agency.status !== AgencyStatus.ACTIVE) {
       const reason =
         agency.status === AgencyStatus.SUSPENDED
-          ? 'L\'agence est suspendue. Veuillez contacter le support.'
-          : 'L\'agence n\'est pas active';
+          ? "L'agence est suspendue. Veuillez contacter le support."
+          : "L'agence n'est pas active";
       throw new ForbiddenException(reason);
     }
 
     return true;
   }
 }
-

@@ -43,9 +43,13 @@ export default function CompanyAnalyticsPage() {
     enabled: !!user?.companyId,
   });
 
-  const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ['bookings', startDate, endDate],
-    queryFn: () => bookingApi.getAll(),
+  const { data: bookingsSummary, isLoading: bookingsLoading } = useQuery({
+    queryKey: ['bookings-summary', startDate, endDate],
+    queryFn: () =>
+      bookingApi.getSummary({
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      }),
     enabled: !!user?.companyId,
   });
 
@@ -61,35 +65,11 @@ export default function CompanyAnalyticsPage() {
     return vehicles.filter((v) => agencyIds.includes(v.agencyId));
   }, [vehicles, companyAgencies]);
 
-  const companyBookings = useMemo(() => {
-    if (!bookings || !companyAgencies.length) return [];
-    const agencyIds = companyAgencies.map((a) => a.id);
-    let filtered = bookings.filter((b) => agencyIds.includes(b.agencyId));
-
-    // Filtrer par période si spécifiée
-    if (startDate || endDate) {
-      filtered = filtered.filter((b) => {
-        const bookingDate = new Date(b.startDate);
-        if (startDate && bookingDate < new Date(startDate)) return false;
-        if (endDate && bookingDate > new Date(endDate)) return false;
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [bookings, companyAgencies, startDate, endDate]);
-
-  const completedBookings = useMemo(() => {
-    return companyBookings.filter((b) => b.status === 'RETURNED');
-  }, [companyBookings]);
-
-  const activeBookings = useMemo(() => {
-    return companyBookings.filter((b) => b.status === 'IN_PROGRESS');
-  }, [companyBookings]);
-
-  const totalRevenue = useMemo(() => {
-    return completedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-  }, [completedBookings]);
+  const completedBookings = bookingsSummary?.completed || 0;
+  const activeBookings = bookingsSummary?.active || 0;
+  const lateBookings = bookingsSummary?.late || 0;
+  const companyBookings = bookingsSummary?.total || 0;
+  const totalRevenue = bookingsSummary?.estimatedRevenue || 0;
 
   const revenuePerVehicle = useMemo(() => {
     return companyVehicles.length > 0 ? totalRevenue / companyVehicles.length : 0;
@@ -97,21 +77,8 @@ export default function CompanyAnalyticsPage() {
 
   const occupancyRate = useMemo(() => {
     if (companyVehicles.length === 0) return 0;
-    // Calcul simplifié: nombre de véhicules loués / total véhicules
-    const rentedVehicles = new Set(activeBookings.map((b) => b.vehicleId)).size;
-    return (rentedVehicles / companyVehicles.length) * 100;
+    return (activeBookings / companyVehicles.length) * 100;
   }, [activeBookings, companyVehicles.length]);
-
-  const averageBookingDuration = useMemo(() => {
-    if (completedBookings.length === 0) return 0;
-    const totalDays = completedBookings.reduce((sum, b) => {
-      const start = new Date(b.startDate);
-      const end = new Date(b.endDate);
-      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      return sum + days;
-    }, 0);
-    return totalDays / completedBookings.length;
-  }, [completedBookings]);
 
   const isLoading = isLoadingModule || agenciesLoading || vehiclesLoading || bookingsLoading;
 
@@ -144,10 +111,10 @@ export default function CompanyAnalyticsPage() {
     },
     {
       label: 'Locations',
-      value: companyBookings.length || 0,
+      value: companyBookings || 0,
       icon: Calendar,
       color: 'text-pink-400',
-      subValue: `${completedBookings.length} terminées`,
+      subValue: `${completedBookings} terminées`,
     },
     {
       label: 'Revenus totaux',
@@ -161,14 +128,14 @@ export default function CompanyAnalyticsPage() {
       value: `${occupancyRate.toFixed(1)}%`,
       icon: TrendingUp,
       color: 'text-yellow-400',
-      subValue: `${activeBookings.length} location(s) active(s)`,
+      subValue: `${activeBookings} location(s) active(s)`,
     },
     {
-      label: 'Durée moyenne',
-      value: `${averageBookingDuration.toFixed(1)} jours`,
+      label: 'Locations en retard',
+      value: `${lateBookings}`,
       icon: BarChart3,
-      color: 'text-indigo-400',
-      subValue: 'Par location',
+      color: 'text-orange-400',
+      subValue: 'Suivi opérationnel',
     },
   ];
 
@@ -234,29 +201,17 @@ export default function CompanyAnalyticsPage() {
                     <CardTitle>Top 10 Agences par locations</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {companyAgencies.length > 0 ? (
+                    {(bookingsSummary?.topAgencies?.length || 0) > 0 ? (
                       <div className="space-y-3">
-                        {companyAgencies
-                          .map((agency) => {
-                            const agencyBookings = companyBookings.filter(
-                              (b) => b.agencyId === agency.id,
-                            );
-                            return {
-                              agency,
-                              count: agencyBookings.length,
-                            };
-                          })
-                          .sort((a, b) => b.count - a.count)
-                          .slice(0, 10)
-                          .map(({ agency, count }) => (
+                        {bookingsSummary?.topAgencies?.map((agencyStat) => (
                             <div
-                              key={agency.id}
+                              key={agencyStat.agencyId}
                               className="flex items-center justify-between p-4 bg-background rounded-lg"
                             >
                               <div>
-                                <p className="font-medium text-text">{agency.name}</p>
+                                <p className="font-medium text-text">{agencyStat.agencyName}</p>
                                 <p className="text-sm text-text-muted">
-                                  {count} location(s) • {agency._count?.vehicles || 0} véhicule(s)
+                                  {agencyStat.bookings} location(s)
                                 </p>
                               </div>
                               <Building2 className="w-5 h-5 text-primary" />
@@ -279,14 +234,14 @@ export default function CompanyAnalyticsPage() {
                         <div className="flex justify-between mb-2">
                           <span className="text-text">Locations terminées</span>
                           <span className="font-medium text-text">
-                            {completedBookings.length} ({companyBookings.length > 0 ? ((completedBookings.length / companyBookings.length) * 100).toFixed(1) : 0}%)
+                            {completedBookings} ({companyBookings > 0 ? ((completedBookings / companyBookings) * 100).toFixed(1) : 0}%)
                           </span>
                         </div>
                         <div className="w-full bg-background rounded-full h-2">
                           <div
                             className="bg-green-500 h-2 rounded-full"
                             style={{
-                              width: `${companyBookings.length > 0 ? (completedBookings.length / companyBookings.length) * 100 : 0}%`,
+                              width: `${companyBookings > 0 ? (completedBookings / companyBookings) * 100 : 0}%`,
                             }}
                           />
                         </div>
@@ -295,14 +250,14 @@ export default function CompanyAnalyticsPage() {
                         <div className="flex justify-between mb-2">
                           <span className="text-text">Locations actives</span>
                           <span className="font-medium text-text">
-                            {activeBookings.length} ({companyBookings.length > 0 ? ((activeBookings.length / companyBookings.length) * 100).toFixed(1) : 0}%)
+                            {activeBookings} ({companyBookings > 0 ? ((activeBookings / companyBookings) * 100).toFixed(1) : 0}%)
                           </span>
                         </div>
                         <div className="w-full bg-background rounded-full h-2">
                           <div
                             className="bg-blue-500 h-2 rounded-full"
                             style={{
-                              width: `${companyBookings.length > 0 ? (activeBookings.length / companyBookings.length) * 100 : 0}%`,
+                              width: `${companyBookings > 0 ? (activeBookings / companyBookings) * 100 : 0}%`,
                             }}
                           />
                         </div>

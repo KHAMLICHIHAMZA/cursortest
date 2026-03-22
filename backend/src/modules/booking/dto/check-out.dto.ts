@@ -8,10 +8,15 @@ import {
   Min,
   ArrayMinSize,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FuelLevel, DamageZone, DamageType, DamageSeverity } from './check-in.dto';
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  FuelLevel,
+  DamageZone,
+  DamageType,
+  DamageSeverity,
+} from "./check-in.dto";
 
 export class DamageDto {
   @ApiProperty({ enum: DamageZone })
@@ -48,7 +53,7 @@ export class CheckOutDto {
   @IsEnum(FuelLevel)
   fuelLevelEnd: FuelLevel;
 
-  @ApiProperty({ type: [String], description: 'Minimum 4 photos required' })
+  @ApiProperty({ type: [String], description: "Minimum 4 photos required" })
   @IsArray()
   @ArrayMinSize(4)
   @IsString({ each: true })
@@ -96,8 +101,7 @@ export class CheckOutDto {
   @IsString()
   cashReceipt?: string;
 
-  @ApiProperty({ description: 'Base64 signature' })
+  @ApiProperty({ description: "Base64 signature" })
   @IsString()
   returnSignature: string;
 }
-

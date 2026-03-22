@@ -1,15 +1,22 @@
-import { ChargeService } from './charge.service';
+import { ChargeService } from "./charge.service";
 
-function makeUser(overrides: Partial<{ userId: string; role: string; companyId: string; agencyIds: string[] }> = {}) {
+function makeUser(
+  overrides: Partial<{
+    userId: string;
+    role: string;
+    companyId: string;
+    agencyIds: string[];
+  }> = {},
+) {
   return {
-    userId: overrides.userId ?? 'u1',
-    role: overrides.role ?? 'AGENCY_MANAGER',
-    companyId: overrides.companyId ?? 'comp1',
-    agencyIds: overrides.agencyIds ?? ['a1'],
+    userId: overrides.userId ?? "u1",
+    role: overrides.role ?? "AGENCY_MANAGER",
+    companyId: overrides.companyId ?? "comp1",
+    agencyIds: overrides.agencyIds ?? ["a1"],
   };
 }
 
-describe('ChargeService', () => {
+describe("ChargeService", () => {
   let service: ChargeService;
   let mockPrisma: any;
 
@@ -29,64 +36,126 @@ describe('ChargeService', () => {
     service = new ChargeService(mockPrisma as any);
   });
 
-  describe('create', () => {
-    it('should create a charge', async () => {
-      const dto = { agencyId: 'a1', vehicleId: 'v1', category: 'FUEL', description: 'Fuel', amount: 500, date: '2026-01-15' };
-      mockPrisma.charge.create.mockResolvedValue({ id: 'c1', ...dto });
+  describe("create", () => {
+    it("should create a charge", async () => {
+      const dto = {
+        agencyId: "a1",
+        vehicleId: "v1",
+        category: "FUEL",
+        description: "Fuel",
+        amount: 500,
+        date: "2026-01-15",
+      };
+      mockPrisma.charge.create.mockResolvedValue({ id: "c1", ...dto });
       const result = await service.create(makeUser(), dto);
       expect(mockPrisma.charge.create).toHaveBeenCalled();
-      expect(result.id).toBe('c1');
+      expect(result.id).toBe("c1");
     });
   });
 
-  describe('findOne', () => {
-    it('should return a charge if it belongs to the company', async () => {
-      mockPrisma.charge.findUnique.mockResolvedValue({ id: 'c1', companyId: 'comp1' });
-      const result = await service.findOne('c1', makeUser());
-      expect(result.id).toBe('c1');
+  describe("findOne", () => {
+    it("should return a charge if it belongs to the company", async () => {
+      mockPrisma.charge.findUnique.mockResolvedValue({
+        id: "c1",
+        companyId: "comp1",
+      });
+      const result = await service.findOne("c1", makeUser());
+      expect(result.id).toBe("c1");
     });
 
-    it('should throw if charge does not belong to company', async () => {
-      mockPrisma.charge.findUnique.mockResolvedValue({ id: 'c1', companyId: 'other' });
-      await expect(service.findOne('c1', makeUser())).rejects.toThrow('Charge introuvable');
+    it("should throw if charge does not belong to company", async () => {
+      mockPrisma.charge.findUnique.mockResolvedValue({
+        id: "c1",
+        companyId: "other",
+      });
+      await expect(service.findOne("c1", makeUser())).rejects.toThrow(
+        "Charge introuvable",
+      );
     });
 
-    it('should throw if charge not found', async () => {
+    it("should throw if charge not found", async () => {
       mockPrisma.charge.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('c1', makeUser())).rejects.toThrow('Charge introuvable');
+      await expect(service.findOne("c1", makeUser())).rejects.toThrow(
+        "Charge introuvable",
+      );
     });
   });
 
-  describe('computeKpi', () => {
-    it('should compute revenue, charges, margin and occupancy', async () => {
-      const start = '2026-01-01';
-      const end = '2026-01-31';
+  describe("computeKpi", () => {
+    it("should compute revenue, charges, margin and occupancy", async () => {
+      const start = "2026-01-01";
+      const end = "2026-01-31";
 
       mockPrisma.booking.findMany.mockResolvedValue([
-        { id: 'b1', totalPrice: 3000, startDate: new Date('2026-01-05'), endDate: new Date('2026-01-10'), vehicleId: 'v1' },
-        { id: 'b2', totalPrice: 2000, startDate: new Date('2026-01-15'), endDate: new Date('2026-01-20'), vehicleId: 'v2' },
+        {
+          id: "b1",
+          totalPrice: 3000,
+          startDate: new Date("2026-01-05"),
+          endDate: new Date("2026-01-10"),
+          vehicleId: "v1",
+        },
+        {
+          id: "b2",
+          totalPrice: 2000,
+          startDate: new Date("2026-01-15"),
+          endDate: new Date("2026-01-20"),
+          vehicleId: "v2",
+        },
       ]);
 
       mockPrisma.charge.findMany.mockResolvedValue([
-        { amount: 500, category: 'FUEL' },
-        { amount: 300, category: 'INSURANCE' },
+        { amount: 500, category: "FUEL" },
+        { amount: 300, category: "INSURANCE" },
       ]);
 
       mockPrisma.vehicle.findMany.mockResolvedValue([
-        { id: 'v1', purchasePrice: null, acquisitionDate: null, amortizationYears: null, financingType: null, downPayment: null, monthlyPayment: null, financingDurationMonths: null, creditStartDate: null },
-        { id: 'v2', purchasePrice: 120000, acquisitionDate: new Date('2024-06-01'), amortizationYears: 5, financingType: 'CREDIT', downPayment: null, monthlyPayment: 2500, financingDurationMonths: 48, creditStartDate: new Date('2024-06-01') },
-        { id: 'v3', purchasePrice: null, acquisitionDate: null, amortizationYears: null, financingType: 'CASH', downPayment: null, monthlyPayment: null, financingDurationMonths: null, creditStartDate: null },
+        {
+          id: "v1",
+          purchasePrice: null,
+          acquisitionDate: null,
+          amortizationYears: null,
+          financingType: null,
+          downPayment: null,
+          monthlyPayment: null,
+          financingDurationMonths: null,
+          creditStartDate: null,
+        },
+        {
+          id: "v2",
+          purchasePrice: 120000,
+          acquisitionDate: new Date("2024-06-01"),
+          amortizationYears: 5,
+          financingType: "CREDIT",
+          downPayment: null,
+          monthlyPayment: 2500,
+          financingDurationMonths: 48,
+          creditStartDate: new Date("2024-06-01"),
+        },
+        {
+          id: "v3",
+          purchasePrice: null,
+          acquisitionDate: null,
+          amortizationYears: null,
+          financingType: "CASH",
+          downPayment: null,
+          monthlyPayment: null,
+          financingDurationMonths: null,
+          creditStartDate: null,
+        },
       ]);
 
-      const result = await service.computeKpi(makeUser(), { startDate: start, endDate: end });
+      const result = await service.computeKpi(makeUser(), {
+        startDate: start,
+        endDate: end,
+      });
 
       expect(result.revenue).toBe(5000);
       expect(result.charges).toBe(800);
       expect(result.margin).toBe(4200);
       expect(result.totalBookings).toBe(2);
       expect(result.vehicleCount).toBe(3);
-      expect(result.chargesByCategory['FUEL']).toBe(500);
-      expect(result.chargesByCategory['INSURANCE']).toBe(300);
+      expect(result.chargesByCategory["FUEL"]).toBe(500);
+      expect(result.chargesByCategory["INSURANCE"]).toBe(300);
       expect(result.occupancyRate).toBeGreaterThan(0);
       expect(result.marginRate).toBeGreaterThan(0);
       // Amortization & financing
@@ -98,12 +167,15 @@ describe('ChargeService', () => {
       expect(result.financing.expectedMonthlyTotal).toBe(2500);
     });
 
-    it('should handle no bookings', async () => {
+    it("should handle no bookings", async () => {
       mockPrisma.booking.findMany.mockResolvedValue([]);
       mockPrisma.charge.findMany.mockResolvedValue([]);
       mockPrisma.vehicle.findMany.mockResolvedValue([]);
 
-      const result = await service.computeKpi(makeUser(), { startDate: '2026-01-01', endDate: '2026-01-31' });
+      const result = await service.computeKpi(makeUser(), {
+        startDate: "2026-01-01",
+        endDate: "2026-01-31",
+      });
       expect(result.revenue).toBe(0);
       expect(result.margin).toBe(0);
       expect(result.occupancyRate).toBe(0);
@@ -113,12 +185,17 @@ describe('ChargeService', () => {
     });
   });
 
-  describe('delete', () => {
-    it('should delete a charge', async () => {
-      mockPrisma.charge.findUnique.mockResolvedValue({ id: 'c1', companyId: 'comp1' });
-      mockPrisma.charge.delete.mockResolvedValue({ id: 'c1' });
-      await service.delete('c1', makeUser());
-      expect(mockPrisma.charge.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+  describe("delete", () => {
+    it("should delete a charge", async () => {
+      mockPrisma.charge.findUnique.mockResolvedValue({
+        id: "c1",
+        companyId: "comp1",
+      });
+      mockPrisma.charge.delete.mockResolvedValue({ id: "c1" });
+      await service.delete("c1", makeUser());
+      expect(mockPrisma.charge.delete).toHaveBeenCalledWith({
+        where: { id: "c1" },
+      });
     });
   });
 });

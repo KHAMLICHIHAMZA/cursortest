@@ -1,8 +1,13 @@
-import { IsString, IsOptional, IsNumber, IsEnum } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { VehicleStatus } from '@prisma/client';
+import { IsString, IsOptional, IsNumber, IsEnum, Min } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { VehicleStatus } from "@prisma/client";
 
 export class UpdateVehicleDto {
+  @ApiPropertyOptional({ description: "Nouvelle agence du véhicule" })
+  @IsOptional()
+  @IsString()
+  agencyId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -68,55 +73,72 @@ export class UpdateVehicleDto {
   @IsString()
   gearbox?: string;
 
-  @ApiPropertyOptional({ description: 'Prix d\'achat du vehicule' })
+  @ApiPropertyOptional({ description: "Prix d'achat du vehicule" })
   @IsOptional()
   @IsNumber()
   purchasePrice?: number;
 
-  @ApiPropertyOptional({ description: 'Date d\'acquisition du vehicule (ISO string)' })
+  @ApiPropertyOptional({
+    description: "Date d'acquisition du vehicule (ISO string)",
+  })
   @IsOptional()
   @IsString()
   acquisitionDate?: string;
 
-  @ApiPropertyOptional({ description: 'Duree d\'amortissement en annees (defaut 5)' })
+  @ApiPropertyOptional({
+    description: "Duree d'amortissement en annees (defaut 5)",
+  })
   @IsOptional()
   @IsNumber()
   amortizationYears?: number;
 
-  @ApiPropertyOptional({ description: 'Mode de financement: CASH, CREDIT ou MIXED' })
+  @ApiPropertyOptional({
+    description: "Mode de financement: CASH, CREDIT ou MIXED",
+  })
   @IsOptional()
   @IsString()
   financingType?: string;
 
-  @ApiPropertyOptional({ description: 'Apport / avance initiale (MAD)' })
+  @ApiPropertyOptional({ description: "Apport / avance initiale (MAD)" })
   @IsOptional()
   @IsNumber()
   downPayment?: number;
 
-  @ApiPropertyOptional({ description: 'Mensualite du credit (MAD)' })
+  @ApiPropertyOptional({ description: "Mensualite du credit (MAD)" })
   @IsOptional()
   @IsNumber()
   monthlyPayment?: number;
 
-  @ApiPropertyOptional({ description: 'Duree du credit en mois' })
+  @ApiPropertyOptional({ description: "Duree du credit en mois" })
   @IsOptional()
   @IsNumber()
   financingDurationMonths?: number;
 
-  @ApiPropertyOptional({ description: 'Date debut du credit (ISO string)' })
+  @ApiPropertyOptional({ description: "Date debut du credit (ISO string)" })
   @IsOptional()
   @IsString()
   creditStartDate?: string;
 
-  @ApiPropertyOptional({ description: 'Identifiant / numero de serie du tracker GPS' })
+  @ApiPropertyOptional({
+    description: "Identifiant / numero de serie du tracker GPS",
+  })
   @IsOptional()
   @IsString()
   gpsTrackerId?: string;
 
-  @ApiPropertyOptional({ description: 'Description du tracker (ex: Mini GPS noir coffre)' })
+  @ApiPropertyOptional({
+    description: "Description du tracker (ex: Mini GPS noir coffre)",
+  })
   @IsOptional()
   @IsString()
   gpsTrackerLabel?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Palier kilométrique personnalisé d'alerte maintenance (null = utilise la règle SaaS globale)",
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1000)
+  maintenanceAlertIntervalKm?: number;
 }
-
-

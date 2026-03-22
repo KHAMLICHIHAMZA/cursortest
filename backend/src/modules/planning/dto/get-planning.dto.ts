@@ -1,5 +1,5 @@
-import { IsOptional, IsString, IsDateString } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsDateString } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class GetPlanningDto {
   @ApiPropertyOptional()
@@ -17,8 +17,3 @@ export class GetPlanningDto {
   @IsDateString()
   end?: string;
 }
-
-
-
-
-

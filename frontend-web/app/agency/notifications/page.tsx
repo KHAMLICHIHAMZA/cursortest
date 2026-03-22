@@ -41,12 +41,14 @@ const TYPE_LABELS: Record<string, string> = {
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
 
-  const { data: rawNotifications, isLoading } = useQuery<Notification[]>({
+  const { data: rawNotifications, isLoading, isError, error, refetch } = useQuery<Notification[]>({
     queryKey: ['notifications'],
     queryFn: async () => {
       const res = await apiClient.get('/notifications/in-app');
       return res.data ?? [];
     },
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
   });
   const notifications = rawNotifications ?? [];
 
@@ -56,6 +58,8 @@ export default function NotificationsPage() {
       const res = await apiClient.get('/notifications/in-app/unread-count');
       return res.data;
     },
+    refetchOnWindowFocus: false,
+    staleTime: 30 * 1000,
   });
 
   const markAsReadMutation = useMutation({
@@ -93,6 +97,30 @@ export default function NotificationsPage() {
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
         <MainLayout>
           <div className="text-center py-8">Chargement...</div>
+        </MainLayout>
+      </RouteGuard>
+    );
+  }
+
+  if (isError) {
+    const errorMessage =
+      (error as any)?.response?.data?.message
+      || (error as any)?.message
+      || 'Erreur de chargement des notifications';
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <MainLayout>
+          <div className="space-y-4">
+            <h1 className="text-2xl font-bold">Notifications</h1>
+            <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-900/20 p-4">
+              <p className="text-sm text-red-600 dark:text-red-300">{errorMessage}</p>
+              <div className="mt-3">
+                <Button variant="outline" onClick={() => refetch()}>
+                  Réessayer
+                </Button>
+              </div>
+            </div>
+          </div>
         </MainLayout>
       </RouteGuard>
     );

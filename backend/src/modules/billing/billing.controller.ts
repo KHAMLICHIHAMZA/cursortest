@@ -7,35 +7,43 @@ import {
   UseGuards,
   Patch,
   Query,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { BillingService } from './billing.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { ReadOnlyGuard } from '../../common/guards/read-only.guard';
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { BillingService } from "./billing.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { ReadOnlyGuard } from "../../common/guards/read-only.guard";
 
-@ApiTags('Billing')
-@Controller('billing')
+@ApiTags("Billing")
+@Controller("billing")
 @UseGuards(JwtAuthGuard, ReadOnlyGuard, RolesGuard)
 @ApiBearerAuth()
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
 
-  @Post('subscription/:subscriptionId/invoice')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({ summary: 'Generate invoice for a subscription (SUPER_ADMIN only)' })
-  async generateInvoice(@Param('subscriptionId') subscriptionId: string) {
+  @Post("subscription/:subscriptionId/invoice")
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({
+    summary: "Generate invoice for a subscription (SUPER_ADMIN only)",
+  })
+  async generateInvoice(@Param("subscriptionId") subscriptionId: string) {
     return this.billingService.generateInvoice(subscriptionId);
   }
 
-  @Patch('payment/:paymentId/record')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({ summary: 'Record a payment (SUPER_ADMIN only)' })
+  @Patch("payment/:paymentId/record")
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "Record a payment (SUPER_ADMIN only)" })
   async recordPayment(
-    @Param('paymentId') paymentId: string,
-    @Body() body: { amount: number; paidAt: Date; invoiceNumber?: string; invoiceUrl?: string },
+    @Param("paymentId") paymentId: string,
+    @Body()
+    body: {
+      amount: number;
+      paidAt: Date;
+      invoiceNumber?: string;
+      invoiceUrl?: string;
+    },
   ) {
     return this.billingService.recordPayment(
       paymentId,
@@ -46,29 +54,32 @@ export class BillingController {
     );
   }
 
-  @Get('company/:companyId/invoices')
-  @ApiOperation({ summary: 'Get company invoices' })
-  async getCompanyInvoices(@Param('companyId') companyId: string, @CurrentUser() user: any) {
+  @Get("company/:companyId/invoices")
+  @ApiOperation({ summary: "Get company invoices" })
+  async getCompanyInvoices(
+    @Param("companyId") companyId: string,
+    @CurrentUser() user: any,
+  ) {
     return this.billingService.getCompanyInvoices(companyId, user);
   }
 
-  @Get('company/:companyId/health')
-  @ApiOperation({ summary: 'Get company billing health (recent invoices + overdue count)' })
+  @Get("company/:companyId/health")
+  @ApiOperation({
+    summary: "Get company billing health (recent invoices + overdue count)",
+  })
   async getCompanyBillingHealth(
-    @Param('companyId') companyId: string,
+    @Param("companyId") companyId: string,
     @CurrentUser() user: any,
-    @Query('limit') limit?: string,
+    @Query("limit") limit?: string,
   ) {
     const parsed = limit ? Number(limit) : 10;
     return this.billingService.getCompanyBillingHealth(companyId, user, parsed);
   }
 
-  @Get('invoices/pending')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({ summary: 'Get pending invoices (SUPER_ADMIN only)' })
+  @Get("invoices/pending")
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "Get pending invoices (SUPER_ADMIN only)" })
   async getPendingInvoices() {
     return this.billingService.getPendingInvoices();
   }
 }
-
-

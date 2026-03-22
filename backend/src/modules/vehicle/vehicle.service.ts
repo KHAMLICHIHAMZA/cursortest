@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PrismaSoftDeleteService } from '../../common/prisma/prisma-soft-delete.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { AuditService } from '../../common/services/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { CreateVehicleDto } from './dto/create-vehicle.dto';
-import { UpdateVehicleDto } from './dto/update-vehicle.dto';
-import { BusinessEventType } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaSoftDeleteService } from "../../common/prisma/prisma-soft-delete.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { AuditService } from "../../common/services/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import { CreateVehicleDto } from "./dto/create-vehicle.dto";
+import { UpdateVehicleDto } from "./dto/update-vehicle.dto";
+import { BusinessEventType } from "@prisma/client";
 
 @Injectable()
 export class VehicleService {
@@ -23,7 +28,9 @@ export class VehicleService {
    * - 6 mois avant 5 ans : alerte préventive
    * - À 5 ans exact : alerte d'atteinte de l'âge limite
    */
-  private computeVehicleAlerts(vehicle: any): { type: string; message: string }[] {
+  private computeVehicleAlerts(
+    vehicle: any,
+  ): { type: string; message: string }[] {
     const alerts: { type: string; message: string }[] = [];
     if (!vehicle.year) return alerts;
 
@@ -33,12 +40,12 @@ export class VehicleService {
 
     if (vehicleAge >= 5) {
       alerts.push({
-        type: 'AGE_LIMIT_REACHED',
+        type: "AGE_LIMIT_REACHED",
         message: `Véhicule a atteint ${Math.floor(vehicleAge)} ans (limite 5 ans dépassée)`,
       });
     } else if (vehicleAge >= 4.5) {
       alerts.push({
-        type: 'AGE_WARNING_6_MONTHS',
+        type: "AGE_WARNING_6_MONTHS",
         message: `Véhicule atteindra 5 ans dans ${Math.ceil((5 - vehicleAge) * 12)} mois`,
       });
     }
@@ -46,8 +53,60 @@ export class VehicleService {
     return alerts;
   }
 
+  private async ensureBankInstallmentChargeForVehicle(params: {
+    vehicle: any;
+    financingType?: string | null;
+    monthlyPayment?: number | null;
+    creditStartDate?: Date | null;
+    acquisitionDate?: Date | null;
+    userId?: string | null;
+  }): Promise<void> {
+    const {
+      vehicle,
+      financingType,
+      monthlyPayment,
+      creditStartDate,
+      acquisitionDate,
+      userId,
+    } = params;
+
+    const isCreditBased =
+      financingType === "CREDIT" || financingType === "MIXED";
+    if (!isCreditBased || !monthlyPayment || monthlyPayment <= 0) return;
+
+    const existing = await this.prisma.charge.findFirst({
+      where: {
+        vehicleId: vehicle.id,
+        agencyId: vehicle.agencyId,
+        category: "BANK_INSTALLMENT",
+        recurring: true,
+      },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const chargeDate = creditStartDate || acquisitionDate || new Date();
+    await this.prisma.charge.create({
+      data: {
+        companyId: vehicle.agency.companyId,
+        agencyId: vehicle.agencyId,
+        vehicleId: vehicle.id,
+        category: "BANK_INSTALLMENT",
+        description: `Mensualité crédit ${vehicle.brand} ${vehicle.model} (${vehicle.registrationNumber})`,
+        amount: Number(monthlyPayment),
+        date: chargeDate,
+        recurring: true,
+        recurrencePeriod: "MONTHLY",
+        createdByUserId: userId || undefined,
+      },
+    });
+  }
+
   async findAll(user: any, agencyId?: string) {
-    const agencyFilter = this.permissionService.buildAgencyFilter(user, agencyId);
+    const agencyFilter = this.permissionService.buildAgencyFilter(
+      user,
+      agencyId,
+    );
     if (!agencyFilter) return [];
 
     const where = this.softDeleteService.addSoftDeleteFilter({
@@ -67,7 +126,7 @@ export class VehicleService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Remove audit fields from public responses
@@ -85,12 +144,17 @@ export class VehicleService {
     });
 
     if (!vehicle) {
-      throw new NotFoundException('Véhicule introuvable');
+      throw new NotFoundException("Véhicule introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(vehicle.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      vehicle.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce véhicule');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour accéder à ce véhicule",
+      );
     }
 
     // Remove audit fields and add vehicle age alerts
@@ -101,9 +165,14 @@ export class VehicleService {
   }
 
   async create(createVehicleDto: CreateVehicleDto, user: any) {
-    const hasAccess = await this.permissionService.checkAgencyAccess(createVehicleDto.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      createVehicleDto.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'êtes pas rattaché(e) à cette agence');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'êtes pas rattaché(e) à cette agence",
+      );
     }
 
     const existingVehicle = await this.prisma.vehicle.findFirst({
@@ -114,7 +183,7 @@ export class VehicleService {
 
     if (existingVehicle) {
       throw new BadRequestException(
-        `Un véhicule avec l'immatriculation ${createVehicleDto.registrationNumber} existe déjà`
+        `Un véhicule avec l'immatriculation ${createVehicleDto.registrationNumber} existe déjà`,
       );
     }
 
@@ -131,23 +200,28 @@ export class VehicleService {
         gearbox: createVehicleDto.gearbox,
         dailyRate: createVehicleDto.dailyRate || 0,
         depositAmount: createVehicleDto.depositAmount || 0,
-        status: createVehicleDto.status || 'AVAILABLE',
+        status: createVehicleDto.status || "AVAILABLE",
         imageUrl: createVehicleDto.imageUrl,
         color: createVehicleDto.color,
         horsepower: createVehicleDto.horsepower,
         // Informations financieres / amortissement
         purchasePrice: createVehicleDto.purchasePrice,
-        acquisitionDate: createVehicleDto.acquisitionDate ? new Date(createVehicleDto.acquisitionDate) : undefined,
+        acquisitionDate: createVehicleDto.acquisitionDate
+          ? new Date(createVehicleDto.acquisitionDate)
+          : undefined,
         amortizationYears: createVehicleDto.amortizationYears,
         // Mode de financement
         financingType: createVehicleDto.financingType,
         downPayment: createVehicleDto.downPayment,
         monthlyPayment: createVehicleDto.monthlyPayment,
         financingDurationMonths: createVehicleDto.financingDurationMonths,
-        creditStartDate: createVehicleDto.creditStartDate ? new Date(createVehicleDto.creditStartDate) : undefined,
+        creditStartDate: createVehicleDto.creditStartDate
+          ? new Date(createVehicleDto.creditStartDate)
+          : undefined,
         // GPS Tracker
         gpsTrackerId: createVehicleDto.gpsTrackerId,
         gpsTrackerLabel: createVehicleDto.gpsTrackerLabel,
+        maintenanceAlertIntervalKm: createVehicleDto.maintenanceAlertIntervalKm,
       },
       user.id,
     );
@@ -163,7 +237,10 @@ export class VehicleService {
         },
       });
     } catch (error: any) {
-      if (error?.code === 'P2002' && error?.meta?.target?.includes('registrationNumber')) {
+      if (
+        error?.code === "P2002" &&
+        error?.meta?.target?.includes("registrationNumber")
+      ) {
         throw new BadRequestException(
           `Un véhicule avec l'immatriculation ${createVehicleDto.registrationNumber} existe déjà`,
         );
@@ -171,11 +248,25 @@ export class VehicleService {
       throw error;
     }
 
+    // Auto-create recurring bank installment charge when financing is credit-based.
+    await this.ensureBankInstallmentChargeForVehicle({
+      vehicle,
+      financingType: createVehicleDto.financingType,
+      monthlyPayment: createVehicleDto.monthlyPayment,
+      creditStartDate: createVehicleDto.creditStartDate
+        ? new Date(createVehicleDto.creditStartDate)
+        : null,
+      acquisitionDate: createVehicleDto.acquisitionDate
+        ? new Date(createVehicleDto.acquisitionDate)
+        : null,
+      userId: user.userId || user.id,
+    });
+
     // Log business event (async, non-blocking)
     this.businessEventLogService
       .logEvent(
         vehicle.agencyId,
-        'Vehicle',
+        "Vehicle",
         vehicle.id,
         BusinessEventType.VEHICLE_CREATED,
         null,
@@ -196,15 +287,81 @@ export class VehicleService {
     });
 
     if (!vehicle) {
-      throw new NotFoundException('Véhicule introuvable');
+      throw new NotFoundException("Véhicule introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(vehicle.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      vehicle.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce véhicule');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour accéder à ce véhicule",
+      );
     }
 
-    if (updateVehicleDto.registrationNumber && updateVehicleDto.registrationNumber !== vehicle.registrationNumber) {
+    const requestedAgencyId = updateVehicleDto.agencyId?.trim();
+    if (requestedAgencyId && requestedAgencyId !== vehicle.agencyId) {
+      const canAccessTargetAgency =
+        await this.permissionService.checkAgencyAccess(requestedAgencyId, user);
+      if (!canAccessTargetAgency) {
+        throw new ForbiddenException(
+          "Accès refusé : vous n'avez pas les droits pour transférer ce véhicule vers l'agence sélectionnée",
+        );
+      }
+
+      const [currentAgency, targetAgency] = await Promise.all([
+        this.prisma.agency.findFirst({
+          where: this.softDeleteService.addSoftDeleteFilter({
+            id: vehicle.agencyId,
+          }),
+          select: { id: true, companyId: true },
+        }),
+        this.prisma.agency.findFirst({
+          where: this.softDeleteService.addSoftDeleteFilter({
+            id: requestedAgencyId,
+          }),
+          select: { id: true, companyId: true, status: true },
+        }),
+      ]);
+
+      if (!currentAgency || !targetAgency) {
+        throw new BadRequestException(
+          "Agence source ou agence cible introuvable",
+        );
+      }
+      if (currentAgency.companyId !== targetAgency.companyId) {
+        throw new BadRequestException(
+          "Le transfert entre deux companies différentes est interdit",
+        );
+      }
+      if (targetAgency.status !== "ACTIVE") {
+        throw new BadRequestException(
+          "L'agence cible doit être active pour recevoir un véhicule",
+        );
+      }
+
+      const blockingBooking = await this.prisma.booking.findFirst({
+        where: {
+          vehicleId: id,
+          deletedAt: null,
+          status: {
+            notIn: ["RETURNED", "CANCELLED", "NO_SHOW"],
+          },
+        },
+        select: { id: true, status: true },
+      });
+      if (blockingBooking) {
+        throw new BadRequestException(
+          `Transfert impossible: une réservation (${blockingBooking.status}) est encore liée à ce véhicule`,
+        );
+      }
+    }
+
+    if (
+      updateVehicleDto.registrationNumber &&
+      updateVehicleDto.registrationNumber !== vehicle.registrationNumber
+    ) {
       const existingVehicle = await this.prisma.vehicle.findFirst({
         where: this.softDeleteService.addSoftDeleteFilter({
           registrationNumber: updateVehicleDto.registrationNumber,
@@ -213,7 +370,7 @@ export class VehicleService {
 
       if (existingVehicle) {
         throw new BadRequestException(
-          `Un véhicule avec l'immatriculation ${updateVehicleDto.registrationNumber} existe déjà`
+          `Un véhicule avec l'immatriculation ${updateVehicleDto.registrationNumber} existe déjà`,
         );
       }
     }
@@ -222,10 +379,14 @@ export class VehicleService {
     const previousState = { ...vehicle };
 
     // Check if status changed
-    const statusChanged = updateVehicleDto.status && updateVehicleDto.status !== vehicle.status;
+    const statusChanged =
+      updateVehicleDto.status && updateVehicleDto.status !== vehicle.status;
 
     // Convert date strings to Date objects for Prisma DateTime fields
     const dtoForPrisma: any = { ...updateVehicleDto };
+    if (requestedAgencyId) {
+      dtoForPrisma.agencyId = requestedAgencyId;
+    }
     if (dtoForPrisma.acquisitionDate) {
       dtoForPrisma.acquisitionDate = new Date(dtoForPrisma.acquisitionDate);
     }
@@ -234,7 +395,10 @@ export class VehicleService {
     }
 
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(dtoForPrisma, user.id);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      dtoForPrisma,
+      user.id,
+    );
 
     const updatedVehicle = await this.prisma.vehicle.update({
       where: { id },
@@ -246,6 +410,16 @@ export class VehicleService {
       },
     });
 
+    // Ensure installment charge exists when vehicle is financed by credit.
+    await this.ensureBankInstallmentChargeForVehicle({
+      vehicle: updatedVehicle,
+      financingType: updatedVehicle.financingType,
+      monthlyPayment: updatedVehicle.monthlyPayment,
+      creditStartDate: updatedVehicle.creditStartDate,
+      acquisitionDate: updatedVehicle.acquisitionDate,
+      userId: user.userId || user.id,
+    });
+
     // Log business event
     const eventType = statusChanged
       ? BusinessEventType.VEHICLE_STATUS_CHANGED
@@ -254,7 +428,7 @@ export class VehicleService {
     this.businessEventLogService
       .logEvent(
         updatedVehicle.agencyId,
-        'Vehicle',
+        "Vehicle",
         updatedVehicle.id,
         eventType,
         previousState,
@@ -275,19 +449,28 @@ export class VehicleService {
     });
 
     if (!vehicle) {
-      throw new NotFoundException('Véhicule introuvable');
+      throw new NotFoundException("Véhicule introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(vehicle.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      vehicle.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce véhicule');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour accéder à ce véhicule",
+      );
     }
 
     // Store previous state for event log
     const previousState = { ...vehicle };
 
     // Add audit fields for soft delete
-    const deleteData = this.auditService.addDeleteAuditFields({}, user.id, reason);
+    const deleteData = this.auditService.addDeleteAuditFields(
+      {},
+      user.id,
+      reason,
+    );
 
     await this.prisma.vehicle.update({
       where: { id },
@@ -298,7 +481,7 @@ export class VehicleService {
     this.businessEventLogService
       .logEvent(
         vehicle.agencyId,
-        'Vehicle',
+        "Vehicle",
         vehicle.id,
         BusinessEventType.VEHICLE_DELETED,
         previousState,
@@ -309,6 +492,6 @@ export class VehicleService {
         // Error already logged in service
       });
 
-    return { message: 'Véhicule supprimé avec succès' };
+    return { message: "Véhicule supprimé avec succès" };
   }
 }

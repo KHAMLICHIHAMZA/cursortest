@@ -4,11 +4,11 @@ import {
   ExecutionContext,
   CallHandler,
   BadRequestException,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import * as fs from 'fs';
+} from "@nestjs/common";
+import { Observable } from "rxjs";
+import { diskStorage } from "multer";
+import { extname, join } from "path";
+import * as fs from "fs";
 
 @Injectable()
 export class LicenseUploadInterceptor implements NestInterceptor {
@@ -22,11 +22,11 @@ function getUploadPath(): string {
   // Option 1: Variable d'environnement personnalisée
   const customPath = process.env.UPLOAD_PATH;
   if (customPath) {
-    return join(customPath, 'licenses');
+    return join(customPath, "licenses");
   }
-  
+
   // Option 2: Chemin relatif au projet (par défaut)
-  const defaultPath = join(process.cwd(), 'uploads', 'licenses');
+  const defaultPath = join(process.cwd(), "uploads", "licenses");
   return defaultPath;
 }
 
@@ -41,18 +41,23 @@ export const licenseImageStorage = diskStorage({
   },
   filename: (req, file, cb) => {
     // Générer un nom unique : timestamp + extension
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const ext = extname(file.originalname);
     cb(null, `license-${uniqueSuffix}${ext}`);
   },
 });
 
-export const licenseImageFilter = (req: any, file: Express.Multer.File, cb: any) => {
+export const licenseImageFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: any,
+) => {
   // Accepter uniquement les images
   if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-    return cb(new BadRequestException('Seules les images sont autorisées'), false);
+    return cb(
+      new BadRequestException("Seules les images sont autorisées"),
+      false,
+    );
   }
   cb(null, true);
 };
-
-

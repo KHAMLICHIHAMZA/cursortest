@@ -25,14 +25,14 @@ describe('FormCard component', () => {
     expect(screen.getByText('Test description')).toBeInTheDocument();
   });
 
-  it('should render back button with custom label', () => {
+  it('should not render back label text in current layout', () => {
     render(
       <FormCard title="Test Form" backHref="/test" backLabel="Go Back">
         <div>Form content</div>
       </FormCard>
     );
 
-    expect(screen.getByText('Go Back')).toBeInTheDocument();
+    expect(screen.queryByText('Go Back')).not.toBeInTheDocument();
   });
 
   it('should call onSubmit when form is submitted', async () => {
@@ -83,14 +83,14 @@ describe('FormCard component', () => {
     expect(formCard).toBeInTheDocument();
   });
 
-  it('should render cancel button', () => {
+  it('should not render cancel button by default', () => {
     render(
       <FormCard title="Test Form" backHref="/test" onSubmit={vi.fn()}>
         <div>Form content</div>
       </FormCard>
     );
 
-    expect(screen.getByText('Annuler')).toBeInTheDocument();
+    expect(screen.queryByText('Annuler')).not.toBeInTheDocument();
   });
 });
 

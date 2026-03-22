@@ -29,8 +29,6 @@ export interface CreateCompanyDto {
   bookingNumberMode?: string;
   phone?: string;
   address?: string;
-  adminEmail?: string;
-  adminName?: string;
   planId?: string;
   additionalModuleCodes?: string[];
 }
@@ -49,6 +47,12 @@ export interface UpdateCompanyDto {
 
 export interface InitializeCompanySubscriptionDto {
   planId: string;
+  maxAgencies?: number;
+  additionalModuleCodes?: string[];
+}
+
+export interface UpdateCompanySubscriptionDto {
+  planId?: string;
   maxAgencies?: number;
   additionalModuleCodes?: string[];
 }
@@ -125,6 +129,17 @@ export const companyApi = {
   ): Promise<{ companyId: string; subscription: any }> => {
     const { data } = await apiClient.post<{ companyId: string; subscription: any }>(
       `/companies/${id}/initial-subscription`,
+      dto,
+    );
+    return data;
+  },
+
+  updateSubscriptionConfig: async (
+    id: string,
+    dto: UpdateCompanySubscriptionDto,
+  ): Promise<{ companyId: string; subscription: any }> => {
+    const { data } = await apiClient.patch<{ companyId: string; subscription: any }>(
+      `/companies/${id}/subscription-config`,
       dto,
     );
     return data;

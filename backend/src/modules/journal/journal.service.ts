@@ -3,30 +3,31 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '@prisma/client';
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { AuditAction } from "@prisma/client";
 
 // Journal Entry Types (mirroring Prisma enum)
 const JournalEntryType = {
-  BOOKING_CREATED: 'BOOKING_CREATED',
-  BOOKING_UPDATED: 'BOOKING_UPDATED',
-  BOOKING_CANCELLED: 'BOOKING_CANCELLED',
-  CHECK_IN: 'CHECK_IN',
-  CHECK_OUT: 'CHECK_OUT',
-  INVOICE_ISSUED: 'INVOICE_ISSUED',
-  CREDIT_NOTE_ISSUED: 'CREDIT_NOTE_ISSUED',
-  CONTRACT_CREATED: 'CONTRACT_CREATED',
-  CONTRACT_SIGNED: 'CONTRACT_SIGNED',
-  INCIDENT_REPORTED: 'INCIDENT_REPORTED',
-  INCIDENT_RESOLVED: 'INCIDENT_RESOLVED',
-  GPS_SNAPSHOT: 'GPS_SNAPSHOT',
-  MANUAL_NOTE: 'MANUAL_NOTE',
-  SYSTEM_EVENT: 'SYSTEM_EVENT',
+  BOOKING_CREATED: "BOOKING_CREATED",
+  BOOKING_UPDATED: "BOOKING_UPDATED",
+  BOOKING_CANCELLED: "BOOKING_CANCELLED",
+  CHECK_IN: "CHECK_IN",
+  CHECK_OUT: "CHECK_OUT",
+  INVOICE_ISSUED: "INVOICE_ISSUED",
+  CREDIT_NOTE_ISSUED: "CREDIT_NOTE_ISSUED",
+  CONTRACT_CREATED: "CONTRACT_CREATED",
+  CONTRACT_SIGNED: "CONTRACT_SIGNED",
+  INCIDENT_REPORTED: "INCIDENT_REPORTED",
+  INCIDENT_RESOLVED: "INCIDENT_RESOLVED",
+  GPS_SNAPSHOT: "GPS_SNAPSHOT",
+  MANUAL_NOTE: "MANUAL_NOTE",
+  SYSTEM_EVENT: "SYSTEM_EVENT",
 } as const;
 
-type JournalEntryTypeValue = (typeof JournalEntryType)[keyof typeof JournalEntryType];
+type JournalEntryTypeValue =
+  (typeof JournalEntryType)[keyof typeof JournalEntryType];
 
 export interface CreateJournalEntryDto {
   agencyId: string;
@@ -72,7 +73,11 @@ export interface JournalFilters {
 }
 
 // Roles allowed to manage manual notes
-const MANUAL_NOTE_ROLES: string[] = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER'];
+const MANUAL_NOTE_ROLES: string[] = [
+  "SUPER_ADMIN",
+  "COMPANY_ADMIN",
+  "AGENCY_MANAGER",
+];
 
 @Injectable()
 export class JournalService {
@@ -112,13 +117,13 @@ export class JournalService {
    * Helper: assert entry ownership (company + agency scope)
    */
   private assertEntryAccess(entry: any, user: any) {
-    if (user.role === 'SUPER_ADMIN') return;
+    if (user.role === "SUPER_ADMIN") return;
     if (entry.companyId !== user.companyId) {
-      throw new ForbiddenException('Accès refusé');
+      throw new ForbiddenException("Accès refusé");
     }
-    if (user.role !== 'COMPANY_ADMIN') {
+    if (user.role !== "COMPANY_ADMIN") {
       if (entry.agencyId && !user.agencyIds?.includes(entry.agencyId)) {
-        throw new ForbiddenException('Accès refusé');
+        throw new ForbiddenException("Accès refusé");
       }
     }
   }
@@ -128,19 +133,24 @@ export class JournalService {
    */
   async createManualNote(
     dto: CreateManualNoteDto,
-    user: { userId: string; role: string; companyId: string; agencyIds?: string[] },
+    user: {
+      userId: string;
+      role: string;
+      companyId: string;
+      agencyIds?: string[];
+    },
   ): Promise<any> {
     // Check permissions
     if (!MANUAL_NOTE_ROLES.includes(user.role)) {
       throw new ForbiddenException(
-        'Seuls les managers peuvent créer des notes manuelles',
+        "Seuls les managers peuvent créer des notes manuelles",
       );
     }
 
     // Validate agency scope
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
+    if (user.role !== "SUPER_ADMIN" && user.role !== "COMPANY_ADMIN") {
       if (dto.agencyId && !user.agencyIds?.includes(dto.agencyId)) {
-        throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+        throw new ForbiddenException("Vous n'avez pas accès à cette agence");
       }
     }
 
@@ -165,7 +175,7 @@ export class JournalService {
       companyId: user.companyId,
       agencyId: dto.agencyId,
       action: AuditAction.CREATE,
-      entityType: 'JournalEntry',
+      entityType: "JournalEntry",
       entityId: entry.id,
       description: `Note manuelle créée: ${dto.title}`,
       metadata: {
@@ -184,12 +194,17 @@ export class JournalService {
   async updateManualNote(
     entryId: string,
     dto: UpdateManualNoteDto,
-    user: { userId: string; role: string; companyId: string; agencyIds?: string[] },
+    user: {
+      userId: string;
+      role: string;
+      companyId: string;
+      agencyIds?: string[];
+    },
   ): Promise<any> {
     // Check permissions
     if (!MANUAL_NOTE_ROLES.includes(user.role)) {
       throw new ForbiddenException(
-        'Seuls les managers peuvent modifier des notes manuelles',
+        "Seuls les managers peuvent modifier des notes manuelles",
       );
     }
 
@@ -198,7 +213,7 @@ export class JournalService {
     });
 
     if (!entry) {
-      throw new NotFoundException('Note non trouvée');
+      throw new NotFoundException("Note non trouvée");
     }
 
     // Ownership check
@@ -206,7 +221,7 @@ export class JournalService {
 
     if (!entry.isManualNote) {
       throw new BadRequestException(
-        'Seules les notes manuelles peuvent être modifiées',
+        "Seules les notes manuelles peuvent être modifiées",
       );
     }
 
@@ -226,7 +241,7 @@ export class JournalService {
       companyId: entry.companyId,
       agencyId: entry.agencyId,
       action: AuditAction.UPDATE,
-      entityType: 'JournalEntry',
+      entityType: "JournalEntry",
       entityId: entryId,
       description: `Note manuelle modifiée: ${updatedEntry.title}`,
       metadata: {
@@ -243,12 +258,17 @@ export class JournalService {
    */
   async deleteManualNote(
     entryId: string,
-    user: { userId: string; role: string; companyId: string; agencyIds?: string[] },
+    user: {
+      userId: string;
+      role: string;
+      companyId: string;
+      agencyIds?: string[];
+    },
   ): Promise<void> {
     // Check permissions
     if (!MANUAL_NOTE_ROLES.includes(user.role)) {
       throw new ForbiddenException(
-        'Seuls les managers peuvent supprimer des notes manuelles',
+        "Seuls les managers peuvent supprimer des notes manuelles",
       );
     }
 
@@ -257,7 +277,7 @@ export class JournalService {
     });
 
     if (!entry) {
-      throw new NotFoundException('Note non trouvée');
+      throw new NotFoundException("Note non trouvée");
     }
 
     // Ownership check
@@ -265,7 +285,7 @@ export class JournalService {
 
     if (!entry.isManualNote) {
       throw new BadRequestException(
-        'Seules les notes manuelles peuvent être supprimées',
+        "Seules les notes manuelles peuvent être supprimées",
       );
     }
 
@@ -279,7 +299,7 @@ export class JournalService {
       companyId: entry.companyId,
       agencyId: entry.agencyId,
       action: AuditAction.DELETE,
-      entityType: 'JournalEntry',
+      entityType: "JournalEntry",
       entityId: entryId,
       description: `Note manuelle supprimée: ${entry.title}`,
       metadata: {
@@ -299,10 +319,15 @@ export class JournalService {
     if (filters.companyId) where.companyId = filters.companyId;
     if (filters.type) where.type = filters.type;
     if (filters.bookingId) where.bookingId = filters.bookingId;
-    if (filters.bookingNumber) where.bookingNumber = { contains: filters.bookingNumber, mode: 'insensitive' };
+    if (filters.bookingNumber)
+      where.bookingNumber = {
+        contains: filters.bookingNumber,
+        mode: "insensitive",
+      };
     if (filters.vehicleId) where.vehicleId = filters.vehicleId;
     if (filters.userId) where.userId = filters.userId;
-    if (filters.isManualNote !== undefined) where.isManualNote = filters.isManualNote;
+    if (filters.isManualNote !== undefined)
+      where.isManualNote = filters.isManualNote;
 
     if (filters.dateFrom || filters.dateTo) {
       where.createdAt = {};
@@ -312,7 +337,7 @@ export class JournalService {
 
     return (this.prisma as any).journalEntry.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 500, // Limit results
     });
   }
@@ -322,14 +347,19 @@ export class JournalService {
    */
   async findOne(
     id: string,
-    user: { userId: string; role: string; companyId: string; agencyIds?: string[] },
+    user: {
+      userId: string;
+      role: string;
+      companyId: string;
+      agencyIds?: string[];
+    },
   ): Promise<any> {
     const entry = await (this.prisma as any).journalEntry.findUnique({
       where: { id },
     });
 
     if (!entry) {
-      throw new NotFoundException('Entrée de journal non trouvée');
+      throw new NotFoundException("Entrée de journal non trouvée");
     }
 
     // Ownership / scope check

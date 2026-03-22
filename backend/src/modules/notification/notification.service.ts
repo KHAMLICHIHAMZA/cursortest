@@ -1,10 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { EmailService } from './email.service';
-import { WhatsAppService } from './whatsapp.service';
-import { PushService } from './push.service';
-import { NotificationChannel, NotificationType } from '@prisma/client';
-import { SendNotificationDto } from './dto/send-notification.dto';
+import { Injectable, BadRequestException } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { EmailService } from "./email.service";
+import { WhatsAppService } from "./whatsapp.service";
+import { PushService } from "./push.service";
+import { NotificationChannel, NotificationType } from "@prisma/client";
+import { SendNotificationDto } from "./dto/send-notification.dto";
 
 @Injectable()
 export class NotificationService {
@@ -25,7 +25,7 @@ export class NotificationService {
     if (type === NotificationType.MARKETING) {
       // Récupérer le companyId depuis les metadata ou rechercher par recipient
       let companyId: string | undefined = metadata?.companyId;
-      
+
       if (!companyId && recipient) {
         // Si le recipient est un email, chercher l'utilisateur associé
         const user = await this.prisma.user.findUnique({
@@ -50,15 +50,15 @@ export class NotificationService {
         if (!preference) {
           // Pas de préférences = pas de consentement explicite = refuser marketing (RGPD)
           throw new BadRequestException(
-            'Les notifications marketing nécessitent un consentement explicite. Veuillez configurer les préférences de notification (conformité RGPD).'
+            "Les notifications marketing nécessitent un consentement explicite. Veuillez configurer les préférences de notification (conformité RGPD).",
           );
         }
-        // Note: Pour une implémentation plus stricte, ajouter un champ marketingOptIn 
+        // Note: Pour une implémentation plus stricte, ajouter un champ marketingOptIn
         // au modèle NotificationPreference et vérifier: if (!preference.marketingOptIn)
       } else {
         // Sans companyId, on refuse par défaut pour la conformité RGPD
         throw new BadRequestException(
-          'Les notifications marketing nécessitent l\'identification de la société pour la vérification du consentement (conformité RGPD).'
+          "Les notifications marketing nécessitent l'identification de la société pour la vérification du consentement (conformité RGPD).",
         );
       }
     }
@@ -67,7 +67,9 @@ export class NotificationService {
     const promises: Promise<void>[] = [];
 
     if (channels.includes(NotificationChannel.EMAIL)) {
-      promises.push(this.emailService.sendEmail(recipient, subject || '', content, type));
+      promises.push(
+        this.emailService.sendEmail(recipient, subject || "", content, type),
+      );
     }
 
     if (channels.includes(NotificationChannel.WHATSAPP)) {
@@ -76,7 +78,9 @@ export class NotificationService {
 
     if (channels.includes(NotificationChannel.PUSH)) {
       promises.push(
-        this.pushService.sendPush(recipient, subject || '', content, metadata, type).then(() => {})
+        this.pushService
+          .sendPush(recipient, subject || "", content, metadata, type)
+          .then(() => {}),
       );
     }
 
@@ -132,12 +136,9 @@ export class NotificationService {
         channel: channel || undefined,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
       take: 100,
     });
   }
 }
-
-
-

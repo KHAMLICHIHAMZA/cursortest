@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -23,6 +23,33 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
+
+type AgencyOpeningHours = Record<
+  string,
+  { isOpen?: boolean; openTime?: string; closeTime?: string }
+>;
+
+function getOpeningHoursWarning(dateValue: string, openingHours?: AgencyOpeningHours): string | null {
+  if (!dateValue || !openingHours) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const dayByIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayKey = dayByIndex[date.getDay()];
+  const dayHours = openingHours[dayKey];
+  if (!dayHours || dayHours.isOpen === false) {
+    return "L'agence est fermée sur ce créneau.";
+  }
+  if (!dayHours.openTime || !dayHours.closeTime) {
+    return "Horaires d'agence non configurés pour ce jour.";
+  }
+
+  const current = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  if (current < dayHours.openTime || current > dayHours.closeTime) {
+    return `Hors horaires d'ouverture (${dayHours.openTime} - ${dayHours.closeTime}).`;
+  }
+  return null;
+}
 
 type BookingStatus = 'DRAFT' | 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'RETURNED' | 'CANCELLED' | 'LATE' | 'NO_SHOW';
 
@@ -65,6 +92,18 @@ export default function EditBookingPage() {
   const queryClient = useQueryClient();
   const bookingId = params.id as string;
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; status?: BookingStatus }>({ isOpen: false });
+  const invalidateBookingRelatedQueries = () =>
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((key) => typeof key === 'string' && key.toLowerCase().includes('booking')),
+    });
+  const invalidateInvoiceRelatedQueries = () =>
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((key) => typeof key === 'string' && key.toLowerCase().includes('invoice')),
+    });
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking', bookingId],
@@ -95,6 +134,8 @@ export default function EditBookingPage() {
   });
 
   const agencyId = booking?.agencyId;
+  const startDate = watch('startDate');
+  const endDate = watch('endDate');
 
   // Vérifier l'accès au module BOOKINGS
   const userStr = typeof window !== 'undefined' ? Cookies.get('user') : null;
@@ -127,6 +168,25 @@ export default function EditBookingPage() {
     queryFn: () => clientApi.getAll(agencyId),
     enabled: !!agencyId,
   });
+  const selectedAgency = useMemo(
+    () => agencies?.find((agency) => agency.id === agencyId),
+    [agencies, agencyId]
+  );
+  const startHoursWarning = useMemo(
+    () => getOpeningHoursWarning(startDate || '', selectedAgency?.openingHours as AgencyOpeningHours | undefined),
+    [startDate, selectedAgency]
+  );
+  const endHoursWarning = useMemo(
+    () => getOpeningHoursWarning(endDate || '', selectedAgency?.openingHours as AgencyOpeningHours | undefined),
+    [endDate, selectedAgency]
+  );
+  const isInvalidDateRange = useMemo(() => {
+    if (!startDate || !endDate) return false;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    return end.getTime() <= start.getTime();
+  }, [startDate, endDate]);
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateBookingFormData) => {
@@ -142,7 +202,7 @@ export default function EditBookingPage() {
     onSuccess: () => {
       toast.success('Réservation mise à jour avec succès');
       queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      invalidateBookingRelatedQueries();
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Erreur lors de la mise à jour';
@@ -155,7 +215,7 @@ export default function EditBookingPage() {
     onSuccess: (_, newStatus) => {
       toast.success(`Statut changé en ${STATUS_LABELS[newStatus]}`);
       queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      invalidateBookingRelatedQueries();
       setConfirmDialog({ isOpen: false });
     },
     onError: (error: any) => {
@@ -166,6 +226,10 @@ export default function EditBookingPage() {
   });
 
   const onSubmit = (data: UpdateBookingFormData) => {
+    if (isInvalidDateRange) {
+      toast.error('Modification bloquée: la date de fin doit être après la date de début.');
+      return;
+    }
     updateMutation.mutate(data);
   };
 
@@ -203,6 +267,30 @@ export default function EditBookingPage() {
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Erreur lors de la modification des frais de retard';
+      toast.error(message);
+    },
+  });
+  const financialClosureMutation = useMutation({
+    mutationFn: () => bookingApi.financialClosure(bookingId),
+    onSuccess: () => {
+      toast.success('Clôture financière exécutée');
+      invalidateBookingRelatedQueries();
+      invalidateInvoiceRelatedQueries();
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Erreur lors de la clôture financière';
+      toast.error(message);
+    },
+  });
+  const generateInvoiceMutation = useMutation({
+    mutationFn: () => bookingApi.generateInvoice(bookingId),
+    onSuccess: () => {
+      toast.success('Facture générée avec succès');
+      invalidateBookingRelatedQueries();
+      invalidateInvoiceRelatedQueries();
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Erreur lors de la génération de facture';
       toast.error(message);
     },
   });
@@ -336,6 +424,9 @@ export default function EditBookingPage() {
                       {...register('startDate')}
                     />
                     {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate.message}</p>}
+                    {startHoursWarning && (
+                      <p className="text-orange-500 text-sm mt-1">Attention: {startHoursWarning}</p>
+                    )}
                   </div>
 
                   <div>
@@ -348,6 +439,12 @@ export default function EditBookingPage() {
                       {...register('endDate')}
                     />
                     {errors.endDate && <p className="text-red-500 text-sm mt-1">{errors.endDate.message}</p>}
+                    {isInvalidDateRange && (
+                      <p className="text-red-500 text-sm mt-1">Blocage: la date de fin doit être après la date de début.</p>
+                    )}
+                    {endHoursWarning && (
+                      <p className="text-orange-500 text-sm mt-1">Attention: {endHoursWarning}</p>
+                    )}
                   </div>
                 </div>
 
@@ -404,7 +501,7 @@ export default function EditBookingPage() {
                   >
                     Annuler
                   </Button>
-                  <Button type="submit" variant="primary" disabled={isSubmitting || updateMutation.isPending}>
+                  <Button type="submit" variant="primary" disabled={isSubmitting || updateMutation.isPending || isInvalidDateRange}>
                     <Save className="w-4 h-4 mr-2" />
                     {isSubmitting || updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
                   </Button>
@@ -523,6 +620,29 @@ export default function EditBookingPage() {
                       {(booking.totalPrice || 0) + (booking.lateFeeAmount || 0)} MAD
                     </p>
                   </div>
+                  {isAgencyManager && (booking.status === 'RETURNED' || booking.status === 'LATE') && (
+                    <div className="border-t border-border pt-3 mt-3 space-y-2">
+                      <p className="text-text-muted text-xs">Intervention manuelle (si checkout en difficulté)</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => financialClosureMutation.mutate()}
+                          disabled={financialClosureMutation.isPending || generateInvoiceMutation.isPending}
+                        >
+                          {financialClosureMutation.isPending ? 'Exécution...' : 'Clôture financière'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => generateInvoiceMutation.mutate()}
+                          disabled={generateInvoiceMutation.isPending || financialClosureMutation.isPending}
+                        >
+                          {generateInvoiceMutation.isPending ? 'Génération...' : 'Générer facture'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

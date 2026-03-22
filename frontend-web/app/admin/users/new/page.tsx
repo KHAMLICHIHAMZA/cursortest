@@ -76,7 +76,7 @@ export default function NewUserPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-6 px-2 sm:px-0">
           <Card className="p-4">
             <p className="text-sm text-text-muted">
               Astuce: sélectionnez d&apos;abord l&apos;entreprise pour afficher les agences disponibles.

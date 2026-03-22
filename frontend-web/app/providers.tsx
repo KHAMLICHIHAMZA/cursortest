@@ -1,7 +1,6 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MutationCache } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/contexts/theme-context';
@@ -61,19 +60,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
       let client: QueryClient;
       client = new QueryClient({
         mutationCache: new MutationCache({
-          onSuccess: () => {
-            // Keep caches coherent without blocking mutation resolution in the UI.
-            void client.invalidateQueries({ refetchType: 'active' });
+          onSuccess: async () => {
+            // Global UX rule: after any successful mutation, mark cached queries stale
+            // so lists and dashboards reflect new values immediately without manual refresh.
+            // Performance-safe: only invalidate currently active queries.
+            await client.invalidateQueries({
+              type: 'active',
+              refetchType: 'active',
+            });
           },
         }),
         defaultOptions: {
           queries: {
-            // Keep data fresh enough while avoiding aggressive re-fetches on every navigation.
-            staleTime: 5 * 60 * 1000, // 5 minutes
+            // Keep cache benefits while reducing stale UI after mutations/navigation.
+            staleTime: 60 * 1000, // 1 minute
             gcTime: 30 * 60 * 1000, // 30 minutes
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchOnMount: true,
+            refetchOnMount: 'always',
             retry: 1,
           },
           mutations: {

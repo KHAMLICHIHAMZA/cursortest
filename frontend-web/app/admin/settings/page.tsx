@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -18,8 +19,8 @@ import { moduleApi, ModuleCode } from '@/lib/api/module';
 import { planApi, Plan } from '@/lib/api/plan';
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
-  VEHICLES: 'Vehicules',
-  BOOKINGS: 'Reservations',
+  VEHICLES: 'Véhicules',
+  BOOKINGS: 'Réservations',
   INVOICES: 'Facturation',
   MAINTENANCE: 'Maintenance',
   FINES: 'Amendes',
@@ -32,7 +33,25 @@ const MODULE_LABELS: Record<ModuleCode, string> = {
 };
 
 const MODULE_CODES = Object.keys(MODULE_LABELS) as ModuleCode[];
-type SettingsTab = 'global' | 'plans' | 'dependencies' | 'simulator' | 'history';
+type SettingsTab = 'global' | 'dependencies' | 'simulator' | 'history';
+
+const SETTINGS_KEY_LABELS: Record<string, string> = {
+  'saas.allow_additional_modules_on_create': 'Autoriser les modules additionnels à la création',
+  'saas.allow_agency_overage_on_create': 'Autoriser le dépassement du quota agences à la création',
+  'saas.extra_module_price_mad': 'Prix d’un module additionnel (MAD/mois)',
+  'saas.extra_agency_price_mad': 'Prix d’une agence additionnelle (MAD/mois)',
+  'saas.maintenance_mileage_alert_interval_km': 'Palier km des alertes maintenance automatiques',
+};
+
+function formatSettingsKeyLabel(key: string): string {
+  return SETTINGS_KEY_LABELS[key] || key;
+}
+
+function formatAuditValue(rawValue: string): string {
+  if (rawValue === 'true') return 'Oui';
+  if (rawValue === 'false') return 'Non';
+  return rawValue;
+}
 
 export default function AdminSettingsPage() {
   const queryClient = useQueryClient();
@@ -59,18 +78,8 @@ export default function AdminSettingsPage() {
     extraModulePriceMad: 0,
     allowAgencyOverageOnCreate: true,
     allowAdditionalModulesOnCreate: true,
+    maintenanceMileageAlertIntervalKm: 10000,
   });
-  const [planForms, setPlanForms] = useState<
-    Record<
-      string,
-      {
-        extraAgencyPriceMad: number;
-        extraModulePriceMad: number;
-        allowAgencyOverageOnCreate: boolean;
-        allowAdditionalModulesOnCreate: boolean;
-      }
-    >
-  >({});
   const [newDependency, setNewDependency] = useState<{
     moduleCode: ModuleCode;
     dependsOnCode: ModuleCode;
@@ -81,7 +90,6 @@ export default function AdminSettingsPage() {
   const [historyKeyFilter, setHistoryKeyFilter] = useState<string>('');
   const [historyStartDate, setHistoryStartDate] = useState<string>('');
   const [historyEndDate, setHistoryEndDate] = useState<string>('');
-  const [historyPlanFilter, setHistoryPlanFilter] = useState<string>('');
 
   useEffect(() => {
     if (!settings) return;
@@ -90,51 +98,24 @@ export default function AdminSettingsPage() {
       extraModulePriceMad: settings.extraModulePriceMad,
       allowAgencyOverageOnCreate: settings.allowAgencyOverageOnCreate,
       allowAdditionalModulesOnCreate: settings.allowAdditionalModulesOnCreate,
+      maintenanceMileageAlertIntervalKm: settings.maintenanceMileageAlertIntervalKm,
     });
   }, [settings]);
-  useEffect(() => {
-    if (!settings || !plans.length) return;
-    setPlanForms(
-      plans.reduce((acc, plan) => {
-        acc[plan.id] = {
-          extraAgencyPriceMad: plan.pricingRule?.extraAgencyPriceMad ?? settings.extraAgencyPriceMad,
-          extraModulePriceMad: plan.pricingRule?.extraModulePriceMad ?? settings.extraModulePriceMad,
-          allowAgencyOverageOnCreate:
-            plan.pricingRule?.allowAgencyOverageOnCreate ?? settings.allowAgencyOverageOnCreate,
-          allowAdditionalModulesOnCreate:
-            plan.pricingRule?.allowAdditionalModulesOnCreate ?? settings.allowAdditionalModulesOnCreate,
-        };
-        return acc;
-      }, {} as Record<string, any>),
-    );
-  }, [plans, settings]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: UpdateSaasSettingsDto) => saasSettingsApi.update(payload),
     onSuccess: () => {
-      toast.success('Parametres SaaS mis a jour');
+      toast.success('Paramètres SaaS mis à jour');
       queryClient.invalidateQueries({ queryKey: ['saas-settings'] });
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Erreur lors de la mise a jour');
-    },
-  });
-  const updatePlanRuleMutation = useMutation({
-    mutationFn: ({ planId, payload }: { planId: string; payload: any }) =>
-      planApi.update(planId, { pricingRules: payload }),
-    onSuccess: () => {
-      toast.success('Regle plan mise a jour');
-      void queryClient.invalidateQueries({ queryKey: ['plans'] });
-      void queryClient.invalidateQueries({ queryKey: ['plans', 'with-inactive'] });
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Erreur mise a jour regle plan');
+      toast.error(error?.response?.data?.message || 'Erreur lors de la mise à jour');
     },
   });
   const addDependencyMutation = useMutation({
     mutationFn: () => moduleApi.createDependency(newDependency),
     onSuccess: () => {
-      toast.success('Dependance ajoutee');
+      toast.success('Dépendance ajoutée');
       void queryClient.invalidateQueries({ queryKey: ['module-dependencies'] });
     },
     onError: (error: any) => {
@@ -145,7 +126,7 @@ export default function AdminSettingsPage() {
     mutationFn: ({ moduleCode, dependsOnCode }: { moduleCode: ModuleCode; dependsOnCode: ModuleCode }) =>
       moduleApi.deleteDependency(moduleCode, dependsOnCode),
     onSuccess: () => {
-      toast.success('Dependance supprimee');
+      toast.success('Dépendance supprimée');
       void queryClient.invalidateQueries({ queryKey: ['module-dependencies'] });
     },
     onError: (error: any) => {
@@ -161,8 +142,12 @@ export default function AdminSettingsPage() {
     }),
     [simPlanId, simMaxAgencies, simAdditionalModules],
   );
+  const simulationModulesKey = useMemo(
+    () => [...simAdditionalModules].sort().join(','),
+    [simAdditionalModules],
+  );
   const { data: simulation, isFetching: simulationLoading } = useQuery({
-    queryKey: ['saas-pricing-simulation', simulationInput],
+    queryKey: ['saas-pricing-simulation', simPlanId || '', simMaxAgencies || '', simulationModulesKey],
     queryFn: () => saasSettingsApi.simulatePricing(simulationInput),
   });
   const filteredAuditItems = useMemo(() => {
@@ -176,68 +161,58 @@ export default function AdminSettingsPage() {
       return keyMatch && dateMatch;
     });
   }, [auditItems, historyKeyFilter, historyStartDate, historyEndDate]);
-  const filteredPlansForHistory = useMemo(() => {
-    const planSearch = historyPlanFilter.trim().toLowerCase();
-    const from = historyStartDate ? new Date(`${historyStartDate}T00:00:00`) : null;
-    const to = historyEndDate ? new Date(`${historyEndDate}T23:59:59.999`) : null;
-    return plans.filter((plan) => {
-      const planMatch = !planSearch || plan.name.toLowerCase().includes(planSearch);
-      const candidateDate = new Date(plan.pricingRule?.updatedAt || plan.updatedAt);
-      const dateMatch = (!from || candidateDate >= from) && (!to || candidateDate <= to);
-      return planMatch && dateMatch;
-    });
-  }, [plans, historyPlanFilter, historyStartDate, historyEndDate]);
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
         <div className="max-w-4xl mx-auto space-y-6">
           <Card className="p-5">
-            <h1 className="text-2xl font-bold text-text">Parametres SaaS</h1>
+            <h1 className="text-2xl font-bold text-text">Paramètres SaaS</h1>
             <p className="text-sm text-text-muted mt-1">
-              Parametres globaux de tarification et regles appliquees a la creation des entreprises.
+              Réglages globaux de tarification SaaS.
             </p>
-            <p className="text-xs text-text-muted mt-2">
-              Les regles definies au niveau d&apos;un plan restent prioritaires sur ces valeurs globales.
+            <p className="text-xs text-text-muted mt-1">
+              Les règles par plan se gèrent dans{' '}
+              <Link href="/admin/plans" className="text-primary hover:underline">
+                Plans
+              </Link>
+              .
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant={activeTab === 'global' ? 'primary' : 'outline'} onClick={() => setActiveTab('global')}>
-                Global
-              </Button>
-              <Button variant={activeTab === 'plans' ? 'primary' : 'outline'} onClick={() => setActiveTab('plans')}>
-                Plans
+                Règles globales
               </Button>
               <Button
                 variant={activeTab === 'dependencies' ? 'primary' : 'outline'}
                 onClick={() => setActiveTab('dependencies')}
               >
-                Dependances modules
+                Compatibilité modules
               </Button>
               <Button
                 variant={activeTab === 'simulator' ? 'primary' : 'outline'}
                 onClick={() => setActiveTab('simulator')}
               >
-                Simulateur
+                Estimer un prix
               </Button>
               <Button
                 variant={activeTab === 'history' ? 'primary' : 'outline'}
                 onClick={() => setActiveTab('history')}
               >
-                Historique
+                Journal des changements
               </Button>
             </div>
           </Card>
 
           {isLoading ? (
-            <LoadingState message="Chargement des parametres..." />
+            <LoadingState message="Chargement des paramètres..." />
           ) : isError ? (
             <Card className="p-5">
               <p className="text-sm text-red-500">
-                Impossible de charger les parametres SaaS.
+                Impossible de charger les paramètres SaaS.
               </p>
               <div className="mt-3">
                 <Button variant="outline" onClick={() => refetch()}>
-                  Reessayer
+                  Réessayer
                 </Button>
               </div>
             </Card>
@@ -248,7 +223,7 @@ export default function AdminSettingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="extraAgencyPriceMad" className="block text-sm font-medium text-text mb-2">
-                        Prix agence supplementaire (MAD/mois)
+                        Prix agence supplémentaire (MAD/mois)
                       </label>
                       <Input
                         id="extraAgencyPriceMad"
@@ -265,7 +240,7 @@ export default function AdminSettingsPage() {
                     </div>
                     <div>
                       <label htmlFor="extraModulePriceMad" className="block text-sm font-medium text-text mb-2">
-                        Prix module supplementaire (MAD/mois)
+                        Prix module supplémentaire (MAD/mois)
                       </label>
                       <Input
                         id="extraModulePriceMad"
@@ -276,6 +251,30 @@ export default function AdminSettingsPage() {
                           setForm((prev) => ({
                             ...prev,
                             extraModulePriceMad: Math.max(0, Number(e.target.value || 0)),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="maintenanceMileageAlertIntervalKm"
+                        className="block text-sm font-medium text-text mb-2"
+                      >
+                        Palier alerte maintenance (km)
+                      </label>
+                      <Input
+                        id="maintenanceMileageAlertIntervalKm"
+                        type="number"
+                        min="1000"
+                        step="500"
+                        value={form.maintenanceMileageAlertIntervalKm ?? 10000}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            maintenanceMileageAlertIntervalKm: Math.max(
+                              1000,
+                              Math.floor(Number(e.target.value || 10000)),
+                            ),
                           }))
                         }
                       />
@@ -292,7 +291,7 @@ export default function AdminSettingsPage() {
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                       />
                       <span className="text-sm text-text">
-                        Autoriser le depassement du quota agences lors de la creation entreprise
+                        Autoriser le dépassement du quota agences à la création entreprise
                       </span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -305,7 +304,7 @@ export default function AdminSettingsPage() {
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                       />
                       <span className="text-sm text-text">
-                        Autoriser l ajout de modules hors pack lors de la creation entreprise
+                        Autoriser l&apos;ajout de modules hors pack à la création entreprise
                       </span>
                     </label>
                   </div>
@@ -321,111 +320,10 @@ export default function AdminSettingsPage() {
                 </Card>
               )}
 
-              {activeTab === 'plans' && (
-                <div className="space-y-4">
-                  {plans.map((plan) => {
-                    const rule = planForms[plan.id];
-                    if (!rule) return null;
-                    return (
-                      <Card key={plan.id} className="p-5 space-y-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <h3 className="text-lg font-semibold text-text">{plan.name}</h3>
-                            <p className="text-xs text-text-muted">Prix base: {plan.price} MAD/mois</p>
-                          </div>
-                          <Button
-                            variant="primary"
-                            isLoading={updatePlanRuleMutation.isPending}
-                            onClick={() =>
-                              updatePlanRuleMutation.mutate({
-                                planId: plan.id,
-                                payload: rule,
-                              })
-                            }
-                          >
-                            Sauvegarder
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm text-text mb-2">Prix agence extra</label>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={rule.extraAgencyPriceMad}
-                              onChange={(e) =>
-                                setPlanForms((prev) => ({
-                                  ...prev,
-                                  [plan.id]: {
-                                    ...prev[plan.id],
-                                    extraAgencyPriceMad: Math.max(0, Number(e.target.value || 0)),
-                                  },
-                                }))
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-text mb-2">Prix module extra</label>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={rule.extraModulePriceMad}
-                              onChange={(e) =>
-                                setPlanForms((prev) => ({
-                                  ...prev,
-                                  [plan.id]: {
-                                    ...prev[plan.id],
-                                    extraModulePriceMad: Math.max(0, Number(e.target.value || 0)),
-                                  },
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-2 text-sm text-text">
-                            <input
-                              type="checkbox"
-                              checked={rule.allowAgencyOverageOnCreate}
-                              onChange={(e) =>
-                                setPlanForms((prev) => ({
-                                  ...prev,
-                                  [plan.id]: {
-                                    ...prev[plan.id],
-                                    allowAgencyOverageOnCreate: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            Autoriser depassement quota agences
-                          </label>
-                          <label className="flex items-center gap-2 text-sm text-text">
-                            <input
-                              type="checkbox"
-                              checked={rule.allowAdditionalModulesOnCreate}
-                              onChange={(e) =>
-                                setPlanForms((prev) => ({
-                                  ...prev,
-                                  [plan.id]: {
-                                    ...prev[plan.id],
-                                    allowAdditionalModulesOnCreate: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            Autoriser modules hors pack
-                          </label>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-
               {activeTab === 'dependencies' && (
                 <div className="space-y-4">
                   <Card className="p-5 space-y-3">
-                    <h3 className="text-lg font-semibold text-text">Ajouter une dependance</h3>
+                    <h3 className="text-lg font-semibold text-text">Ajouter une dépendance</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <select
                         className="bg-background border border-border rounded-md px-3 py-2 text-sm"
@@ -470,7 +368,7 @@ export default function AdminSettingsPage() {
                   </Card>
 
                   <Card className="p-5">
-                    <h3 className="text-lg font-semibold text-text mb-4">Matrice des dependances</h3>
+                    <h3 className="text-lg font-semibold text-text mb-4">Matrice des dépendances</h3>
                     <div className="space-y-3">
                       {MODULE_CODES.map((moduleCode) => {
                         const requires = dependencies
@@ -484,10 +382,10 @@ export default function AdminSettingsPage() {
                           <div key={moduleCode} className="border border-border rounded-md p-3">
                             <p className="font-medium text-text">{MODULE_LABELS[moduleCode]}</p>
                             <p className="text-xs text-text-muted mt-1">
-                              Depend de: {requires.length ? requires.map((m) => MODULE_LABELS[m]).join(', ') : 'Aucune'}
+                              Dépend de: {requires.length ? requires.map((m) => MODULE_LABELS[m]).join(', ') : 'Aucune'}
                             </p>
                             <p className="text-xs text-text-muted">
-                              Impact si desactive: {usedBy.length ? usedBy.map((m) => MODULE_LABELS[m]).join(', ') : 'Aucun'}
+                              Impact si désactivé: {usedBy.length ? usedBy.map((m) => MODULE_LABELS[m]).join(', ') : 'Aucun'}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {dependencies
@@ -517,7 +415,7 @@ export default function AdminSettingsPage() {
 
               {activeTab === 'simulator' && (
                 <Card className="p-5 space-y-4">
-                  <h3 className="text-lg font-semibold text-text">Simulateur pricing creation entreprise</h3>
+                  <h3 className="text-lg font-semibold text-text">Simulateur de tarification</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-text mb-2">Plan</label>
@@ -570,7 +468,7 @@ export default function AdminSettingsPage() {
                     ) : simulation ? (
                       <>
                         <p className="text-sm text-text">
-                          Montant estime: <strong>{simulation.monthlyAmount} MAD/mois</strong>
+                          Montant estimé: <strong>{simulation.monthlyAmount} MAD/mois</strong>
                         </p>
                         <p className="text-xs text-text-muted mt-1">
                           Base plan: {simulation.breakdown.basePlanPrice} | Agences extra:{' '}
@@ -599,10 +497,10 @@ export default function AdminSettingsPage() {
               {activeTab === 'history' && (
                 <div className="space-y-4">
                   <Card className="p-5">
-                    <h3 className="text-lg font-semibold text-text mb-3">Filtres historique</h3>
+                    <h3 className="text-lg font-semibold text-text mb-3">Filtres d&apos;historique</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-text-muted mb-1">Cle regle globale</label>
+                        <label className="block text-xs text-text-muted mb-1">Clé règle globale</label>
                         <Input
                           value={historyKeyFilter}
                           onChange={(e) => setHistoryKeyFilter(e.target.value)}
@@ -610,15 +508,7 @@ export default function AdminSettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-text-muted mb-1">Nom plan</label>
-                        <Input
-                          value={historyPlanFilter}
-                          onChange={(e) => setHistoryPlanFilter(e.target.value)}
-                          placeholder="Ex: Starter"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-text-muted mb-1">Date debut</label>
+                        <label className="block text-xs text-text-muted mb-1">Date début</label>
                         <Input
                           type="date"
                           value={historyStartDate}
@@ -639,31 +529,31 @@ export default function AdminSettingsPage() {
                         variant="outline"
                         onClick={() => {
                           setHistoryKeyFilter('');
-                          setHistoryPlanFilter('');
                           setHistoryStartDate('');
                           setHistoryEndDate('');
                         }}
                       >
-                        Reinitialiser filtres
+                        Réinitialiser filtres
                       </Button>
                     </div>
                   </Card>
 
                   <Card className="p-5">
-                    <h3 className="text-lg font-semibold text-text mb-3">Historique regles globales</h3>
+                    <h3 className="text-lg font-semibold text-text mb-3">Historique des règles globales</h3>
                     <div className="space-y-2">
                       {filteredAuditItems.length === 0 ? (
-                        <p className="text-sm text-text-muted">Aucun historique disponible.</p>
+                        <p className="text-sm text-text-muted">Aucune donnée d&apos;historique.</p>
                       ) : (
                         filteredAuditItems.map((item) => (
                           <div key={item.id} className="border border-border rounded-md p-3">
-                            <p className="text-sm font-medium text-text">{item.key}</p>
+                            <p className="text-sm font-medium text-text">{formatSettingsKeyLabel(item.key)}</p>
+                            <p className="text-[11px] text-text-muted">{item.key}</p>
                             <p className="text-xs text-text-muted">
-                              Valeur: <span className="text-text">{item.value}</span> | Version: {item.version} |
+                              Valeur: <span className="text-text">{formatAuditValue(item.value)}</span> | Version: {item.version} |
                               Actif: {item.isActive ? 'Oui' : 'Non'}
                             </p>
                             <p className="text-xs text-text-muted">
-                              MAJ: {new Date(item.updatedAt).toLocaleString('fr-FR')}
+                              Dernière mise à jour: {new Date(item.updatedAt).toLocaleString('fr-FR')}
                             </p>
                             {item.description && (
                               <p className="text-xs text-text-muted mt-1">{item.description}</p>
@@ -674,25 +564,6 @@ export default function AdminSettingsPage() {
                     </div>
                   </Card>
 
-                  <Card className="p-5">
-                    <h3 className="text-lg font-semibold text-text mb-3">Dernieres MAJ regles plan</h3>
-                    <div className="space-y-2">
-                      {filteredPlansForHistory.map((plan) => (
-                        <div key={plan.id} className="border border-border rounded-md p-3">
-                          <p className="text-sm font-medium text-text">{plan.name}</p>
-                          <p className="text-xs text-text-muted">
-                            Regle plan: {plan.pricingRule ? 'Definie' : 'Herite globale'}
-                          </p>
-                          <p className="text-xs text-text-muted">
-                            MAJ plan: {new Date(plan.updatedAt).toLocaleString('fr-FR')}
-                            {plan.pricingRule?.updatedAt
-                              ? ` | MAJ regle: ${new Date(plan.pricingRule.updatedAt).toLocaleString('fr-FR')}`
-                              : ''}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
                 </div>
               )}
             </>

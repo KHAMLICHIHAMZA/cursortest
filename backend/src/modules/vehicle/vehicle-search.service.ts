@@ -1,29 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
+import { Injectable } from "@nestjs/common";
+import * as fs from "fs";
+import * as path from "path";
 
 // Charger le fichier JSON de manière dynamique
 // En dev: depuis src/data/ (process.cwd() = backend/)
 // En prod: depuis data/ à la racine backend (process.cwd() = backend/)
 function loadVehicleDatabase() {
   const possiblePaths = [
-    path.join(process.cwd(), 'src', 'data', 'vehicle-database.json'), // Dev: backend/src/data/
-    path.join(process.cwd(), 'data', 'vehicle-database.json'), // Prod: backend/data/
-    path.join(__dirname, '..', '..', '..', 'src', 'data', 'vehicle-database.json'), // Depuis dist vers src
-    path.join(__dirname, '..', '..', '..', 'data', 'vehicle-database.json'), // Depuis dist vers data
+    path.join(process.cwd(), "src", "data", "vehicle-database.json"), // Dev: backend/src/data/
+    path.join(process.cwd(), "data", "vehicle-database.json"), // Prod: backend/data/
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "src",
+      "data",
+      "vehicle-database.json",
+    ), // Depuis dist vers src
+    path.join(__dirname, "..", "..", "..", "data", "vehicle-database.json"), // Depuis dist vers data
   ];
 
   for (const dbPath of possiblePaths) {
     try {
       if (fs.existsSync(dbPath)) {
-        return JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+        return JSON.parse(fs.readFileSync(dbPath, "utf-8"));
       }
     } catch (e) {
       // Continue to next path
     }
   }
 
-  throw new Error(`Base de données véhicules introuvable. Chemins vérifiés : ${possiblePaths.join(', ')}`);
+  throw new Error(
+    `Base de données véhicules introuvable. Chemins vérifiés : ${possiblePaths.join(", ")}`,
+  );
 }
 
 const vehicleDatabase = loadVehicleDatabase();
@@ -55,7 +65,7 @@ export class VehicleSearchService {
    */
   searchBrands(query: string): string[] {
     if (!query || query.length < 2) return [];
-    
+
     const searchTerm = query.toLowerCase().trim();
     return this.vehicles
       .map((v) => v.brand)
@@ -78,9 +88,7 @@ export class VehicleSearchService {
     // Filtrer par terme de recherche si fourni
     if (query && query.length >= 2) {
       const searchTerm = query.toLowerCase().trim();
-      models = models.filter((m) =>
-        m.name.toLowerCase().includes(searchTerm),
-      );
+      models = models.filter((m) => m.name.toLowerCase().includes(searchTerm));
     }
 
     return models.map((model) => ({
@@ -96,7 +104,10 @@ export class VehicleSearchService {
   /**
    * Recherche complète (marque + modèle)
    */
-  searchVehicles(brandQuery?: string, modelQuery?: string): VehicleSuggestion[] {
+  searchVehicles(
+    brandQuery?: string,
+    modelQuery?: string,
+  ): VehicleSuggestion[] {
     let results: VehicleSuggestion[] = [];
 
     // Si on a une marque, chercher les modèles
@@ -173,4 +184,3 @@ export class VehicleSearchService {
     };
   }
 }
-

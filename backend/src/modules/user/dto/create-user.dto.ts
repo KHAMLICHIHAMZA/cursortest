@@ -1,10 +1,16 @@
-import { IsString, IsEmail, IsOptional, IsArray, IsEnum } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsArray,
+  IsEnum,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export enum UserRole {
-  COMPANY_ADMIN = 'COMPANY_ADMIN',
-  AGENCY_MANAGER = 'AGENCY_MANAGER',
-  AGENT = 'AGENT',
+  COMPANY_ADMIN = "COMPANY_ADMIN",
+  AGENCY_MANAGER = "AGENCY_MANAGER",
+  AGENT = "AGENT",
 }
 
 export class CreateUserDto {
@@ -31,6 +37,3 @@ export class CreateUserDto {
   @IsString({ each: true })
   agencyIds?: string[];
 }
-
-
-

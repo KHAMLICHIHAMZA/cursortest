@@ -1,6 +1,15 @@
-import { IsDateString, IsNumber, IsOptional, IsEnum, IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingStatus } from '@prisma/client';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { BookingStatus } from "@prisma/client";
 
 export class UpdateBookingDto {
   @ApiPropertyOptional()
@@ -25,7 +34,7 @@ export class UpdateBookingDto {
 
   @ApiPropertyOptional({
     description:
-      'Numéro de réservation (V2). Modifiable uniquement si aucune facture n’est émise.',
+      "Numéro de réservation (V2). Modifiable uniquement si aucune facture n’est émise.",
     maxLength: 32,
   })
   @IsOptional()
@@ -33,12 +42,8 @@ export class UpdateBookingDto {
   @MinLength(1)
   @MaxLength(32)
   @Matches(/^[A-Za-z0-9]+$/, {
-    message: 'Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces',
+    message:
+      "Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces",
   })
   bookingNumber?: string;
 }
-
-
-
-
-

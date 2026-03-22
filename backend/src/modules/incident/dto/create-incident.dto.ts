@@ -1,11 +1,11 @@
-import { IsString, IsNumber, IsEnum, IsOptional, Min } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IncidentType } from '@prisma/client';
+import { IsString, IsNumber, IsEnum, IsOptional, Min } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IncidentType } from "@prisma/client";
 
 export enum IncidentSeverity {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
 }
 
 export class CreateIncidentDto {
@@ -51,5 +51,3 @@ export class CreateIncidentDto {
   @IsEnum(IncidentSeverity)
   severity?: IncidentSeverity;
 }
-
-

@@ -1,14 +1,14 @@
-import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { AiService } from './ai.service';
-import { DamageDetectionService } from './damage-detection.service';
-import { ChatbotService } from './chatbot.service';
-import { DetectDamageDto } from './dto/detect-damage.dto';
-import { ChatbotQuestionDto } from './dto/chatbot-question.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Controller, Post, Get, Body, Query, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { AiService } from "./ai.service";
+import { DamageDetectionService } from "./damage-detection.service";
+import { ChatbotService } from "./chatbot.service";
+import { DetectDamageDto } from "./dto/detect-damage.dto";
+import { ChatbotQuestionDto } from "./dto/chatbot-question.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
-@ApiTags('AI')
-@Controller('ai')
+@ApiTags("AI")
+@Controller("ai")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class AiController {
@@ -18,8 +18,8 @@ export class AiController {
     private readonly chatbotService: ChatbotService,
   ) {}
 
-  @Post('damage/detect')
-  @ApiOperation({ summary: 'Detect damage in vehicle image' })
+  @Post("damage/detect")
+  @ApiOperation({ summary: "Detect damage in vehicle image" })
   async detectDamage(@Body() dto: DetectDamageDto) {
     return this.damageDetectionService.detectDamage(
       dto.imageUrl,
@@ -28,9 +28,11 @@ export class AiController {
     );
   }
 
-  @Post('damage/detect-batch')
-  @ApiOperation({ summary: 'Detect damage in multiple images' })
-  async detectDamageBatch(@Body() dto: { imageUrls: string[]; vehicleId: string; bookingId: string }) {
+  @Post("damage/detect-batch")
+  @ApiOperation({ summary: "Detect damage in multiple images" })
+  async detectDamageBatch(
+    @Body() dto: { imageUrls: string[]; vehicleId: string; bookingId: string },
+  ) {
     return this.damageDetectionService.detectDamageBatch(
       dto.imageUrls,
       dto.vehicleId,
@@ -38,9 +40,12 @@ export class AiController {
     );
   }
 
-  @Post('chatbot/question')
-  @ApiOperation({ summary: 'Ask a question to the chatbot' })
-  async askQuestion(@Body() dto: ChatbotQuestionDto, @Query('userId') userId?: string) {
+  @Post("chatbot/question")
+  @ApiOperation({ summary: "Ask a question to the chatbot" })
+  async askQuestion(
+    @Body() dto: ChatbotQuestionDto,
+    @Query("userId") userId?: string,
+  ) {
     return this.chatbotService.answerQuestion(dto.question, {
       userId,
       companyId: dto.companyId,
@@ -49,14 +54,9 @@ export class AiController {
     });
   }
 
-  @Get('chatbot/faq')
-  @ApiOperation({ summary: 'Get FAQ' })
+  @Get("chatbot/faq")
+  @ApiOperation({ summary: "Get FAQ" })
   async getFAQ() {
     return this.chatbotService.getFAQ();
   }
 }
-
-
-
-
-

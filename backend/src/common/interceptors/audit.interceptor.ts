@@ -3,11 +3,11 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
-import { AuditService } from '../../modules/audit/audit.service';
-import { AuditAction } from '@prisma/client';
+} from "@nestjs/common";
+import { Observable } from "rxjs";
+import { tap } from "rxjs/operators";
+import { AuditService } from "../../modules/audit/audit.service";
+import { AuditAction } from "@prisma/client";
 
 /**
  * Interceptor pour logger automatiquement les actions
@@ -25,15 +25,16 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Déterminer l'action selon la méthode HTTP
     let action: AuditAction | null = null;
-    if (method === 'POST') action = AuditAction.CREATE;
-    else if (method === 'PATCH' || method === 'PUT') action = AuditAction.UPDATE;
-    else if (method === 'DELETE') action = AuditAction.DELETE;
+    if (method === "POST") action = AuditAction.CREATE;
+    else if (method === "PATCH" || method === "PUT")
+      action = AuditAction.UPDATE;
+    else if (method === "DELETE") action = AuditAction.DELETE;
 
     return next.handle().pipe(
       tap(async (data) => {
         if (action && user) {
           // Extraire l'entity type de l'URL
-          const entityType = url.split('/')[2]?.toUpperCase().slice(0, -1); // /api/bookings -> Booking
+          const entityType = url.split("/")[2]?.toUpperCase().slice(0, -1); // /api/bookings -> Booking
 
           if (entityType && data?.id) {
             await this.auditService.log({
@@ -45,7 +46,7 @@ export class AuditInterceptor implements NestInterceptor {
               entityId: data.id,
               description: `${method} ${url}`,
               ipAddress: request.ip,
-              userAgent: request.headers['user-agent'],
+              userAgent: request.headers["user-agent"],
             });
           }
         }
@@ -53,6 +54,3 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 }
-
-
-

@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { ModuleCode } from '@prisma/client';
-import { IsEnum } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { ModuleCode } from "@prisma/client";
+import { IsEnum } from "class-validator";
 
 export class CreateModuleDependencyDto {
   @ApiProperty({ enum: ModuleCode })
@@ -11,4 +11,3 @@ export class CreateModuleDependencyDto {
   @IsEnum(ModuleCode)
   dependsOnCode: ModuleCode;
 }
-

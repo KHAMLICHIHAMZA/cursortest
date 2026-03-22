@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { DamageDetectionService } from './damage-detection.service';
-import { ChatbotService } from './chatbot.service';
+import { Injectable } from "@nestjs/common";
+import { DamageDetectionService } from "./damage-detection.service";
+import { ChatbotService } from "./chatbot.service";
 
 @Injectable()
 export class AiService {
@@ -17,8 +17,3 @@ export class AiService {
     return this.chatbotService;
   }
 }
-
-
-
-
-

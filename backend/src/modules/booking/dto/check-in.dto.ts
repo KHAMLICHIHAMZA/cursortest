@@ -9,64 +9,64 @@ import {
   Min,
   ArrayMinSize,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DepositStatusCheckIn } from '@prisma/client';
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { DepositStatusCheckIn } from "@prisma/client";
 
 export enum FuelLevel {
-  EMPTY = 'EMPTY',
-  QUARTER = 'QUARTER',
-  HALF = 'HALF',
-  THREE_QUARTERS = 'THREE_QUARTERS',
-  FULL = 'FULL',
+  EMPTY = "EMPTY",
+  QUARTER = "QUARTER",
+  HALF = "HALF",
+  THREE_QUARTERS = "THREE_QUARTERS",
+  FULL = "FULL",
 }
 
 export enum DamageZone {
-  FRONT = 'FRONT',
-  REAR = 'REAR',
-  LEFT = 'LEFT',
-  RIGHT = 'RIGHT',
-  ROOF = 'ROOF',
-  INTERIOR = 'INTERIOR',
-  WHEELS = 'WHEELS',
-  WINDOWS = 'WINDOWS',
+  FRONT = "FRONT",
+  REAR = "REAR",
+  LEFT = "LEFT",
+  RIGHT = "RIGHT",
+  ROOF = "ROOF",
+  INTERIOR = "INTERIOR",
+  WHEELS = "WHEELS",
+  WINDOWS = "WINDOWS",
 }
 
 export enum DamageType {
-  SCRATCH = 'SCRATCH',
-  DENT = 'DENT',
-  BROKEN = 'BROKEN',
-  PAINT = 'PAINT',
-  GLASS = 'GLASS',
-  OTHER = 'OTHER',
+  SCRATCH = "SCRATCH",
+  DENT = "DENT",
+  BROKEN = "BROKEN",
+  PAINT = "PAINT",
+  GLASS = "GLASS",
+  OTHER = "OTHER",
 }
 
 export enum DamageSeverity {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
 }
 
 export enum ExtractionStatus {
-  OK = 'OK',
-  TO_VERIFY = 'TO_VERIFY',
+  OK = "OK",
+  TO_VERIFY = "TO_VERIFY",
 }
 
 export enum DepositType {
-  CASH = 'CASH',
-  CARD_HOLD = 'CARD_HOLD',
-  TRANSFER = 'TRANSFER',
-  CHEQUE = 'CHEQUE',
-  OTHER = 'OTHER',
+  CASH = "CASH",
+  CARD_HOLD = "CARD_HOLD",
+  TRANSFER = "TRANSFER",
+  CHEQUE = "CHEQUE",
+  OTHER = "OTHER",
 }
 
 export enum DepositStatus {
-  PENDING = 'PENDING',
-  COLLECTED = 'COLLECTED',
-  REFUNDED = 'REFUNDED',
-  PARTIAL = 'PARTIAL',
-  FORFEITED = 'FORFEITED',
+  PENDING = "PENDING",
+  COLLECTED = "COLLECTED",
+  REFUNDED = "REFUNDED",
+  PARTIAL = "PARTIAL",
+  FORFEITED = "FORFEITED",
 }
 
 export class DamageDto {
@@ -104,7 +104,7 @@ export class CheckInDto {
   @IsEnum(FuelLevel)
   fuelLevelStart: FuelLevel;
 
-  @ApiProperty({ type: [String], description: 'Minimum 4 photos required' })
+  @ApiProperty({ type: [String], description: "Minimum 4 photos required" })
   @IsArray()
   @ArrayMinSize(4)
   @IsString({ each: true })
@@ -160,9 +160,9 @@ export class CheckInDto {
   @IsDateString()
   depositDate?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     enum: DepositStatusCheckIn,
-    description: 'Statut de la caution au check-in (PENDING ou COLLECTED)'
+    description: "Statut de la caution au check-in (PENDING ou COLLECTED)",
   })
   @IsOptional()
   @IsEnum(DepositStatusCheckIn)
@@ -178,8 +178,7 @@ export class CheckInDto {
   @IsString()
   depositDocument?: string;
 
-  @ApiProperty({ description: 'Base64 signature' })
+  @ApiProperty({ description: "Base64 signature" })
   @IsString()
   signature: string;
 }
-

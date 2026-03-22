@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { PrismaModule } from '../../common/prisma/prisma.module';
-import { SaasSettingsController } from './saas-settings.controller';
-import { SaasSettingsService } from './saas-settings.service';
+import { Module } from "@nestjs/common";
+import { PrismaModule } from "../../common/prisma/prisma.module";
+import { SaasSettingsController } from "./saas-settings.controller";
+import { SaasSettingsService } from "./saas-settings.service";
 
 @Module({
   imports: [PrismaModule],
@@ -10,4 +10,3 @@ import { SaasSettingsService } from './saas-settings.service';
   exports: [SaasSettingsService],
 })
 export class SaasSettingsModule {}
-

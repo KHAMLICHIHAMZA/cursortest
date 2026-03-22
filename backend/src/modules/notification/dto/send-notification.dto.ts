@@ -1,6 +1,12 @@
-import { IsArray, IsString, IsEnum, IsOptional, IsObject } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NotificationChannel, NotificationType } from '@prisma/client';
+import {
+  IsArray,
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsObject,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { NotificationChannel, NotificationType } from "@prisma/client";
 
 export class SendNotificationDto {
   @ApiProperty({ enum: NotificationChannel, isArray: true })
@@ -31,8 +37,3 @@ export class SendNotificationDto {
   @IsObject()
   metadata?: Record<string, any>;
 }
-
-
-
-
-

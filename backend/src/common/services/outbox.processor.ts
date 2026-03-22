@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Interval } from '@nestjs/schedule';
-import { ConfigService } from '@nestjs/config';
-import { OutboxEventStatus, Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { OutboxService } from './outbox.service';
-import { OutboxDispatcher } from './outbox.dispatcher';
+import { Injectable, Logger } from "@nestjs/common";
+import { Interval } from "@nestjs/schedule";
+import { ConfigService } from "@nestjs/config";
+import { OutboxEventStatus, Prisma } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { OutboxService } from "./outbox.service";
+import { OutboxDispatcher } from "./outbox.dispatcher";
 
 @Injectable()
 export class OutboxProcessor {
@@ -19,38 +19,38 @@ export class OutboxProcessor {
   ) {}
 
   private isEnabled(): boolean {
-    const nodeEnv = process.env.NODE_ENV || 'development';
-    if (nodeEnv === 'test') return false;
+    const nodeEnv = process.env.NODE_ENV || "development";
+    if (nodeEnv === "test") return false;
     if (process.env.JEST_WORKER_ID) return false;
-    return this.config.get('OUTBOX_PROCESSOR_ENABLED', 'true') !== 'false';
+    return this.config.get("OUTBOX_PROCESSOR_ENABLED", "true") !== "false";
   }
 
   private get intervalMs(): number {
-    const raw = this.config.get('OUTBOX_PROCESSOR_INTERVAL_MS', '2000');
+    const raw = this.config.get("OUTBOX_PROCESSOR_INTERVAL_MS", "2000");
     const ms = Number(raw);
     return Number.isFinite(ms) && ms > 0 ? ms : 2000;
   }
 
   private get batchSize(): number {
-    const raw = this.config.get('OUTBOX_PROCESSOR_BATCH_SIZE', '50');
+    const raw = this.config.get("OUTBOX_PROCESSOR_BATCH_SIZE", "50");
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? Math.min(n, 500) : 50;
   }
 
   private get maxAttempts(): number {
-    const raw = this.config.get('OUTBOX_PROCESSOR_MAX_ATTEMPTS', '10');
+    const raw = this.config.get("OUTBOX_PROCESSOR_MAX_ATTEMPTS", "10");
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 10;
   }
 
   private get baseDelayMs(): number {
-    const raw = this.config.get('OUTBOX_PROCESSOR_BASE_DELAY_MS', '2000');
+    const raw = this.config.get("OUTBOX_PROCESSOR_BASE_DELAY_MS", "2000");
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : 2000;
   }
 
   private get maxDelayMs(): number {
-    const raw = this.config.get('OUTBOX_PROCESSOR_MAX_DELAY_MS', '300000');
+    const raw = this.config.get("OUTBOX_PROCESSOR_MAX_DELAY_MS", "300000");
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : 300000;
   }
@@ -115,7 +115,9 @@ export class OutboxProcessor {
       });
     } catch (e) {
       // Fallback: best-effort without locking
-      this.logger.debug(`Outbox claim skipped (fallback mode): ${(e as any)?.message || e}`);
+      this.logger.debug(
+        `Outbox claim skipped (fallback mode): ${(e as any)?.message || e}`,
+      );
     }
 
     const events = await this.prisma.outboxEvent.findMany({
@@ -123,7 +125,7 @@ export class OutboxProcessor {
         claimedIds.length > 0
           ? { id: { in: claimedIds } }
           : { status: OutboxEventStatus.PENDING, availableAt: { lte: now } },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       take: claimedIds.length > 0 ? undefined : this.batchSize,
       select: {
         id: true,
@@ -142,7 +144,8 @@ export class OutboxProcessor {
         await this.dispatcher.dispatch(event);
         await this.outboxService.markProcessed(event.id);
       } catch (err: any) {
-        const msg = typeof err?.message === 'string' ? err.message : 'Unknown error';
+        const msg =
+          typeof err?.message === "string" ? err.message : "Unknown error";
         const attemptNumber = (event.attempts || 0) + 1;
 
         if (attemptNumber >= this.maxAttempts) {
@@ -161,4 +164,3 @@ export class OutboxProcessor {
     }
   }
 }
-

@@ -23,6 +23,8 @@ import Cookies from 'js-cookie';
 export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   // Vérifier l'accès au module BOOKINGS
   const userStr = typeof window !== 'undefined' ? Cookies.get('user') : null;
@@ -30,10 +32,22 @@ export default function BookingsPage() {
   const agencyId = selectedAgencyId || user?.agencyId || user?.userAgencies?.[0]?.agencyId;
   const { isModuleActive, isLoading: isLoadingModule } = useModuleAccess('BOOKINGS', agencyId);
 
-  const { data: bookings, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['bookings', selectedAgencyId],
-    queryFn: () => bookingApi.getAll({ agencyId: selectedAgencyId || undefined }),
+  const { data: bookingsPage, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['bookings-light', selectedAgencyId, page],
+    queryFn: () =>
+      bookingApi.getLight({
+        agencyId: selectedAgencyId || undefined,
+        page,
+        pageSize,
+      }),
     enabled: isModuleActive, // Ne charger que si le module est activé
+  });
+  const bookings = bookingsPage?.items || [];
+
+  const { data: bookingsSummary } = useQuery({
+    queryKey: ['bookings-summary', selectedAgencyId],
+    queryFn: () => bookingApi.getSummary({ agencyId: selectedAgencyId || undefined }),
+    enabled: isModuleActive,
   });
 
   const filteredBookings = bookings?.filter((booking) => {
@@ -47,11 +61,9 @@ export default function BookingsPage() {
     );
   });
 
-  const totalBookings = filteredBookings?.length || 0;
-  const inProgressBookings =
-    filteredBookings?.filter((booking) => booking.status === 'IN_PROGRESS').length || 0;
-  const lateBookings =
-    filteredBookings?.filter((booking) => booking.status === 'LATE').length || 0;
+  const totalBookings = bookingsSummary?.total || 0;
+  const inProgressBookings = bookingsSummary?.active || 0;
+  const lateBookings = bookingsSummary?.late || 0;
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
@@ -148,7 +160,10 @@ export default function BookingsPage() {
             rightSlot={(
               <AgencyFilter
                 selectedAgencyId={selectedAgencyId}
-                onAgencyChange={setSelectedAgencyId}
+                onAgencyChange={(agency) => {
+                  setSelectedAgencyId(agency);
+                  setPage(1);
+                }}
               />
             )}
             showReset={!!searchTerm}
@@ -158,85 +173,111 @@ export default function BookingsPage() {
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des réservations..." />
           ) : filteredBookings && filteredBookings.length > 0 ? (
-            <Card variant="elevated" padding="none" className="overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>N° Réservation</TableHead>
-                    <TableHead>Véhicule</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Dates</TableHead>
-                    <TableHead>Montant</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBookings.map((booking) => {
-                    const statusInfo = getStatusBadge(booking.status);
-                    return (
-                      <TableRow key={booking.id}>
-                        <TableCell>
-                          <p className="font-medium text-text">
-                            #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <div>
+            <div className="space-y-4">
+              <Card variant="elevated" padding="none" className="overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>N° Réservation</TableHead>
+                      <TableHead>Véhicule</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Dates</TableHead>
+                      <TableHead>Montant</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredBookings.map((booking) => {
+                      const statusInfo = getStatusBadge(booking.status);
+                      return (
+                        <TableRow key={booking.id}>
+                          <TableCell>
                             <p className="font-medium text-text">
-                              {booking.vehicle?.brand} {booking.vehicle?.model}
+                              #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
                             </p>
-                            <p className="text-xs text-text-muted">
-                              {booking.vehicle?.registrationNumber}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-text">
-                            {booking.client?.name || '—'}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <p className="text-text">
-                              {new Date(booking.startDate).toLocaleDateString('fr-FR')}
-                            </p>
-                            <p className={`${new Date(booking.endDate) < new Date() && (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') ? 'text-orange-500 font-medium' : 'text-text-muted'}`}>
-                              → {new Date(booking.endDate).toLocaleDateString('fr-FR')}
-                              {new Date(booking.endDate) < new Date() && booking.status === 'IN_PROGRESS' && ' ⚠️'}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {booking.totalAmount || booking.totalPrice ? `${booking.totalAmount || booking.totalPrice} MAD` : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge status={statusInfo.status}>
-                            {statusInfo.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {isModuleActive && (
-                            <div className="flex items-center justify-end gap-2">
-                              <Link href={`/agency/bookings/${booking.id}`}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  aria-label="Modifier la réservation"
-                                  title="Modifier la réservation"
-                                >
-                                  Modifier
-                                </Button>
-                              </Link>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-text">
+                                {booking.vehicle?.brand} {booking.vehicle?.model}
+                              </p>
+                              <p className="text-xs text-text-muted">
+                                {booking.vehicle?.registrationNumber}
+                              </p>
                             </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </Card>
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-text">
+                              {booking.client?.name || '—'}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <p className="text-text">
+                                {new Date(booking.startDate).toLocaleDateString('fr-FR')}
+                              </p>
+                              <p className={`${new Date(booking.endDate) < new Date() && (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') ? 'text-orange-500 font-medium' : 'text-text-muted'}`}>
+                                → {new Date(booking.endDate).toLocaleDateString('fr-FR')}
+                                {new Date(booking.endDate) < new Date() && booking.status === 'IN_PROGRESS' && ' ⚠️'}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {booking.totalAmount || booking.totalPrice ? `${booking.totalAmount || booking.totalPrice} MAD` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge status={statusInfo.status}>
+                              {statusInfo.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {isModuleActive && (
+                              <div className="flex items-center justify-end gap-2">
+                                <Link href={`/agency/bookings/${booking.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Modifier la réservation"
+                                    title="Modifier la réservation"
+                                  >
+                                    Modifier
+                                  </Button>
+                                </Link>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-text-muted">
+                  Page {bookingsPage?.page || 1} / {bookingsPage?.totalPages || 1} • {bookingsPage?.total || 0} réservation(s)
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Précédent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= (bookingsPage?.totalPages || 1)}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Suivant
+                  </Button>
+                </div>
+              </div>
+            </div>
           ) : (
             <EmptyState
               icon={Calendar}

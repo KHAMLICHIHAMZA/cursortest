@@ -76,6 +76,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
   const isAgencyManager = userRole === 'AGENCY_MANAGER';
   const isAgent = userRole === 'AGENT';
   const isAgencyUser = isAgencyManager || isAgent;
+  const activeModulesCount = activeModules.filter((module) => module.isActive).length;
 
   // Charger les modules actifs
   useEffect(() => {
@@ -159,7 +160,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/subscriptions', label: 'Abonnements', icon: CreditCard },
     { href: '/admin/plans', label: 'Plans', icon: ScrollText },
-    { href: '/admin/settings', label: 'Parametres SaaS', icon: Settings },
+    { href: '/admin/settings', label: 'Paramètres SaaS', icon: Settings },
     { href: '/admin/company-health', label: 'Santé comptes', icon: Heart },
     { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   ];
@@ -170,6 +171,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
     { href: '/company/users', label: 'Utilisateurs', icon: Users },
     { href: '/company/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/company/planning', label: 'Planning', icon: Calendar },
+    { href: '/company/notifications', label: 'Notifications', icon: Bell },
   ];
 
   const agencyOperationalLinks = [
@@ -219,6 +221,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
     return companyAdminLinks.filter(link => {
       if (link.href === '/company/planning' && agencyHrefs.has('/agency/planning')) return false;
       if (link.href === '/company/analytics' && agencyHrefs.has('/agency/kpi')) return false;
+      if (link.href === '/company/notifications' && agencyHrefs.has('/agency/notifications')) return false;
       return true;
     });
   };
@@ -253,14 +256,21 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
         }`}
       >
         <div className="p-4 md:p-6 border-b border-border flex items-center justify-between">
-          <Link href={dashboardHref} onClick={handleLinkClick} className="block">
-            <h1 className="text-lg md:text-xl font-bold text-text hover:text-primary transition-colors">
-              MalocAuto
-            </h1>
-            <p className="text-xs text-text-muted mt-1">
-              {isAdmin ? 'Administration' : isCompanyAdmin ? 'Entreprise' : 'Agence'}
-            </p>
-          </Link>
+          <div>
+            <Link href={dashboardHref} onClick={handleLinkClick} className="block">
+              <h1 className="text-lg md:text-xl font-bold text-text hover:text-primary transition-colors">
+                MalocAuto
+              </h1>
+              <p className="text-xs text-text-muted mt-1">
+                {isAdmin ? 'Administration' : isCompanyAdmin ? 'Entreprise' : 'Agence'}
+              </p>
+            </Link>
+            {!isAdmin && (
+              <p className="text-[11px] text-text-muted mt-2">
+                {modulesLoaded ? `Modules actifs: ${activeModulesCount}` : 'Modules: chargement...'}
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="lg:hidden p-1 rounded-md text-text-muted hover:text-text hover:bg-background"

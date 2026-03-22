@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -20,12 +20,15 @@ import { ErrorState } from '@/components/ui/error-state';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { getImageUrl } from '@/lib/utils/image-url';
 
 export default function EditFinePage() {
   const router = useRouter();
   const params = useParams();
   const queryClient = useQueryClient();
   const fineId = params.id as string;
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
   const { data: fine, isLoading } = useQuery({
     queryKey: ['fine', fineId],
@@ -87,8 +90,22 @@ export default function EditFinePage() {
     },
   });
 
-  const onSubmit = (data: UpdateFineFormData) => {
-    updateMutation.mutate(data);
+  const onSubmit = async (data: UpdateFineFormData) => {
+    const payload: UpdateFineFormData = { ...data };
+    if (attachmentFile) {
+      setIsUploadingAttachment(true);
+      try {
+        const uploadResult = await fineApi.uploadAttachment(attachmentFile);
+        payload.attachmentUrl = uploadResult.attachmentUrl;
+      } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erreur lors de l\'upload de la pièce jointe';
+        toast.error(message);
+        setIsUploadingAttachment(false);
+        return;
+      }
+      setIsUploadingAttachment(false);
+    }
+    updateMutation.mutate(payload);
   };
 
   if (isLoading) {
@@ -129,7 +146,7 @@ export default function EditFinePage() {
             description="Mettez à jour les informations de l'amende"
             backHref="/agency/fines"
             onSubmit={handleSubmit(onSubmit)}
-            isLoading={isSubmitting || updateMutation.isPending}
+            isLoading={isSubmitting || updateMutation.isPending || isUploadingAttachment}
             submitLabel="Enregistrer"
           >
             <div>
@@ -206,6 +223,36 @@ export default function EditFinePage() {
                 <option value="CONTESTEE">Contestée</option>
                 <option value="CLOTUREE">Clôturée</option>
               </select>
+            </div>
+
+            <div>
+              <label htmlFor="attachment" className="block text-sm font-medium text-text mb-2">
+                Pièce jointe (preuve)
+              </label>
+              <Input
+                id="attachment"
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Optionnel - formats acceptés: JPG, PNG, PDF (max 10MB).
+              </p>
+              {attachmentFile && (
+                <p className="text-xs text-text-muted mt-1">
+                  Nouveau fichier: {attachmentFile.name}
+                </p>
+              )}
+              {fine.attachmentUrl && (
+                <a
+                  href={getImageUrl(fine.attachmentUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary underline mt-1 inline-block"
+                >
+                  Voir la pièce jointe actuelle
+                </a>
+              )}
             </div>
           </FormCard>
         </div>

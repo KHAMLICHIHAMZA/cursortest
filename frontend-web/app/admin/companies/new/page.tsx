@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { companyApi, CreateCompanyDto } from '@/lib/api/company';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FormCard } from '@/components/ui/form-card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
@@ -19,8 +20,6 @@ export default function NewCompanyPage() {
     formeJuridique: 'AUTRE',
     phone: '',
     address: '',
-    adminEmail: '',
-    adminName: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [addressForm, setAddressForm] = useState({
@@ -34,8 +33,8 @@ export default function NewCompanyPage() {
   const createMutation = useMutation({
     mutationFn: (data: CreateCompanyDto) => companyApi.create(data),
     onSuccess: (createdCompany) => {
-      toast.success('Entreprise créée. Passez à l étape pack puis modules.');
-      router.push(`/admin/companies/${createdCompany.id}?section=subscription`);
+      toast.success("Entreprise créée. Passez à l'étape pack puis modules.");
+      router.push(`/admin/companies/${createdCompany.id}?section=pack`);
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Erreur lors de la création';
@@ -86,195 +85,168 @@ export default function NewCompanyPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN']}>
       <MainLayout>
-        <div className="max-w-4xl mx-auto space-y-6">
-          <FormCard
-            title="Nouvelle entreprise"
-            description="Remplissez les informations pour créer une nouvelle entreprise"
-            backHref="/admin/companies"
-            onSubmit={handleSubmit}
-            isLoading={createMutation.isPending}
-            submitLabel="Créer l'entreprise"
-          >
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
-                Nom de l'entreprise *
-              </label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Location Auto Maroc"
-                required
-              />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="raisonSociale" className="block text-sm font-medium text-text mb-2">
-                Raison sociale *
-              </label>
-              <Input
-                id="raisonSociale"
-                value={formData.raisonSociale}
-                onChange={(e) => setFormData({ ...formData, raisonSociale: e.target.value })}
-                placeholder="Ex: Location Auto Maroc SARL"
-                required
-              />
-              {errors.raisonSociale && <p className="text-red-500 text-sm mt-1">{errors.raisonSociale}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="identifiantLegal" className="block text-sm font-medium text-text mb-2">
-                Identifiant légal (ICE) *
-              </label>
-              <Input
-                id="identifiantLegal"
-                value={formData.identifiantLegal}
-                onChange={(e) => setFormData({ ...formData, identifiantLegal: e.target.value })}
-                placeholder="Ex: 001234567000089"
-                required
-              />
-              {errors.identifiantLegal && <p className="text-red-500 text-sm mt-1">{errors.identifiantLegal}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="formeJuridique" className="block text-sm font-medium text-text mb-2">
-                Forme juridique *
-              </label>
-              <select
-                id="formeJuridique"
-                value={formData.formeJuridique}
-                onChange={(e) => setFormData({ ...formData, formeJuridique: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
-                required
-              >
-                <option value="SARL">SARL</option>
-                <option value="SAS">SAS</option>
-                <option value="SA">SA</option>
-                <option value="EI">EI</option>
-                <option value="AUTO_ENTREPRENEUR">Auto-entrepreneur</option>
-                <option value="ASSOCIATION">Association</option>
-                <option value="AUTRE">Autre</option>
-              </select>
-              {errors.formeJuridique && <p className="text-red-500 text-sm mt-1">{errors.formeJuridique}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="bookingNumberMode" className="block text-sm font-medium text-text mb-2">
-                  Mode N° reservation
-                </label>
-                <select
-                  id="bookingNumberMode"
-                  value={formData.bookingNumberMode || 'AUTO'}
-                  onChange={(e) => setFormData({ ...formData, bookingNumberMode: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
-                >
-                  <option value="AUTO">Automatique</option>
-                  <option value="MANUAL">Manuel</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-text mb-2">
-                Telephone
-              </label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+212 6XX XXX XXX"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-text">Adresse</label>
-              <Input
-                id="addressLine1"
-                value={addressForm.line1}
-                onChange={(e) => setAddressForm((prev) => ({ ...prev, line1: e.target.value }))}
-                placeholder="Adresse ligne 1 (n°, rue, avenue...)"
-              />
-              <Input
-                id="addressLine2"
-                value={addressForm.line2}
-                onChange={(e) => setAddressForm((prev) => ({ ...prev, line2: e.target.value }))}
-                placeholder="Adresse ligne 2 (immeuble, etage, quartier...)"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Input
-                  id="addressPostalCode"
-                  value={addressForm.postalCode}
-                  onChange={(e) => setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }))}
-                  placeholder="Code postal"
-                />
-                <Input
-                  id="addressCity"
-                  value={addressForm.city}
-                  onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))}
-                  placeholder="Ville"
-                />
-                <Input
-                  id="addressCountry"
-                  value={addressForm.country}
-                  onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))}
-                  placeholder="Pays"
-                />
-              </div>
-              <p className="text-xs text-text-muted">
-                Format enregistre: ligne 1/2, code postal + ville, pays.
+        <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-6 px-2 sm:px-0">
+          <Card>
+            <CardHeader>
+              <CardTitle>Étape 1 - Informations entreprise</CardTitle>
+              <p className="text-sm text-text-muted mt-1">
+                Remplissez les informations puis continuez vers le choix du pack.
               </p>
-            </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
+                      Nom de l'entreprise *
+                    </label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Ex: Location Auto Maroc"
+                      required
+                    />
+                    {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                  </div>
 
-            <div className="border-t border-border pt-6">
-              <h2 className="text-lg font-semibold text-text mb-4">Administrateur (optionnel)</h2>
-              <p className="text-sm text-text-muted mb-4">
-                Créer un compte administrateur pour cette entreprise
-              </p>
+                  <div>
+                    <label htmlFor="raisonSociale" className="block text-sm font-medium text-text mb-2">
+                      Raison sociale *
+                    </label>
+                    <Input
+                      id="raisonSociale"
+                      value={formData.raisonSociale}
+                      onChange={(e) => setFormData({ ...formData, raisonSociale: e.target.value })}
+                      placeholder="Ex: Location Auto Maroc SARL"
+                      required
+                    />
+                    {errors.raisonSociale && <p className="text-red-500 text-sm mt-1">{errors.raisonSociale}</p>}
+                  </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="adminName" className="block text-sm font-medium text-text mb-2">
-                    Nom de l'administrateur
-                  </label>
-                  <Input
-                    id="adminName"
-                    value={formData.adminName}
-                    onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
-                    placeholder="Nom complet"
-                  />
+                  <div>
+                    <label htmlFor="identifiantLegal" className="block text-sm font-medium text-text mb-2">
+                      Identifiant légal (ICE) *
+                    </label>
+                    <Input
+                      id="identifiantLegal"
+                      value={formData.identifiantLegal}
+                      onChange={(e) => setFormData({ ...formData, identifiantLegal: e.target.value })}
+                      placeholder="Ex: 001234567000089"
+                      required
+                    />
+                    {errors.identifiantLegal && <p className="text-red-500 text-sm mt-1">{errors.identifiantLegal}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="formeJuridique" className="block text-sm font-medium text-text mb-2">
+                      Forme juridique *
+                    </label>
+                    <select
+                      id="formeJuridique"
+                      value={formData.formeJuridique}
+                      onChange={(e) => setFormData({ ...formData, formeJuridique: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+                      required
+                    >
+                      <option value="SARL">SARL</option>
+                      <option value="SAS">SAS</option>
+                      <option value="SA">SA</option>
+                      <option value="EI">EI</option>
+                      <option value="AUTO_ENTREPRENEUR">Auto-entrepreneur</option>
+                      <option value="ASSOCIATION">Association</option>
+                      <option value="AUTRE">Autre</option>
+                    </select>
+                    {errors.formeJuridique && <p className="text-red-500 text-sm mt-1">{errors.formeJuridique}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="bookingNumberMode" className="block text-sm font-medium text-text mb-2">
+                      Mode N° réservation
+                    </label>
+                    <select
+                      id="bookingNumberMode"
+                      value={formData.bookingNumberMode || 'AUTO'}
+                      onChange={(e) => setFormData({ ...formData, bookingNumberMode: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text"
+                    >
+                      <option value="AUTO">Automatique</option>
+                      <option value="MANUAL">Manuel</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-text mb-2">
+                      Téléphone
+                    </label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+212 6XX XXX XXX"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label htmlFor="adminEmail" className="block text-sm font-medium text-text mb-2">
-                    Email de l'administrateur
-                  </label>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-text">Adresse</label>
                   <Input
-                    id="adminEmail"
-                    type="email"
-                    value={formData.adminEmail}
-                    onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
-                    placeholder="admin@entreprise.com"
+                    id="addressLine1"
+                    value={addressForm.line1}
+                    onChange={(e) => setAddressForm((prev) => ({ ...prev, line1: e.target.value }))}
+                    placeholder="Adresse ligne 1 (n°, rue, avenue...)"
                   />
+                  <Input
+                    id="addressLine2"
+                    value={addressForm.line2}
+                    onChange={(e) => setAddressForm((prev) => ({ ...prev, line2: e.target.value }))}
+                    placeholder="Adresse ligne 2 (immeuble, etage, quartier...)"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Input
+                      id="addressPostalCode"
+                      value={addressForm.postalCode}
+                      onChange={(e) => setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }))}
+                      placeholder="Code postal"
+                    />
+                    <Input
+                      id="addressCity"
+                      value={addressForm.city}
+                      onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))}
+                      placeholder="Ville"
+                    />
+                    <Input
+                      id="addressCountry"
+                      value={addressForm.country}
+                      onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))}
+                      placeholder="Pays"
+                    />
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    Format enregistre: ligne 1/2, code postal + ville, pays.
+                  </p>
                 </div>
-              </div>
-            </div>
 
-            <div className="border-t border-border pt-6">
-              <h2 className="text-lg font-semibold text-text mb-2">Plan / Package</h2>
-              <p className="text-sm text-text-muted">
-                Le choix du pack se fait maintenant apres creation de l entreprise (Etape 2),
-                avec le detail prix/quotas/modules et les dependances automatiques.
-              </p>
-            </div>
+                <div className="border-t border-border pt-4">
+                  <p className="text-sm text-text-muted">
+                    Après création: étape 2 pack, étape 3 capacité agences, étape 4 abonnement final.
+                  </p>
+                </div>
 
-          {errors.submit && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
-              {errors.submit}
-            </div>
-          )}
-          </FormCard>
+                {errors.submit && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
+                    {errors.submit}
+                  </div>
+                )}
+
+                <div className="pt-2 flex justify-end border-t border-border">
+                  <Button type="submit" variant="primary" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? 'Création...' : "Créer l'entreprise"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </MainLayout>
     </RouteGuard>

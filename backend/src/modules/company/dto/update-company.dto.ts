@@ -1,6 +1,13 @@
-import { IsString, IsOptional, IsBoolean, IsEnum, IsInt, Min } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingNumberMode, CompanyLegalForm } from '@prisma/client';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  Min,
+} from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { BookingNumberMode, CompanyLegalForm } from "@prisma/client";
 
 export class UpdateCompanyDto {
   @ApiPropertyOptional()
@@ -18,12 +25,12 @@ export class UpdateCompanyDto {
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ description: 'Raison sociale' })
+  @ApiPropertyOptional({ description: "Raison sociale" })
   @IsOptional()
   @IsString()
   raisonSociale?: string;
 
-  @ApiPropertyOptional({ description: 'Identifiant légal (SIREN / ICE / RC)' })
+  @ApiPropertyOptional({ description: "Identifiant légal (SIREN / ICE / RC)" })
   @IsOptional()
   @IsString()
   identifiantLegal?: string;
@@ -33,13 +40,19 @@ export class UpdateCompanyDto {
   @IsEnum(CompanyLegalForm)
   formeJuridique?: CompanyLegalForm;
 
-  @ApiPropertyOptional({ description: 'Nombre max d’agences (null = illimité)', minimum: 0 })
+  @ApiPropertyOptional({
+    description: "Nombre max d’agences (null = illimité)",
+    minimum: 0,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
   maxAgencies?: number;
 
-  @ApiPropertyOptional({ enum: BookingNumberMode, description: 'Mode BookingNumber (V2)' })
+  @ApiPropertyOptional({
+    enum: BookingNumberMode,
+    description: "Mode BookingNumber (V2)",
+  })
   @IsOptional()
   @IsEnum(BookingNumberMode)
   bookingNumberMode?: BookingNumberMode;
@@ -49,6 +62,3 @@ export class UpdateCompanyDto {
   @IsBoolean()
   isActive?: boolean;
 }
-
-
-

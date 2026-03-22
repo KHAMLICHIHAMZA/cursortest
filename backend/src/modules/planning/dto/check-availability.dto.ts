@@ -1,5 +1,5 @@
-import { IsString, IsDateString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsDateString } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class CheckAvailabilityDto {
   @ApiProperty()
@@ -14,8 +14,3 @@ export class CheckAvailabilityDto {
   @IsDateString()
   endDate: string;
 }
-
-
-
-
-

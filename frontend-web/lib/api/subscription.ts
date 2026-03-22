@@ -18,6 +18,10 @@ export interface Subscription {
     name: string;
     price: number;
   };
+  subscriptionModules?: Array<{
+    id: string;
+    moduleCode: string;
+  }>;
 }
 
 export const subscriptionApi = {

@@ -1,44 +1,57 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Param, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { PlanningService } from './planning.service';
-import { GetPlanningDto } from './dto/get-planning.dto';
-import { CheckAvailabilityDto } from './dto/check-availability.dto';
-import { CreatePreparationTimeDto } from './dto/create-preparation-time.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  Param,
+  ForbiddenException,
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { PlanningService } from "./planning.service";
+import { GetPlanningDto } from "./dto/get-planning.dto";
+import { CheckAvailabilityDto } from "./dto/check-availability.dto";
+import { CreatePreparationTimeDto } from "./dto/create-preparation-time.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 
-@ApiTags('Planning')
-@Controller('planning')
+@ApiTags("Planning")
+@Controller("planning")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class PlanningController {
   constructor(private readonly planningService: PlanningService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get planning data' })
+  @ApiOperation({ summary: "Get planning data" })
   async getPlanning(@Query() query: GetPlanningDto, @CurrentUser() user: any) {
     const start = query.start ? new Date(query.start) : new Date();
-    const end = query.end ? new Date(query.end) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const end = query.end
+      ? new Date(query.end)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     // Déterminer les agences accessibles
     let accessibleAgencyIds: string[] = [];
 
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       if (query.agencyId) {
         accessibleAgencyIds = [query.agencyId];
       } else {
-        const allAgencies = await this.planningService['prisma'].agency.findMany({
+        const allAgencies = await this.planningService[
+          "prisma"
+        ].agency.findMany({
           where: { deletedAt: null },
           select: { id: true },
         });
         accessibleAgencyIds = allAgencies.map((a) => a.id);
       }
-    } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    } else if (user.role === "COMPANY_ADMIN" && user.companyId) {
       const where: any = { companyId: user.companyId, deletedAt: null };
       if (query.agencyId) {
         where.id = query.agencyId;
       }
-      const agencies = await this.planningService['prisma'].agency.findMany({
+      const agencies = await this.planningService["prisma"].agency.findMany({
         where,
         select: { id: true },
       });
@@ -56,7 +69,7 @@ export class PlanningController {
     }
 
     // Récupérer les véhicules (ressources pour le planning)
-    const vehicles = await this.planningService['prisma'].vehicle.findMany({
+    const vehicles = await this.planningService["prisma"].vehicle.findMany({
       where: {
         agencyId: { in: accessibleAgencyIds },
         deletedAt: null,
@@ -69,16 +82,16 @@ export class PlanningController {
         },
       },
       orderBy: [
-        { agency: { name: 'asc' } },
-        { brand: 'asc' },
-        { model: 'asc' },
+        { agency: { name: "asc" } },
+        { brand: "asc" },
+        { model: "asc" },
       ],
     });
 
     const normalizePlate = (plate?: string) =>
-      (plate || '').replace(/[\s-]/g, '').toUpperCase();
+      (plate || "").replace(/[\s-]/g, "").toUpperCase();
 
-    const vehicleKeyToCanonical = new Map<string, typeof vehicles[number]>();
+    const vehicleKeyToCanonical = new Map<string, (typeof vehicles)[number]>();
     const vehicleIdToCanonicalId = new Map<string, string>();
 
     vehicles.forEach((vehicle) => {
@@ -106,21 +119,18 @@ export class PlanningController {
     const dedupedVehicles = Array.from(vehicleKeyToCanonical.values());
 
     // Récupérer les bookings dans la période
-    const bookings = await this.planningService['prisma'].booking.findMany({
+    const bookings = await this.planningService["prisma"].booking.findMany({
       where: {
         agencyId: { in: accessibleAgencyIds },
         deletedAt: null,
         OR: [
           {
-            AND: [
-              { startDate: { lte: end } },
-              { endDate: { gte: start } },
-            ],
+            AND: [{ startDate: { lte: end } }, { endDate: { gte: start } }],
           },
         ],
         // Inclure tous les statuts sauf CANCELLED pour voir l'historique
         status: {
-          not: 'CANCELLED',
+          not: "CANCELLED",
         },
       },
       include: {
@@ -131,12 +141,14 @@ export class PlanningController {
 
     // Récupérer les maintenances dans la période
     // Inclure toutes les maintenances PLANNED ou IN_PROGRESS, même sans plannedAt
-    const maintenances = await this.planningService['prisma'].maintenance.findMany({
+    const maintenances = await this.planningService[
+      "prisma"
+    ].maintenance.findMany({
       where: {
         agencyId: { in: accessibleAgencyIds },
         deletedAt: null,
         status: {
-          in: ['PLANNED', 'IN_PROGRESS'],
+          in: ["PLANNED", "IN_PROGRESS"],
         },
         OR: [
           {
@@ -149,7 +161,7 @@ export class PlanningController {
             plannedAt: null,
           },
           {
-            status: 'IN_PROGRESS',
+            status: "IN_PROGRESS",
           },
         ],
       },
@@ -159,15 +171,14 @@ export class PlanningController {
     });
 
     // Récupérer les événements de planning
-    const planningEvents = await this.planningService['prisma'].planningEvent.findMany({
+    const planningEvents = await this.planningService[
+      "prisma"
+    ].planningEvent.findMany({
       where: {
         agencyId: { in: accessibleAgencyIds },
         OR: [
           {
-            AND: [
-              { startDate: { lte: end } },
-              { endDate: { gte: start } },
-            ],
+            AND: [{ startDate: { lte: end } }, { endDate: { gte: start } }],
           },
         ],
       },
@@ -194,41 +205,48 @@ export class PlanningController {
     const events: any[] = [];
 
     const normalizeEventType = (value: unknown): string => {
-      const raw = typeof value === 'string' ? value : '';
+      const raw = typeof value === "string" ? value : "";
       const normalized = raw.trim().toUpperCase();
-      return normalized || 'OTHER';
+      return normalized || "OTHER";
     };
 
-    const normalizeToKnownType = (value: unknown): 'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER' => {
+    const normalizeToKnownType = (
+      value: unknown,
+    ): "BOOKING" | "MAINTENANCE" | "PREPARATION_TIME" | "OTHER" => {
       const normalized = normalizeEventType(value);
-      if (normalized === 'BOOKING') return 'BOOKING';
-      if (normalized === 'MAINTENANCE') return 'MAINTENANCE';
-      if (normalized === 'PREPARATION_TIME') return 'PREPARATION_TIME';
-      return 'OTHER';
+      if (normalized === "BOOKING") return "BOOKING";
+      if (normalized === "MAINTENANCE") return "MAINTENANCE";
+      if (normalized === "PREPARATION_TIME") return "PREPARATION_TIME";
+      return "OTHER";
     };
 
-    const typeToColor: Record<'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER', string> = {
-      BOOKING: '#2563EB',
-      MAINTENANCE: '#EF4444',
-      PREPARATION_TIME: '#10B981',
-      OTHER: '#6B7280',
+    const typeToColor: Record<
+      "BOOKING" | "MAINTENANCE" | "PREPARATION_TIME" | "OTHER",
+      string
+    > = {
+      BOOKING: "#2563EB",
+      MAINTENANCE: "#EF4444",
+      PREPARATION_TIME: "#10B981",
+      OTHER: "#6B7280",
     };
 
     // Bookings
     bookings.forEach((booking) => {
       const bookingColor = typeToColor.BOOKING;
-      const bookingNumber = (booking as any).bookingNumber || booking.id.slice(-6).toUpperCase();
+      const bookingNumber =
+        (booking as any).bookingNumber || booking.id.slice(-6).toUpperCase();
 
       events.push({
         id: `booking-${booking.id}`,
-        resourceId: vehicleIdToCanonicalId.get(booking.vehicleId) || booking.vehicleId,
+        resourceId:
+          vehicleIdToCanonicalId.get(booking.vehicleId) || booking.vehicleId,
         title: `#${bookingNumber} ${booking.client.name} - ${booking.vehicle.brand} ${booking.vehicle.model}`,
         start: booking.startDate.toISOString(),
         end: booking.endDate.toISOString(),
         backgroundColor: bookingColor,
         borderColor: bookingColor,
         extendedProps: {
-          type: 'BOOKING',
+          type: "BOOKING",
           bookingId: booking.id,
           bookingNumber,
           clientName: booking.client.name,
@@ -241,39 +259,44 @@ export class PlanningController {
     // Maintenances
     maintenances.forEach((maintenance) => {
       // Utiliser plannedAt si disponible, sinon utiliser createdAt ou une date par défaut
-      const maintenanceStart = maintenance.plannedAt 
+      const maintenanceStart = maintenance.plannedAt
         ? new Date(maintenance.plannedAt)
-        : maintenance.status === 'IN_PROGRESS'
-        ? new Date(maintenance.createdAt)
-        : new Date(start); // Si PLANNED sans date, utiliser le début de la période demandée
-      
+        : maintenance.status === "IN_PROGRESS"
+          ? new Date(maintenance.createdAt)
+          : new Date(start); // Si PLANNED sans date, utiliser le début de la période demandée
+
       // Vérifier que la maintenance est dans la période demandée ou en cours
       const maintenanceEnd = new Date(maintenanceStart);
       maintenanceEnd.setHours(maintenanceEnd.getHours() + 4); // Durée par défaut 4h
 
       // Ne pas afficher si la maintenance est terminée et en dehors de la période
-      if (maintenance.status === 'COMPLETED' || maintenance.status === 'CANCELLED') {
+      if (
+        maintenance.status === "COMPLETED" ||
+        maintenance.status === "CANCELLED"
+      ) {
         return;
       }
 
       // Vérifier que la maintenance chevauche la période demandée
       if (maintenanceEnd < start || maintenanceStart > end) {
         // Si IN_PROGRESS, afficher quand même même si en dehors de la période
-        if (maintenance.status !== 'IN_PROGRESS') {
+        if (maintenance.status !== "IN_PROGRESS") {
           return;
         }
       }
 
       events.push({
         id: `maintenance-${maintenance.id}`,
-        resourceId: vehicleIdToCanonicalId.get(maintenance.vehicleId) || maintenance.vehicleId,
+        resourceId:
+          vehicleIdToCanonicalId.get(maintenance.vehicleId) ||
+          maintenance.vehicleId,
         title: `Maintenance: ${maintenance.description}`,
         start: maintenanceStart.toISOString(),
         end: maintenanceEnd.toISOString(),
         backgroundColor: typeToColor.MAINTENANCE,
         borderColor: typeToColor.MAINTENANCE,
         extendedProps: {
-          type: 'MAINTENANCE',
+          type: "MAINTENANCE",
           maintenanceId: maintenance.id,
           description: maintenance.description,
           status: maintenance.status,
@@ -286,7 +309,7 @@ export class PlanningController {
     // Événements de planning (temps de préparation, blocages)
     planningEvents.forEach((event) => {
       const normalizedType = normalizeToKnownType(event.type);
-      if (normalizedType === 'BOOKING' || normalizedType === 'MAINTENANCE') {
+      if (normalizedType === "BOOKING" || normalizedType === "MAINTENANCE") {
         return;
       }
       const color = typeToColor[normalizedType];
@@ -294,7 +317,7 @@ export class PlanningController {
       // `vehicleId` can be null depending on event type / legacy data
       const resourceId = event.vehicleId
         ? vehicleIdToCanonicalId.get(event.vehicleId) || event.vehicleId
-        : '__NO_VEHICLE__';
+        : "__NO_VEHICLE__";
 
       events.push({
         id: `event-${event.id}`,
@@ -320,9 +343,12 @@ export class PlanningController {
     };
   }
 
-  @Post('check-availability')
-  @ApiOperation({ summary: 'Check vehicle availability' })
-  async checkAvailability(@Body() dto: CheckAvailabilityDto, @CurrentUser() user: any) {
+  @Post("check-availability")
+  @ApiOperation({ summary: "Check vehicle availability" })
+  async checkAvailability(
+    @Body() dto: CheckAvailabilityDto,
+    @CurrentUser() user: any,
+  ) {
     // Verify the user can access this vehicle's agency
     await this.assertVehicleAccess(dto.vehicleId, user);
 
@@ -347,11 +373,11 @@ export class PlanningController {
     };
   }
 
-  @Get('next-availability/:vehicleId')
-  @ApiOperation({ summary: 'Get next availability for a vehicle' })
+  @Get("next-availability/:vehicleId")
+  @ApiOperation({ summary: "Get next availability for a vehicle" })
   async getNextAvailability(
-    @Param('vehicleId') vehicleId: string,
-    @Query('from') from?: string,
+    @Param("vehicleId") vehicleId: string,
+    @Query("from") from?: string,
     @CurrentUser() user?: any,
   ) {
     if (user) {
@@ -359,16 +385,22 @@ export class PlanningController {
     }
 
     const fromDate = from ? new Date(from) : new Date();
-    const nextAvailable = await this.planningService.getNextAvailability(vehicleId, fromDate);
+    const nextAvailable = await this.planningService.getNextAvailability(
+      vehicleId,
+      fromDate,
+    );
 
     return {
       nextAvailable: nextAvailable ? nextAvailable.toISOString() : null,
     };
   }
 
-  @Post('preparation-time')
-  @ApiOperation({ summary: 'Create preparation time event' })
-  async createPreparationTime(@Body() dto: CreatePreparationTimeDto, @CurrentUser() user: any) {
+  @Post("preparation-time")
+  @ApiOperation({ summary: "Create preparation time event" })
+  async createPreparationTime(
+    @Body() dto: CreatePreparationTimeDto,
+    @CurrentUser() user: any,
+  ) {
     // Verify agency access
     await this.assertAgencyAccess(dto.agencyId, user);
 
@@ -389,21 +421,24 @@ export class PlanningController {
   /**
    * Verify user has access to the vehicle's agency.
    */
-  private async assertVehicleAccess(vehicleId: string, user: any): Promise<void> {
-    if (user.role === 'SUPER_ADMIN') return;
-    const vehicle = await this.planningService['prisma'].vehicle.findUnique({
+  private async assertVehicleAccess(
+    vehicleId: string,
+    user: any,
+  ): Promise<void> {
+    if (user.role === "SUPER_ADMIN") return;
+    const vehicle = await this.planningService["prisma"].vehicle.findUnique({
       where: { id: vehicleId },
       select: { agencyId: true, agency: { select: { companyId: true } } },
     });
     if (!vehicle) return;
-    if (user.role === 'COMPANY_ADMIN') {
+    if (user.role === "COMPANY_ADMIN") {
       if (vehicle.agency?.companyId !== user.companyId) {
-        throw new ForbiddenException('Accès refusé à ce véhicule');
+        throw new ForbiddenException("Accès refusé à ce véhicule");
       }
       return;
     }
     if (!user.agencyIds?.includes(vehicle.agencyId)) {
-      throw new ForbiddenException('Accès refusé à ce véhicule');
+      throw new ForbiddenException("Accès refusé à ce véhicule");
     }
   }
 
@@ -411,19 +446,19 @@ export class PlanningController {
    * Verify user has access to the agency.
    */
   private async assertAgencyAccess(agencyId: string, user: any): Promise<void> {
-    if (!agencyId || user.role === 'SUPER_ADMIN') return;
-    if (user.role === 'COMPANY_ADMIN') {
-      const agency = await this.planningService['prisma'].agency.findUnique({
+    if (!agencyId || user.role === "SUPER_ADMIN") return;
+    if (user.role === "COMPANY_ADMIN") {
+      const agency = await this.planningService["prisma"].agency.findUnique({
         where: { id: agencyId },
         select: { companyId: true },
       });
       if (!agency || agency.companyId !== user.companyId) {
-        throw new ForbiddenException('Accès refusé à cette agence');
+        throw new ForbiddenException("Accès refusé à cette agence");
       }
       return;
     }
     if (!user.agencyIds?.includes(agencyId)) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
   }
 }

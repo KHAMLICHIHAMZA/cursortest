@@ -13,6 +13,11 @@ import { ErrorState } from '@/components/ui/error-state';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import {
+  AgencyAddressHoursFields,
+  createDefaultOpeningHours,
+  hasInvalidOpeningHours,
+} from '@/components/agency/agency-address-hours-fields';
 
 export default function EditCompanyAgencyPage() {
   const router = useRouter();
@@ -29,7 +34,8 @@ export default function EditCompanyAgencyPage() {
   const [formData, setFormData] = useState<UpdateAgencyDto & { preparationTimeMinutes?: number }>({
     name: '',
     phone: '',
-    address: '',
+    addressDetails: undefined,
+    openingHours: undefined,
     status: 'ACTIVE',
     timezone: 'Africa/Casablanca',
     capacity: undefined,
@@ -43,6 +49,8 @@ export default function EditCompanyAgencyPage() {
         name: agency.name,
         phone: agency.phone || '',
         address: agency.address || '',
+        addressDetails: agency.addressDetails || undefined,
+        openingHours: agency.openingHours || undefined,
         status: agency.status || 'ACTIVE',
         timezone: agency.timezone || 'Africa/Casablanca',
         capacity: agency.capacity || undefined,
@@ -72,6 +80,11 @@ export default function EditCompanyAgencyPage() {
 
     if (!formData.name) {
       setErrors({ name: 'Le nom est requis' });
+      return;
+    }
+
+    if (hasInvalidOpeningHours(formData.openingHours)) {
+      setErrors({ submit: 'Corrigez les horaires d ouverture invalides avant de continuer.' });
       return;
     }
 
@@ -143,16 +156,12 @@ export default function EditCompanyAgencyPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="address" className="block text-sm font-medium text-text mb-2">
-              Adresse
-            </label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
-          </div>
+          <AgencyAddressHoursFields
+            addressDetails={formData.addressDetails || {}}
+            onAddressDetailsChange={(next) => setFormData({ ...formData, addressDetails: next })}
+            openingHours={formData.openingHours || createDefaultOpeningHours()}
+            onOpeningHoursChange={(next) => setFormData({ ...formData, openingHours: next })}
+          />
 
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-text mb-2">

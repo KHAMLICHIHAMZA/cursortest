@@ -1,13 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { BusinessEventType } from '@prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { BusinessEventType } from "@prisma/client";
 
 /**
  * Service for logging business events (functional logs)
- * 
+ *
  * This service provides append-only logging of business events.
  * Logs are never editable and are used for audit and analytics purposes.
- * 
+ *
  * Performance: Logging is designed to be non-blocking. Consider async processing
  * for high-volume scenarios in production.
  */
@@ -19,7 +19,7 @@ export class BusinessEventLogService {
 
   /**
    * Log a business event
-   * 
+   *
    * @param agencyId - The agency ID (optional for company-level events)
    * @param companyId - The company ID (optional for super-admin level events)
    * @param entityType - Type of entity (e.g., "Booking", "Vehicle", "Company", "Agency", "User")
@@ -39,20 +39,44 @@ export class BusinessEventLogService {
     triggeredByUserId?: string,
     companyId?: string | null,
   ): Promise<void> {
+    const payload = {
+      agencyId: agencyId || null,
+      companyId: companyId || null,
+      entityType,
+      entityId,
+      eventType,
+      previousState: previousState
+        ? JSON.parse(JSON.stringify(previousState))
+        : null,
+      newState: JSON.parse(JSON.stringify(newState)),
+      triggeredByUserId: triggeredByUserId || null,
+    };
+
     try {
       await this.prisma.businessEventLog.create({
-        data: {
-          agencyId: agencyId || null,
-          companyId: companyId || null,
-          entityType,
-          entityId,
-          eventType,
-          previousState: previousState ? JSON.parse(JSON.stringify(previousState)) : null,
-          newState: JSON.parse(JSON.stringify(newState)),
-          triggeredByUserId: triggeredByUserId || null,
-        },
+        data: payload,
       });
-    } catch (error) {
+    } catch (error: any) {
+      // If related entities were deleted concurrently, fallback to detached log.
+      if (error?.code === "P2003") {
+        try {
+          await this.prisma.businessEventLog.create({
+            data: {
+              ...payload,
+              agencyId: null,
+              companyId: null,
+            },
+          });
+          return;
+        } catch (retryError) {
+          this.logger.error(
+            `Failed to log business event after FK fallback: ${eventType} for ${entityType}:${entityId}`,
+            retryError as any,
+          );
+          return;
+        }
+      }
+
       // Log error but don't throw - business event logging should not break core operations
       this.logger.error(
         `Failed to log business event: ${eventType} for ${entityType}:${entityId}`,
@@ -63,7 +87,7 @@ export class BusinessEventLogService {
 
   /**
    * Query business events by agency and date range
-   * 
+   *
    * @param agencyId - Agency ID
    * @param startDate - Start date (optional)
    * @param endDate - End date (optional)
@@ -95,28 +119,30 @@ export class BusinessEventLogService {
 
     return this.prisma.businessEventLog.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 1000, // Limit to prevent excessive data retrieval
     });
   }
 
   /**
    * Get events for a specific entity
-   * 
+   *
    * @param agencyId - Agency ID
    * @param entityType - Entity type
    * @param entityId - Entity ID
    */
-  async getEntityEvents(agencyId: string, entityType: string, entityId: string) {
+  async getEntityEvents(
+    agencyId: string,
+    entityType: string,
+    entityId: string,
+  ) {
     return this.prisma.businessEventLog.findMany({
       where: {
         agencyId,
         entityType,
         entityId,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 }
-
-

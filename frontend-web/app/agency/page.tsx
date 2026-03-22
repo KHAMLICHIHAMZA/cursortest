@@ -22,21 +22,24 @@ export default function AgencyDashboard() {
   const { data: vehicles, isLoading: vehiclesLoading } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => vehicleApi.getAll(),
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientApi.getAll(),
+    staleTime: 2 * 60 * 1000,
   });
 
-  const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ['bookings'],
-    queryFn: () => bookingApi.getAll(),
+  const { data: bookingsSummary, isLoading: bookingsLoading } = useQuery({
+    queryKey: ['bookings-summary'],
+    queryFn: () => bookingApi.getSummary(),
+    staleTime: 2 * 60 * 1000,
   });
 
   const availableVehicles = vehicles?.filter((v) => v.status === 'AVAILABLE').length || 0;
   const rentedVehicles = vehicles?.filter((v) => v.status === 'RENTED').length || 0;
-  const activeBookings = bookings?.filter((b) => b.status === 'IN_PROGRESS').length || 0;
+  const activeBookings = bookingsSummary?.active || 0;
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>

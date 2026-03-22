@@ -1,5 +1,5 @@
-import { IsString, IsUrl } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsUrl } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class DetectDamageDto {
   @ApiProperty()
@@ -14,8 +14,3 @@ export class DetectDamageDto {
   @IsString()
   bookingId: string;
 }
-
-
-
-
-

@@ -15,6 +15,18 @@ export interface AuthResponse {
     role: string;
     companyId?: string;
     agencyIds?: string[];
+    phone?: string;
+    address?: string;
+    addressDetails?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    dateOfBirth?: string;
+    profileCompletionRequired?: boolean;
+    missingProfileFields?: string[];
   };
 }
 

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
+    "dev:safe": "powershell -NoProfile -ExecutionPolicy Bypass -File ./dev-safe.ps1 -Port 3100",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "next lint",

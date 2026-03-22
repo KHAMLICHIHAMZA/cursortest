@@ -25,6 +25,7 @@ export interface Vehicle {
   creditStartDate?: string;
   gpsTrackerId?: string;
   gpsTrackerLabel?: string;
+  maintenanceAlertIntervalKm?: number;
   agency?: {
     id: string;
     name: string;
@@ -61,9 +62,11 @@ export interface CreateVehicleDto {
   monthlyPayment?: number;
   financingDurationMonths?: number;
   creditStartDate?: string;
+  maintenanceAlertIntervalKm?: number;
 }
 
 export interface UpdateVehicleDto {
+  agencyId?: string;
   brand?: string;
   model?: string;
   registrationNumber?: string;
@@ -84,6 +87,7 @@ export interface UpdateVehicleDto {
   monthlyPayment?: number;
   financingDurationMonths?: number;
   creditStartDate?: string;
+  maintenanceAlertIntervalKm?: number;
 }
 
 export const vehicleApi = {
@@ -99,58 +103,13 @@ export const vehicleApi = {
   },
 
   create: async (dto: CreateVehicleDto): Promise<Vehicle> => {
-    console.log('=== VEHICLE API CREATE ===');
-    console.log('DTO to send:', JSON.stringify(dto, null, 2));
-    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api');
-    console.log('Endpoint: POST /vehicles');
-    
-    try {
-      const { data, status, statusText } = await apiClient.post<Vehicle>('/vehicles', dto);
-      console.log('=== VEHICLE CREATE SUCCESS ===');
-      console.log('Response status:', status, statusText);
-      console.log('Response data:', data);
-      return data;
-    } catch (error: any) {
-      console.error('=== VEHICLE CREATE ERROR ===');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        console.error('Response headers:', error.response.headers);
-      }
-      
-      throw error;
-    }
+    const { data } = await apiClient.post<Vehicle>('/vehicles', dto);
+    return data;
   },
 
   update: async (id: string, dto: UpdateVehicleDto): Promise<Vehicle> => {
-    console.log('=== VEHICLE API UPDATE ===');
-    console.log('Vehicle ID:', id);
-    console.log('DTO to send:', JSON.stringify(dto, null, 2));
-    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api');
-    console.log('Endpoint: PATCH /vehicles/' + id);
-    
-    try {
-      const { data, status, statusText } = await apiClient.patch<Vehicle>(`/vehicles/${id}`, dto);
-      console.log('=== VEHICLE UPDATE SUCCESS ===');
-      console.log('Response status:', status, statusText);
-      console.log('Response data:', data);
-      return data;
-    } catch (error: any) {
-      console.error('=== VEHICLE UPDATE ERROR ===');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        console.error('Response headers:', error.response.headers);
-      }
-      
-      throw error;
-    }
+    const { data } = await apiClient.patch<Vehicle>(`/vehicles/${id}`, dto);
+    return data;
   },
 
   delete: async (id: string): Promise<void> => {
@@ -182,40 +141,24 @@ export const vehicleApi = {
 
   // Upload d'image
   uploadImage: async (file: File): Promise<{ imageUrl: string; filename: string }> => {
-    console.log('=== IMAGE UPLOAD START ===');
-    console.log('File details:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      sizeMB: (file.size / (1024 * 1024)).toFixed(2),
-      lastModified: new Date(file.lastModified).toISOString(),
-    });
-
     // Validation côté client avant l'upload
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      const error = new Error(`Fichier trop volumineux: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Maximum: 5MB`);
-      console.error('Validation error:', error);
-      throw error;
+      throw new Error(
+        `Fichier trop volumineux: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Maximum: 5MB`,
+      );
     }
 
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      const error = new Error(`Type de fichier non supporté: ${file.type}`);
-      console.error('Validation error:', error);
-      throw error;
+      throw new Error(`Type de fichier non supporté: ${file.type}`);
     }
 
     const formData = new FormData();
     formData.append('image', file);
     
-    console.log('FormData created, sending request...');
-    console.log('API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api');
-    console.log('Endpoint: /vehicles/upload-image');
-    
     try {
-      const startTime = Date.now();
-      const { data, status, statusText } = await apiClient.post<{ imageUrl: string; filename: string }>(
+      const { data } = await apiClient.post<{ imageUrl: string; filename: string }>(
         '/vehicles/upload-image',
         formData,
         {
@@ -225,28 +168,9 @@ export const vehicleApi = {
           timeout: 30000, // 30 secondes timeout
         },
       );
-      const duration = Date.now() - startTime;
-      
-      console.log('=== IMAGE UPLOAD SUCCESS ===');
-      console.log('Response status:', status, statusText);
-      console.log('Response data:', data);
-      console.log('Upload duration:', duration, 'ms');
-      console.log('Image URL:', data.imageUrl);
-      console.log('Filename:', data.filename);
-      
       return data;
     } catch (error: any) {
-      console.error('=== IMAGE UPLOAD ERROR ===');
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      
       if (error.response) {
-        // Erreur de réponse du serveur
-        console.error('Response status:', error.response.status);
-        console.error('Response status text:', error.response.statusText);
-        console.error('Response data:', error.response.data);
-        console.error('Response headers:', error.response.headers);
-        
         const errorMessage = error.response.data?.message || 
                            error.response.data?.error || 
                            `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
@@ -256,13 +180,8 @@ export const vehicleApi = {
         (detailedError as any).response = error.response.data;
         throw detailedError;
       } else if (error.request) {
-        // Pas de réponse du serveur
-        console.error('No response received');
-        console.error('Request:', error.request);
         throw new Error('Aucune réponse du serveur. Vérifiez votre connexion internet.');
       } else {
-        // Erreur de configuration
-        console.error('Request setup error:', error.message);
         throw new Error(`Erreur de configuration: ${error.message}`);
       }
     }

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 /**
  * Service centralisé pour la gestion des permissions et accès
@@ -13,9 +13,9 @@ export class PermissionService {
    * Vérifie l'accès à une agence selon le rôle de l'utilisateur
    */
   async checkAgencyAccess(agencyId: string, user: any): Promise<boolean> {
-    if (user.role === 'SUPER_ADMIN') return true;
+    if (user.role === "SUPER_ADMIN") return true;
 
-    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    if (user.role === "COMPANY_ADMIN" && user.companyId) {
       const agency = await this.prisma.agency.findFirst({
         where: {
           id: agencyId,
@@ -38,15 +38,16 @@ export class PermissionService {
   buildAgencyFilter(user: any, agencyId?: string): any {
     const filter: any = {};
 
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       if (agencyId) filter.agencyId = agencyId;
-    } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    } else if (user.role === "COMPANY_ADMIN" && user.companyId) {
       filter.agency = { companyId: user.companyId, deletedAt: null };
       if (agencyId) filter.agencyId = agencyId;
     } else if (user.agencyIds && user.agencyIds.length > 0) {
-      filter.agencyId = agencyId && user.agencyIds.includes(agencyId) 
-        ? agencyId 
-        : { in: user.agencyIds };
+      filter.agencyId =
+        agencyId && user.agencyIds.includes(agencyId)
+          ? agencyId
+          : { in: user.agencyIds };
     } else {
       return null; // Pas d'accès
     }
@@ -58,7 +59,7 @@ export class PermissionService {
    * Récupère les IDs d'agences accessibles par l'utilisateur
    */
   async getAccessibleAgencyIds(user: any): Promise<string[]> {
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       const agencies = await this.prisma.agency.findMany({
         where: { deletedAt: null },
         select: { id: true },
@@ -66,7 +67,7 @@ export class PermissionService {
       return agencies.map((a) => a.id);
     }
 
-    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    if (user.role === "COMPANY_ADMIN" && user.companyId) {
       const agencies = await this.prisma.agency.findMany({
         where: {
           companyId: user.companyId,
@@ -80,6 +81,3 @@ export class PermissionService {
     return user.agencyIds || [];
   }
 }
-
-
-

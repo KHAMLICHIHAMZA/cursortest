@@ -1,20 +1,31 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PrismaSoftDeleteService } from '../../common/prisma/prisma-soft-delete.service';
-import { AuditService } from '../../common/services/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { CreateCompanyDto } from './dto/create-company.dto';
-import { InitializeCompanySubscriptionDto } from './dto/initialize-company-subscription.dto';
-import { UpdateCompanyDto } from './dto/update-company.dto';
-import { sendWelcomeEmail } from '../../services/email.service';
-import { BusinessEventType, CompanyStatus, AgencyStatus, ModuleCode } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
-import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaSoftDeleteService } from "../../common/prisma/prisma-soft-delete.service";
+import { AuditService } from "../../common/services/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import { CreateCompanyDto } from "./dto/create-company.dto";
+import { InitializeCompanySubscriptionDto } from "./dto/initialize-company-subscription.dto";
+import { UpdateCompanySubscriptionDto } from "./dto/update-company-subscription.dto";
+import { UpdateCompanyDto } from "./dto/update-company.dto";
+import { sendWelcomeEmail } from "../../services/email.service";
+import {
+  BusinessEventType,
+  CompanyStatus,
+  AgencyStatus,
+  ModuleCode,
+  SubscriptionStatus,
+} from "@prisma/client";
+import * as bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
+import { UpdateCompanySettingsDto } from "./dto/update-company-settings.dto";
 import {
   DEFAULT_SAAS_SETTINGS,
   SAAS_SETTINGS_RULE_KEYS,
-} from '../saas-settings/saas-settings.types';
+} from "../saas-settings/saas-settings.types";
 
 @Injectable()
 export class CompanyService {
@@ -28,23 +39,40 @@ export class CompanyService {
   private generateSlug(name: string): string {
     return name
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
   }
 
   private generateResetToken(): string {
-    return randomBytes(32).toString('hex');
+    return randomBytes(32).toString("hex");
   }
 
   /**
    * Legacy safeguard: when surcharge config is 0, derive a non-zero overage
    * price from plan economics so extra agencies are never silently free.
    */
-  private resolveFallbackExtraAgencyPrice(planPrice: number, includedAgenciesQuota?: number): number {
+  private resolveFallbackExtraAgencyPrice(
+    planPrice: number,
+    includedAgenciesQuota?: number,
+  ): number {
     if (includedAgenciesQuota !== undefined && includedAgenciesQuota > 0) {
       return Math.max(1, Math.ceil(planPrice / includedAgenciesQuota));
+    }
+    return Math.max(1, planPrice);
+  }
+
+  /**
+   * Legacy safeguard: when module surcharge config is 0, derive a non-zero
+   * module price from plan economics so extra modules are never silently free.
+   */
+  private resolveFallbackExtraModulePrice(
+    planPrice: number,
+    includedModulesCount?: number,
+  ): number {
+    if (includedModulesCount !== undefined && includedModulesCount > 0) {
+      return Math.max(1, Math.ceil(planPrice / includedModulesCount));
     }
     return Math.max(1, planPrice);
   }
@@ -57,7 +85,7 @@ export class CompanyService {
         agencyId: null,
         isActive: true,
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
     });
     const latestRuleValueByKey = new Map<string, string>();
     settingsRules.forEach((r: { key: string; value: string }) => {
@@ -67,12 +95,14 @@ export class CompanyService {
     });
 
     const extraAgencyPriceMad = Number(
-      latestRuleValueByKey.get(SAAS_SETTINGS_RULE_KEYS.EXTRA_AGENCY_PRICE_MAD) ??
-        DEFAULT_SAAS_SETTINGS.extraAgencyPriceMad,
+      latestRuleValueByKey.get(
+        SAAS_SETTINGS_RULE_KEYS.EXTRA_AGENCY_PRICE_MAD,
+      ) ?? DEFAULT_SAAS_SETTINGS.extraAgencyPriceMad,
     );
     const extraModulePriceMad = Number(
-      latestRuleValueByKey.get(SAAS_SETTINGS_RULE_KEYS.EXTRA_MODULE_PRICE_MAD) ??
-        DEFAULT_SAAS_SETTINGS.extraModulePriceMad,
+      latestRuleValueByKey.get(
+        SAAS_SETTINGS_RULE_KEYS.EXTRA_MODULE_PRICE_MAD,
+      ) ?? DEFAULT_SAAS_SETTINGS.extraModulePriceMad,
     );
 
     return {
@@ -85,11 +115,13 @@ export class CompanyService {
       allowAgencyOverageOnCreate:
         (latestRuleValueByKey.get(
           SAAS_SETTINGS_RULE_KEYS.ALLOW_AGENCY_OVERAGE_ON_CREATE,
-        ) ?? String(DEFAULT_SAAS_SETTINGS.allowAgencyOverageOnCreate)) === 'true',
+        ) ?? String(DEFAULT_SAAS_SETTINGS.allowAgencyOverageOnCreate)) ===
+        "true",
       allowAdditionalModulesOnCreate:
         (latestRuleValueByKey.get(
           SAAS_SETTINGS_RULE_KEYS.ALLOW_ADDITIONAL_MODULES_ON_CREATE,
-        ) ?? String(DEFAULT_SAAS_SETTINGS.allowAdditionalModulesOnCreate)) === 'true',
+        ) ?? String(DEFAULT_SAAS_SETTINGS.allowAdditionalModulesOnCreate)) ===
+        "true",
     };
   }
 
@@ -146,7 +178,7 @@ export class CompanyService {
 
     if (!plan || !plan.isActive) {
       if (strictPlanValidation) {
-        throw new BadRequestException('Plan introuvable ou inactif');
+        throw new BadRequestException("Plan introuvable ou inactif");
       }
       return null;
     }
@@ -167,10 +199,17 @@ export class CompanyService {
       plan.pricingRule?.allowAdditionalModulesOnCreate ??
       globalContext.allowAdditionalModulesOnCreate;
 
-    const planModuleCodes = plan.planModules.map((pm: { moduleCode: ModuleCode }) => pm.moduleCode);
+    const planModuleCodes = plan.planModules.map(
+      (pm: { moduleCode: ModuleCode }) => pm.moduleCode,
+    );
     const extraModuleCodes =
-      (additionalModuleCodes || []).filter((code) => !planModuleCodes.includes(code)) || [];
-    if (!effectiveAllowAdditionalModulesOnCreate && extraModuleCodes.length > 0) {
+      (additionalModuleCodes || []).filter(
+        (code) => !planModuleCodes.includes(code),
+      ) || [];
+    if (
+      !effectiveAllowAdditionalModulesOnCreate &&
+      extraModuleCodes.length > 0
+    ) {
       throw new BadRequestException(
         "L'ajout de modules additionnels a la creation est desactive par la configuration SaaS.",
       );
@@ -178,20 +217,26 @@ export class CompanyService {
 
     const planAgencyQuota = plan.planQuotas.find(
       (q: { quotaKey: string; quotaValue: number }) =>
-        q.quotaKey === 'agencies' ||
-        q.quotaKey === 'max_agencies' ||
-        q.quotaKey === 'maxAgencies',
+        q.quotaKey === "agencies" ||
+        q.quotaKey === "max_agencies" ||
+        q.quotaKey === "maxAgencies",
     );
     const fallbackExtraAgencyPriceMad = this.resolveFallbackExtraAgencyPrice(
       plan.price,
       planAgencyQuota?.quotaValue,
+    );
+    const fallbackExtraModulePriceMad = this.resolveFallbackExtraModulePrice(
+      plan.price,
+      planModuleCodes.length,
     );
     const effectiveExtraAgencyPriceMad =
       configuredExtraAgencyPriceMad > 0
         ? configuredExtraAgencyPriceMad
         : fallbackExtraAgencyPriceMad;
     const effectiveExtraModulePriceMad =
-      configuredExtraModulePriceMad > 0 ? configuredExtraModulePriceMad : 0;
+      configuredExtraModulePriceMad > 0
+        ? configuredExtraModulePriceMad
+        : fallbackExtraModulePriceMad;
 
     const resolvedMaxAgencies =
       maxAgencies ??
@@ -210,7 +255,11 @@ export class CompanyService {
       );
     }
 
-    if (maxAgencies === undefined && planAgencyQuota && planAgencyQuota.quotaValue >= 0) {
+    if (
+      maxAgencies === undefined &&
+      planAgencyQuota &&
+      planAgencyQuota.quotaValue >= 0
+    ) {
       await tx.company.update({
         where: { id: companyId },
         data: { maxAgencies: planAgencyQuota.quotaValue },
@@ -238,8 +287,8 @@ export class CompanyService {
       data: {
         companyId,
         planId: plan.id,
-        status: 'ACTIVE',
-        billingPeriod: 'MONTHLY',
+        status: "ACTIVE",
+        billingPeriod: "MONTHLY",
         startDate,
         endDate,
         amount:
@@ -282,7 +331,7 @@ export class CompanyService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Remove audit fields from public responses
@@ -291,15 +340,17 @@ export class CompanyService {
 
   async findAllLight(page = 1, pageSize = 25, q?: string) {
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-    const safePageSize = Number.isFinite(pageSize) ? Math.min(Math.max(1, Math.floor(pageSize)), 100) : 25;
+    const safePageSize = Number.isFinite(pageSize)
+      ? Math.min(Math.max(1, Math.floor(pageSize)), 100)
+      : 25;
     const skip = (safePage - 1) * safePageSize;
     const search = q?.trim();
     const where = this.softDeleteService.addSoftDeleteFilter({
       ...(search
         ? {
             OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { phone: { contains: search, mode: 'insensitive' } },
+              { name: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -316,7 +367,7 @@ export class CompanyService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: safePageSize,
       }),
@@ -339,7 +390,9 @@ export class CompanyService {
   }
 
   async findRecent(limit = 5) {
-    const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 20) : 5;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(Math.max(limit, 1), 20)
+      : 5;
     const companies = await this.prisma.company.findMany({
       where: this.softDeleteService.addSoftDeleteFilter(),
       include: {
@@ -350,7 +403,7 @@ export class CompanyService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: safeLimit,
     });
 
@@ -380,7 +433,7 @@ export class CompanyService {
         id: true,
         name: true,
       },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
   }
 
@@ -398,7 +451,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     return company;
@@ -422,7 +475,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     // Remove audit fields from public responses
@@ -432,7 +485,7 @@ export class CompanyService {
   async findMyCompany(user: any) {
     const companyId = user?.companyId;
     if (!companyId) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     const company = await this.prisma.company.findFirst({
@@ -440,7 +493,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     return this.auditService.removeAuditFields(company);
@@ -449,7 +502,7 @@ export class CompanyService {
   async updateMyCompanySettings(user: any, dto: UpdateCompanySettingsDto) {
     const companyId = user?.companyId;
     if (!companyId) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     const company = await this.prisma.company.findFirst({
@@ -457,13 +510,14 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     const previousState = { ...company };
 
     const updateData: any = {};
-    if (dto.bookingNumberMode !== undefined) updateData.bookingNumberMode = dto.bookingNumberMode;
+    if (dto.bookingNumberMode !== undefined)
+      updateData.bookingNumberMode = dto.bookingNumberMode;
 
     const dataWithAudit = this.auditService.addUpdateAuditFields(
       updateData,
@@ -478,7 +532,7 @@ export class CompanyService {
     this.businessEventLogService
       .logEvent(
         null,
-        'Company',
+        "Company",
         updatedCompany.id,
         BusinessEventType.COMPANY_UPDATED,
         previousState,
@@ -486,7 +540,9 @@ export class CompanyService {
         user?.id || user?.userId || user?.sub,
         updatedCompany.id,
       )
-      .catch((err) => console.error('Error logging company settings update event:', err));
+      .catch((err) =>
+        console.error("Error logging company settings update event:", err),
+      );
 
     return this.auditService.removeAuditFields(updatedCompany);
   }
@@ -508,11 +564,11 @@ export class CompanyService {
     } = createCompanyDto;
 
     if (!name) {
-      throw new BadRequestException('Le nom est requis');
+      throw new BadRequestException("Le nom est requis");
     }
 
     if (!raisonSociale || !identifiantLegal || !formeJuridique) {
-      throw new BadRequestException('Les champs légaux sont requis');
+      throw new BadRequestException("Les champs légaux sont requis");
     }
 
     const slug = this.generateSlug(name);
@@ -523,7 +579,7 @@ export class CompanyService {
     });
 
     if (existingCompany) {
-      throw new BadRequestException('Une société avec ce nom existe déjà');
+      throw new BadRequestException("Une société avec ce nom existe déjà");
     }
 
     // Check identifiant légal (exclure les companies supprimées)
@@ -532,7 +588,7 @@ export class CompanyService {
     });
 
     if (existingLegalId) {
-      throw new BadRequestException('L\'identifiant légal existe déjà');
+      throw new BadRequestException("L'identifiant légal existe déjà");
     }
 
     if (adminEmail) {
@@ -542,7 +598,7 @@ export class CompanyService {
       });
 
       if (existingAdmin) {
-        throw new BadRequestException('L\'email administrateur existe déjà');
+        throw new BadRequestException("L'email administrateur existe déjà");
       }
     }
 
@@ -574,7 +630,7 @@ export class CompanyService {
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
 
-        const tempPassword = 'temp-password-' + Date.now();
+        const tempPassword = "temp-password-" + Date.now();
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
         const adminUser = await tx.user.create({
@@ -582,7 +638,7 @@ export class CompanyService {
             email: adminEmail,
             password: hashedPassword,
             name: adminName,
-            role: 'COMPANY_ADMIN',
+            role: "COMPANY_ADMIN",
             companyId: createdCompany.id,
             isActive: true,
           },
@@ -596,8 +652,9 @@ export class CompanyService {
           },
         });
 
-        sendWelcomeEmail(adminEmail, adminName, resetToken).catch((emailError) =>
-          console.error('Error sending welcome email:', emailError),
+        sendWelcomeEmail(adminEmail, adminName, resetToken).catch(
+          (emailError) =>
+            console.error("Error sending welcome email:", emailError),
         );
       }
 
@@ -606,7 +663,9 @@ export class CompanyService {
           companyId: createdCompany.id,
           planId,
           maxAgencies: maxAgencies ?? undefined,
-          additionalModuleCodes: additionalModuleCodes as ModuleCode[] | undefined,
+          additionalModuleCodes: additionalModuleCodes as
+            | ModuleCode[]
+            | undefined,
           actorId: user?.id || user?.userId || user?.sub,
           strictPlanValidation: false,
         });
@@ -619,7 +678,7 @@ export class CompanyService {
     this.businessEventLogService
       .logEvent(
         null, // No agencyId for Company
-        'Company',
+        "Company",
         company.id,
         BusinessEventType.COMPANY_CREATED,
         null,
@@ -627,7 +686,9 @@ export class CompanyService {
         user?.id || user?.userId || user?.sub,
         company.id, // companyId
       )
-      .catch((err) => console.error('Error logging company creation event:', err));
+      .catch((err) =>
+        console.error("Error logging company creation event:", err),
+      );
 
     // Remove audit fields from public responses
     return this.auditService.removeAuditFields(company);
@@ -643,7 +704,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -673,28 +734,221 @@ export class CompanyService {
     });
   }
 
+  async updateSubscriptionConfig(
+    id: string,
+    dto: UpdateCompanySubscriptionDto,
+    user: any,
+  ) {
+    const company = await this.prisma.company.findFirst({
+      where: this.softDeleteService.addSoftDeleteFilter({ id }),
+    });
+    if (!company) {
+      throw new NotFoundException("Société introuvable");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingSubscription = await tx.subscription.findUnique({
+        where: { companyId: id },
+        include: { subscriptionModules: true },
+      });
+
+      if (!existingSubscription) {
+        if (!dto.planId) {
+          throw new BadRequestException(
+            "Aucun abonnement actif: un plan est requis.",
+          );
+        }
+        const initialized = await this.applyInitialSubscription(tx, {
+          companyId: id,
+          planId: dto.planId,
+          maxAgencies: dto.maxAgencies,
+          additionalModuleCodes: dto.additionalModuleCodes,
+          actorId: user?.id || user?.userId || user?.sub,
+          strictPlanValidation: true,
+        });
+        return { companyId: id, subscription: initialized };
+      }
+
+      const resolvedPlanId = dto.planId ?? existingSubscription.planId;
+      const plan = await tx.plan.findUnique({
+        where: { id: resolvedPlanId },
+        include: { planModules: true, planQuotas: true, pricingRule: true },
+      });
+      if (!plan || !plan.isActive) {
+        throw new BadRequestException("Plan introuvable ou inactif");
+      }
+
+      const globalContext = await this.getGlobalSaasPricingContext(tx);
+      const configuredExtraAgencyPriceMad =
+        plan.pricingRule && plan.pricingRule.extraAgencyPriceMad > 0
+          ? plan.pricingRule.extraAgencyPriceMad
+          : globalContext.extraAgencyPriceMad;
+      const configuredExtraModulePriceMad =
+        plan.pricingRule && plan.pricingRule.extraModulePriceMad > 0
+          ? plan.pricingRule.extraModulePriceMad
+          : globalContext.extraModulePriceMad;
+      const effectiveAllowAgencyOverageOnCreate =
+        plan.pricingRule?.allowAgencyOverageOnCreate ??
+        globalContext.allowAgencyOverageOnCreate;
+      const effectiveAllowAdditionalModulesOnCreate =
+        plan.pricingRule?.allowAdditionalModulesOnCreate ??
+        globalContext.allowAdditionalModulesOnCreate;
+
+      const planModuleCodes = plan.planModules.map(
+        (pm: { moduleCode: ModuleCode }) => pm.moduleCode,
+      );
+      const persistedAdditionalCodes = existingSubscription.subscriptionModules
+        .map((mod) => mod.moduleCode as ModuleCode)
+        .filter((code) => !planModuleCodes.includes(code));
+      const requestedAdditionalCodes =
+        dto.additionalModuleCodes ?? persistedAdditionalCodes;
+      const extraModuleCodes = requestedAdditionalCodes.filter(
+        (code) => !planModuleCodes.includes(code),
+      );
+
+      if (
+        !effectiveAllowAdditionalModulesOnCreate &&
+        extraModuleCodes.length > 0
+      ) {
+        throw new BadRequestException(
+          "L'ajout de modules additionnels est desactive par la configuration SaaS.",
+        );
+      }
+
+      const planAgencyQuota = plan.planQuotas.find(
+        (q: { quotaKey: string; quotaValue: number }) =>
+          q.quotaKey === "agencies" ||
+          q.quotaKey === "max_agencies" ||
+          q.quotaKey === "maxAgencies",
+      );
+      const fallbackExtraAgencyPriceMad = this.resolveFallbackExtraAgencyPrice(
+        plan.price,
+        planAgencyQuota?.quotaValue,
+      );
+      const fallbackExtraModulePriceMad = this.resolveFallbackExtraModulePrice(
+        plan.price,
+        planModuleCodes.length,
+      );
+      const effectiveExtraAgencyPriceMad =
+        configuredExtraAgencyPriceMad > 0
+          ? configuredExtraAgencyPriceMad
+          : fallbackExtraAgencyPriceMad;
+      const effectiveExtraModulePriceMad =
+        configuredExtraModulePriceMad > 0
+          ? configuredExtraModulePriceMad
+          : fallbackExtraModulePriceMad;
+
+      const resolvedMaxAgencies =
+        dto.maxAgencies ??
+        company.maxAgencies ??
+        (planAgencyQuota && planAgencyQuota.quotaValue >= 0
+          ? planAgencyQuota.quotaValue
+          : undefined);
+
+      const extraAgenciesCount =
+        resolvedMaxAgencies !== undefined &&
+        planAgencyQuota &&
+        planAgencyQuota.quotaValue >= 0
+          ? Math.max(0, resolvedMaxAgencies - planAgencyQuota.quotaValue)
+          : 0;
+
+      if (!effectiveAllowAgencyOverageOnCreate && extraAgenciesCount > 0) {
+        throw new BadRequestException(
+          "Le depassement du quota agences est desactive par la configuration SaaS.",
+        );
+      }
+
+      await tx.company.update({
+        where: { id },
+        data: { maxAgencies: resolvedMaxAgencies ?? null },
+      });
+
+      const requestedAllModuleCodes = Array.from(
+        new Set([...planModuleCodes, ...extraModuleCodes]),
+      ) as ModuleCode[];
+      const allModuleCodes = await this.expandModuleCodesWithDependencies(
+        tx,
+        requestedAllModuleCodes,
+      );
+
+      const updatedSubscription = await tx.subscription.update({
+        where: { id: existingSubscription.id },
+        data: {
+          planId: plan.id,
+          amount:
+            plan.price +
+            extraAgenciesCount * effectiveExtraAgencyPriceMad +
+            extraModuleCodes.length * effectiveExtraModulePriceMad,
+        },
+      });
+
+      await tx.subscriptionModule.deleteMany({
+        where: { subscriptionId: existingSubscription.id },
+      });
+      if (allModuleCodes.length > 0) {
+        await tx.subscriptionModule.createMany({
+          data: allModuleCodes.map((moduleCode) => ({
+            subscriptionId: existingSubscription.id,
+            moduleCode,
+          })),
+        });
+      }
+
+      await tx.companyModule.updateMany({
+        where: {
+          companyId: id,
+          ...(allModuleCodes.length > 0
+            ? { moduleCode: { notIn: allModuleCodes } }
+            : {}),
+        },
+        data: { isActive: false },
+      });
+
+      if (allModuleCodes.length > 0) {
+        for (const moduleCode of allModuleCodes) {
+          await tx.companyModule.upsert({
+            where: { companyId_moduleCode: { companyId: id, moduleCode } },
+            create: { companyId: id, moduleCode, isActive: true },
+            update: { isActive: true },
+          });
+        }
+      }
+
+      return { companyId: id, subscription: updatedSubscription };
+    });
+  }
+
   async update(id: string, updateCompanyDto: UpdateCompanyDto, user: any) {
     const company = await this.prisma.company.findFirst({
       where: this.softDeleteService.addSoftDeleteFilter({ id }),
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     // Store previous state for event log
     const previousState = { ...company };
 
     const updateData: any = {};
-    if (updateCompanyDto.name !== undefined) updateData.name = updateCompanyDto.name;
-    if (updateCompanyDto.phone !== undefined) updateData.phone = updateCompanyDto.phone;
-    if (updateCompanyDto.address !== undefined) updateData.address = updateCompanyDto.address;
-    if (updateCompanyDto.isActive !== undefined) updateData.isActive = updateCompanyDto.isActive;
-    if (updateCompanyDto.raisonSociale !== undefined) updateData.raisonSociale = updateCompanyDto.raisonSociale;
-    if (updateCompanyDto.identifiantLegal !== undefined) updateData.identifiantLegal = updateCompanyDto.identifiantLegal;
-    if (updateCompanyDto.formeJuridique !== undefined) updateData.formeJuridique = updateCompanyDto.formeJuridique;
-    if (updateCompanyDto.maxAgencies !== undefined) updateData.maxAgencies = updateCompanyDto.maxAgencies;
-    if (updateCompanyDto.bookingNumberMode !== undefined) updateData.bookingNumberMode = updateCompanyDto.bookingNumberMode;
+    if (updateCompanyDto.name !== undefined)
+      updateData.name = updateCompanyDto.name;
+    if (updateCompanyDto.phone !== undefined)
+      updateData.phone = updateCompanyDto.phone;
+    if (updateCompanyDto.address !== undefined)
+      updateData.address = updateCompanyDto.address;
+    if (updateCompanyDto.isActive !== undefined)
+      updateData.isActive = updateCompanyDto.isActive;
+    if (updateCompanyDto.raisonSociale !== undefined)
+      updateData.raisonSociale = updateCompanyDto.raisonSociale;
+    if (updateCompanyDto.identifiantLegal !== undefined)
+      updateData.identifiantLegal = updateCompanyDto.identifiantLegal;
+    if (updateCompanyDto.formeJuridique !== undefined)
+      updateData.formeJuridique = updateCompanyDto.formeJuridique;
+    if (updateCompanyDto.maxAgencies !== undefined)
+      updateData.maxAgencies = updateCompanyDto.maxAgencies;
+    if (updateCompanyDto.bookingNumberMode !== undefined)
+      updateData.bookingNumberMode = updateCompanyDto.bookingNumberMode;
 
     // Regenerate slug if name changed
     if (updateCompanyDto.name && updateCompanyDto.name !== company.name) {
@@ -710,7 +964,10 @@ export class CompanyService {
     }
 
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(updateData, user?.id || user?.userId || user?.sub);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      updateData,
+      user?.id || user?.userId || user?.sub,
+    );
 
     const updatedCompany = await this.prisma.company.update({
       where: { id },
@@ -721,7 +978,7 @@ export class CompanyService {
     this.businessEventLogService
       .logEvent(
         null, // No agencyId for Company
-        'Company',
+        "Company",
         updatedCompany.id,
         BusinessEventType.COMPANY_UPDATED,
         previousState,
@@ -729,7 +986,9 @@ export class CompanyService {
         user?.id || user?.userId || user?.sub,
         updatedCompany.id, // companyId
       )
-      .catch((err) => console.error('Error logging company update event:', err));
+      .catch((err) =>
+        console.error("Error logging company update event:", err),
+      );
 
     // Remove audit fields from public responses
     return this.auditService.removeAuditFields(updatedCompany);
@@ -741,7 +1000,7 @@ export class CompanyService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
     // Store previous state for event log
@@ -766,7 +1025,7 @@ export class CompanyService {
         isActive: false,
       },
       actorId,
-      reason || 'Suppression de la société par administrateur',
+      reason || "Suppression de la société par administrateur",
     );
 
     const agencyDeleteData = this.auditService.addDeleteAuditFields(
@@ -774,7 +1033,7 @@ export class CompanyService {
         status: AgencyStatus.DELETED,
       },
       actorId,
-      reason || 'Suppression de la société par administrateur',
+      reason || "Suppression de la société par administrateur",
     );
 
     await this.prisma.$transaction([
@@ -792,6 +1051,17 @@ export class CompanyService {
         },
         data: agencyDeleteData,
       }),
+      // Safety: a deleted company must never keep an active subscription.
+      this.prisma.subscription.updateMany({
+        where: {
+          companyId: id,
+          status: SubscriptionStatus.ACTIVE,
+        },
+        data: {
+          status: SubscriptionStatus.CANCELLED,
+          cancelledAt: new Date(),
+        },
+      }),
       this.prisma.company.update({
         where: { id },
         data: companyDeleteData,
@@ -802,7 +1072,7 @@ export class CompanyService {
     this.businessEventLogService
       .logEvent(
         null, // No agencyId for Company
-        'Company',
+        "Company",
         company.id,
         BusinessEventType.COMPANY_DELETED,
         previousState,
@@ -810,8 +1080,10 @@ export class CompanyService {
         user?.id || user?.userId || user?.sub,
         company.id, // companyId
       )
-      .catch((err) => console.error('Error logging company deletion event:', err));
+      .catch((err) =>
+        console.error("Error logging company deletion event:", err),
+      );
 
-    return { message: 'Société supprimée avec succès' };
+    return { message: "Société supprimée avec succès" };
   }
 }

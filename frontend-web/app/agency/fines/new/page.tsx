@@ -20,9 +20,12 @@ import { toast } from '@/components/ui/toast';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
+import { useMemo, useState } from 'react';
 
 export default function NewFinePage() {
   const router = useRouter();
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
   const {
     register,
@@ -57,6 +60,14 @@ export default function NewFinePage() {
     queryFn: () => bookingApi.getAll({ agencyId }),
     enabled: !!agencyId,
   });
+  const startedBookings = useMemo(() => {
+    const now = new Date();
+    return (bookings || []).filter((booking) => {
+      const started = new Date(booking.startDate) <= now;
+      const isActive = booking.status === 'IN_PROGRESS' || booking.status === 'LATE';
+      return started && isActive;
+    });
+  }, [bookings]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateFineFormData) => fineApi.create(data),
@@ -76,8 +87,26 @@ export default function NewFinePage() {
     },
   });
 
-  const onSubmit = (data: CreateFineFormData) => {
-    createMutation.mutate(data);
+  const onSubmit = async (data: CreateFineFormData) => {
+    let attachmentUrl = data.attachmentUrl;
+    if (attachmentFile) {
+      setIsUploadingAttachment(true);
+      try {
+        const uploadResult = await fineApi.uploadAttachment(attachmentFile);
+        attachmentUrl = uploadResult.attachmentUrl;
+      } catch (error: any) {
+        const message = error?.response?.data?.message || 'Erreur lors de l\'upload de la pièce jointe';
+        toast.error(message);
+        setIsUploadingAttachment(false);
+        return;
+      }
+      setIsUploadingAttachment(false);
+    }
+
+    createMutation.mutate({
+      ...data,
+      attachmentUrl: attachmentUrl || undefined,
+    });
   };
 
   // Afficher le message si le module n'est pas activé
@@ -116,7 +145,7 @@ export default function NewFinePage() {
             description="Enregistrez une nouvelle amende ou contravention"
             backHref="/agency/fines"
             onSubmit={handleSubmit(onSubmit)}
-            isLoading={isSubmitting || createMutation.isPending}
+            isLoading={isSubmitting || createMutation.isPending || isUploadingAttachment}
             submitLabel="Créer l'amende"
           >
             <div>
@@ -147,13 +176,16 @@ export default function NewFinePage() {
                 disabled={!agencyId}
               >
                 <option value="">Sélectionner une réservation</option>
-                {bookings?.map((booking) => (
+                {startedBookings.map((booking) => (
                   <option key={booking.id} value={booking.id}>
                     {booking.vehicle?.brand} {booking.vehicle?.model} - {booking.client?.name || 'Client'} ({new Date(booking.startDate).toLocaleDateString('fr-FR')})
                   </option>
                 ))}
               </Select>
               {errors.bookingId && <p className="text-red-500 text-sm mt-1">{errors.bookingId.message}</p>}
+              <p className="text-xs text-text-muted mt-1">
+                Seules les réservations actives (en cours/en retard) sont disponibles pour créer une amende.
+              </p>
             </div>
 
             <div>
@@ -179,6 +211,26 @@ export default function NewFinePage() {
                 {...register('description')}
               />
               {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="attachment" className="block text-sm font-medium text-text mb-2">
+                Pièce jointe (preuve)
+              </label>
+              <Input
+                id="attachment"
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Optionnel - formats acceptés: JPG, PNG, PDF (max 10MB).
+              </p>
+              {attachmentFile && (
+                <p className="text-xs text-text-muted mt-1">
+                  Fichier sélectionné: {attachmentFile.name}
+                </p>
+              )}
             </div>
           </FormCard>
         </div>

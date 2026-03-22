@@ -1,11 +1,11 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 
 /**
  * CMI Service - Intégration CMI Maroc
  * Documentation: https://www.cmi.co.ma/
- * 
+ *
  * Configuration requise dans .env:
  * - CMI_MERCHANT_ID: ID du marchand CMI
  * - CMI_SECRET_KEY: Clé secrète CMI
@@ -21,18 +21,20 @@ export class CmiService {
   private statusCheckUrl: string;
 
   constructor(private configService: ConfigService) {
-    this.merchantId = this.configService.get<string>('CMI_MERCHANT_ID') || '';
-    this.secretKey = this.configService.get<string>('CMI_SECRET_KEY') || '';
-    this.testMode = this.configService.get<string>('CMI_TEST_MODE') === 'true';
+    this.merchantId = this.configService.get<string>("CMI_MERCHANT_ID") || "";
+    this.secretKey = this.configService.get<string>("CMI_SECRET_KEY") || "";
+    this.testMode = this.configService.get<string>("CMI_TEST_MODE") === "true";
     this.baseUrl = this.testMode
-      ? 'https://testpayment.cmi.co.ma/fim/est3Dgate'
-      : 'https://payment.cmi.co.ma/fim/est3Dgate';
+      ? "https://testpayment.cmi.co.ma/fim/est3Dgate"
+      : "https://payment.cmi.co.ma/fim/est3Dgate";
     this.statusCheckUrl = this.testMode
-      ? 'https://testpayment.cmi.co.ma/fim/api'
-      : 'https://payment.cmi.co.ma/fim/api';
+      ? "https://testpayment.cmi.co.ma/fim/api"
+      : "https://payment.cmi.co.ma/fim/api";
 
     if (!this.merchantId || !this.secretKey) {
-      this.logger.warn('CMI non configuré - Les paiements en ligne seront désactivés');
+      this.logger.warn(
+        "CMI non configuré - Les paiements en ligne seront désactivés",
+      );
     }
   }
 
@@ -42,15 +44,17 @@ export class CmiService {
   private generateHash(data: Record<string, any>): string {
     // Trier les clés par ordre alphabétique
     const sortedKeys = Object.keys(data).sort();
-    const hashString = sortedKeys
-      .map((key) => `${key}=${data[key]}`)
-      .join('&');
+    const hashString = sortedKeys.map((key) => `${key}=${data[key]}`).join("&");
 
     // Ajouter la clé secrète
     const fullHashString = `${hashString}${this.secretKey}`;
 
     // Générer le hash SHA256
-    return crypto.createHash('sha256').update(fullHashString).digest('hex').toUpperCase();
+    return crypto
+      .createHash("sha256")
+      .update(fullHashString)
+      .digest("hex")
+      .toUpperCase();
   }
 
   /**
@@ -69,26 +73,26 @@ export class CmiService {
     language?: string;
   }): Promise<{ url: string; formData: Record<string, string> }> {
     if (!this.merchantId || !this.secretKey) {
-      throw new BadRequestException('CMI non configuré');
+      throw new BadRequestException("CMI non configuré");
     }
 
     const {
       amount,
       orderId,
-      currency = '504', // MAD
+      currency = "504", // MAD
       clientId,
-      clientEmail = '',
-      clientName = '',
+      clientEmail = "",
+      clientName = "",
       successUrl,
       failUrl,
       callbackUrl,
-      language = 'fr',
+      language = "fr",
     } = params;
 
     // Données de la transaction
     const paymentData: Record<string, any> = {
-      storetype: '3D_PAY_HOSTING',
-      trantype: 'PreAuth',
+      storetype: "3D_PAY_HOSTING",
+      trantype: "PreAuth",
       amount: amount.toFixed(2),
       currency,
       oid: orderId,
@@ -96,16 +100,16 @@ export class CmiService {
       failUrl: failUrl,
       callbackUrl: callbackUrl,
       rnd: Date.now().toString(),
-      hashAlgorithm: 'ver3',
+      hashAlgorithm: "ver3",
       lang: language,
       email: clientEmail,
       BillToName: clientName || clientId,
-      BillToCompany: '',
-      BillToStreet1: '',
-      BillToCity: '',
-      BillToState: '',
-      BillToPostalCode: '',
-      BillToCountry: '504', // Maroc
+      BillToCompany: "",
+      BillToStreet1: "",
+      BillToCity: "",
+      BillToState: "",
+      BillToPostalCode: "",
+      BillToCountry: "504", // Maroc
     };
 
     // Générer le hash
@@ -144,8 +148,8 @@ export class CmiService {
     // Construire l'URL avec les paramètres
     const queryParams = new URLSearchParams(
       Object.fromEntries(
-        Object.entries(paymentRequest.formData).map(([k, v]) => [k, String(v)])
-      )
+        Object.entries(paymentRequest.formData).map(([k, v]) => [k, String(v)]),
+      ),
     );
 
     return `${paymentRequest.url}?${queryParams.toString()}`;
@@ -159,7 +163,7 @@ export class CmiService {
     transactionId: string;
     orderId: string;
     amount: number;
-    status: 'success' | 'failed' | 'pending';
+    status: "success" | "failed" | "pending";
     responseCode: string;
     responseMessage: string;
   }> {
@@ -174,21 +178,24 @@ export class CmiService {
 
     // Vérifier le hash
     if (receivedHash !== expectedHash) {
-      this.logger.error('Invalid CMI hash signature', { receivedHash, expectedHash });
-      throw new BadRequestException('Signature de hachage invalide');
+      this.logger.error("Invalid CMI hash signature", {
+        receivedHash,
+        expectedHash,
+      });
+      throw new BadRequestException("Signature de hachage invalide");
     }
 
-    const responseCode = data.Response || data.response || '';
-    const isSuccess = responseCode === 'Approved' || responseCode === '00';
+    const responseCode = data.Response || data.response || "";
+    const isSuccess = responseCode === "Approved" || responseCode === "00";
 
     return {
       valid: true,
-      transactionId: data.TransId || data.transId || '',
-      orderId: data.oid || data.OID || '',
-      amount: parseFloat(data.amount || data.Amount || '0'),
-      status: isSuccess ? 'success' : 'failed',
+      transactionId: data.TransId || data.transId || "",
+      orderId: data.oid || data.OID || "",
+      amount: parseFloat(data.amount || data.Amount || "0"),
+      status: isSuccess ? "success" : "failed",
       responseCode,
-      responseMessage: data.ResponseMessage || data.responseMessage || '',
+      responseMessage: data.ResponseMessage || data.responseMessage || "",
     };
   }
 
@@ -197,14 +204,14 @@ export class CmiService {
    */
   async checkTransactionStatus(transactionId: string): Promise<{
     found: boolean;
-    status?: 'success' | 'failed' | 'pending';
+    status?: "success" | "failed" | "pending";
     amount?: number;
     orderId?: string;
     responseCode?: string;
     responseMessage?: string;
   }> {
     if (!this.merchantId || !this.secretKey) {
-      this.logger.warn('CMI non configuré - Impossible de vérifier le statut');
+      this.logger.warn("CMI non configuré - Impossible de vérifier le statut");
       return { found: false };
     }
 
@@ -220,9 +227,9 @@ export class CmiService {
       checkData.hash = hash;
 
       const response = await fetch(`${this.statusCheckUrl}/checkStatus`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(checkData),
       });
@@ -233,29 +240,29 @@ export class CmiService {
       }
 
       const result = await response.json();
-      
+
       // Vérifier le hash de la réponse
       const responseHash = result.hash;
       delete result.hash;
       const expectedHash = this.generateHash(result);
 
       if (responseHash !== expectedHash) {
-        this.logger.error('Invalid CMI status check hash');
+        this.logger.error("Invalid CMI status check hash");
         return { found: false };
       }
 
-      const isSuccess = result.status === 'Approved' || result.status === '00';
+      const isSuccess = result.status === "Approved" || result.status === "00";
 
       return {
         found: true,
-        status: isSuccess ? 'success' : 'failed',
-        amount: parseFloat(result.amount || '0'),
+        status: isSuccess ? "success" : "failed",
+        amount: parseFloat(result.amount || "0"),
         orderId: result.orderId,
         responseCode: result.status,
-        responseMessage: result.message || '',
+        responseMessage: result.message || "",
       };
     } catch (error: any) {
-      this.logger.error('CMI status check error:', error);
+      this.logger.error("CMI status check error:", error);
       return { found: false };
     }
   }

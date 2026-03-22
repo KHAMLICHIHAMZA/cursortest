@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { AuditService } from './audit.service';
-import { PrismaModule } from '../../common/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { AuditService } from "./audit.service";
+import { PrismaModule } from "../../common/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule],
@@ -8,8 +8,3 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
   exports: [AuditService],
 })
 export class AuditModule {}
-
-
-
-
-

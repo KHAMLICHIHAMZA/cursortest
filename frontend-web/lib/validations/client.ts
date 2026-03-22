@@ -27,7 +27,11 @@ export const createClientSchema = z.object({
     (val) => validatePastDate(val),
     { message: 'La date de naissance doit être dans le passé' }
   ),
-  address: z.string().max(500, 'L\'adresse ne peut pas dépasser 500 caractères').optional(),
+  addressLine1: z.string().max(200, 'La ligne 1 ne peut pas dépasser 200 caractères').optional(),
+  addressLine2: z.string().max(200, 'La ligne 2 ne peut pas dépasser 200 caractères').optional(),
+  addressCity: z.string().max(100, 'La ville ne peut pas dépasser 100 caractères').optional(),
+  addressPostalCode: z.string().max(30, 'Le code postal ne peut pas dépasser 30 caractères').optional(),
+  addressCountry: z.string().max(100, 'Le pays ne peut pas dépasser 100 caractères').optional(),
   licenseNumber: z.string().max(50, 'Le numéro de permis ne peut pas dépasser 50 caractères').optional(),
   licenseImageUrl: z.string().optional().or(z.literal('')).refine(
     (val) => {
@@ -40,10 +44,7 @@ export const createClientSchema = z.object({
   ),
   isMoroccan: z.boolean().optional().default(true),
   countryOfOrigin: z.string().max(100, 'Le pays d\'origine ne peut pas dépasser 100 caractères').optional(),
-  licenseExpiryDate: z.string().optional().refine(
-    (val) => validateExpiryDate(val, 'permis'),
-    { message: 'La date d\'expiration du permis doit être dans le futur' }
-  ),
+  licenseExpiryDate: z.string().optional(),
   isForeignLicense: z.boolean().optional().default(false),
   idCardType: z.string().max(50).optional(),
   idCardNumber: z.string().max(50, 'Le numéro de pièce d\'identité ne peut pas dépasser 50 caractères').optional(),
@@ -122,7 +123,11 @@ export const updateClientSchema = z.object({
     (val) => validatePastDate(val),
     { message: 'La date de naissance doit être dans le passé' }
   ),
-  address: z.string().max(500, 'L\'adresse ne peut pas dépasser 500 caractères').optional(),
+  addressLine1: z.string().max(200, 'La ligne 1 ne peut pas dépasser 200 caractères').optional(),
+  addressLine2: z.string().max(200, 'La ligne 2 ne peut pas dépasser 200 caractères').optional(),
+  addressCity: z.string().max(100, 'La ville ne peut pas dépasser 100 caractères').optional(),
+  addressPostalCode: z.string().max(30, 'Le code postal ne peut pas dépasser 30 caractères').optional(),
+  addressCountry: z.string().max(100, 'Le pays ne peut pas dépasser 100 caractères').optional(),
   licenseNumber: z.string().max(50, 'Le numéro de permis ne peut pas dépasser 50 caractères').optional(),
   licenseImageUrl: z.string().optional().or(z.literal('')).refine(
     (val) => {

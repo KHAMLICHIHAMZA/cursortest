@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "./prisma.service";
 
 /**
  * Service helper pour gérer le soft delete de manière cohérente
@@ -50,8 +50,3 @@ export class PrismaSoftDeleteService {
     });
   }
 }
-
-
-
-
-

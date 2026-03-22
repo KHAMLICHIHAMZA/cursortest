@@ -1,17 +1,28 @@
-import { IsString, IsOptional, IsEmail, IsEnum, IsInt, Min } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingNumberMode, CompanyLegalForm, ModuleCode } from '@prisma/client';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  IsInt,
+  Min,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  BookingNumberMode,
+  CompanyLegalForm,
+  ModuleCode,
+} from "@prisma/client";
 
 export class CreateCompanyDto {
   @ApiProperty()
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Raison sociale' })
+  @ApiProperty({ description: "Raison sociale" })
   @IsString()
   raisonSociale: string;
 
-  @ApiProperty({ description: 'Identifiant légal (SIREN / ICE / RC)' })
+  @ApiProperty({ description: "Identifiant légal (SIREN / ICE / RC)" })
   @IsString()
   identifiantLegal: string;
 
@@ -19,13 +30,19 @@ export class CreateCompanyDto {
   @IsEnum(CompanyLegalForm)
   formeJuridique: CompanyLegalForm;
 
-  @ApiPropertyOptional({ description: 'Nombre max d’agences (null = illimité)', minimum: 0 })
+  @ApiPropertyOptional({
+    description: "Nombre max d’agences (null = illimité)",
+    minimum: 0,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
   maxAgencies?: number;
 
-  @ApiPropertyOptional({ enum: BookingNumberMode, description: 'Mode BookingNumber (V2)' })
+  @ApiPropertyOptional({
+    enum: BookingNumberMode,
+    description: "Mode BookingNumber (V2)",
+  })
   @IsOptional()
   @IsEnum(BookingNumberMode)
   bookingNumberMode?: BookingNumberMode;
@@ -50,13 +67,15 @@ export class CreateCompanyDto {
   @IsString()
   adminName?: string;
 
-  @ApiPropertyOptional({ description: 'ID du plan à souscrire automatiquement' })
+  @ApiPropertyOptional({
+    description: "ID du plan à souscrire automatiquement",
+  })
   @IsOptional()
   @IsString()
   planId?: string;
 
   @ApiPropertyOptional({
-    description: 'Modules additionnels à activer en plus des modules du plan',
+    description: "Modules additionnels à activer en plus des modules du plan",
     type: [String],
     enum: ModuleCode,
   })
@@ -64,6 +83,3 @@ export class CreateCompanyDto {
   @IsEnum(ModuleCode, { each: true })
   additionalModuleCodes?: ModuleCode[];
 }
-
-
-

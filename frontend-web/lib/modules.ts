@@ -19,13 +19,21 @@ export interface ActiveModule {
   activatedAt?: string;
 }
 
+type FetchModulesOptions = {
+  forceRefresh?: boolean;
+};
+
 // Cache des modules
 let modulesCache: Map<string, { modules: ActiveModule[]; timestamp: number }> = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-export const fetchAgencyModules = async (agencyId: string): Promise<ActiveModule[]> => {
+export const fetchAgencyModules = async (
+  agencyId: string,
+  options: FetchModulesOptions = {},
+): Promise<ActiveModule[]> => {
+  const forceRefresh = !!options.forceRefresh;
   const cached = modulesCache.get(`agency-${agencyId}`);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.modules;
   }
 
@@ -40,9 +48,13 @@ export const fetchAgencyModules = async (agencyId: string): Promise<ActiveModule
   }
 };
 
-export const fetchCompanyModules = async (companyId: string): Promise<ActiveModule[]> => {
+export const fetchCompanyModules = async (
+  companyId: string,
+  options: FetchModulesOptions = {},
+): Promise<ActiveModule[]> => {
+  const forceRefresh = !!options.forceRefresh;
   const cached = modulesCache.get(`company-${companyId}`);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.modules;
   }
 
@@ -58,9 +70,9 @@ export const fetchCompanyModules = async (companyId: string): Promise<ActiveModu
 };
 
 export const isModuleActive = (modules: ActiveModule[], code: ModuleCode): boolean => {
-  if (modules.length === 0) return true;
+  if (modules.length === 0) return false;
   const found = modules.find(m => m.moduleCode === code);
-  return found?.isActive ?? true;
+  return found?.isActive ?? false;
 };
 
 export const clearModulesCache = (): void => {
@@ -92,4 +104,5 @@ export const companyRouteModuleMap: Record<string, ModuleCode | null> = {
   '/company/users': null,
   '/company/analytics': 'ANALYTICS',
   '/company/planning': 'BOOKINGS',
+  '/company/notifications': 'NOTIFICATIONS',
 };

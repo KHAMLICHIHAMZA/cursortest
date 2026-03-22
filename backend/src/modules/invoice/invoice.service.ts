@@ -1,13 +1,24 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { AuditService } from '../audit/audit.service';
-import { OutboxService } from '../../common/services/outbox.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { BusinessEventType, InvoiceStatus, InvoiceType, AuditAction, Prisma } from '@prisma/client';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { AuditService } from "../audit/audit.service";
+import { OutboxService } from "../../common/services/outbox.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import {
+  BusinessEventType,
+  InvoiceStatus,
+  InvoiceType,
+  AuditAction,
+  Prisma,
+} from "@prisma/client";
 
 // Morocco timezone (Africa/Casablanca)
-const MOROCCO_TIMEZONE = 'Africa/Casablanca';
+const MOROCCO_TIMEZONE = "Africa/Casablanca";
 
 /**
  * V2 Invoice Payload structure (frozen at issuance)
@@ -87,7 +98,10 @@ export class InvoiceService {
    */
   private getMoroccoYear(date: Date): number {
     return Number(
-      new Intl.DateTimeFormat('en-US', { timeZone: MOROCCO_TIMEZONE, year: 'numeric' }).format(date),
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: MOROCCO_TIMEZONE,
+        year: "numeric",
+      }).format(date),
     );
   }
 
@@ -95,7 +109,7 @@ export class InvoiceService {
    * V2: Format date in Morocco timezone for display
    */
   private formatMoroccoDate(date: Date): string {
-    return date.toLocaleString('fr-MA', { timeZone: MOROCCO_TIMEZONE });
+    return date.toLocaleString("fr-MA", { timeZone: MOROCCO_TIMEZONE });
   }
 
   /**
@@ -124,7 +138,7 @@ export class InvoiceService {
     });
 
     const sequence = result.lastValue;
-    const invoiceNumber = `FAC-${year}-${sequence.toString().padStart(6, '0')}`;
+    const invoiceNumber = `FAC-${year}-${sequence.toString().padStart(6, "0")}`;
 
     return { invoiceNumber, sequence };
   }
@@ -147,43 +161,45 @@ export class InvoiceService {
       issuedAt: issuedAt.toISOString(),
       timezone: MOROCCO_TIMEZONE,
       company: {
-        id: company?.id || '',
-        name: company?.name || '',
-        raisonSociale: company?.raisonSociale || '',
+        id: company?.id || "",
+        name: company?.name || "",
+        raisonSociale: company?.raisonSociale || "",
         identifiantLegal: company?.identifiantLegal || null,
-        formeJuridique: company?.formeJuridique || 'AUTRE',
+        formeJuridique: company?.formeJuridique || "AUTRE",
         address: company?.address || null,
       },
       agency: {
-        id: agency?.id || '',
-        name: agency?.name || '',
+        id: agency?.id || "",
+        name: agency?.name || "",
         address: agency?.address || null,
         phone: agency?.phone || null,
       },
       client: {
-        id: client?.id || '',
-        name: client?.name || '',
+        id: client?.id || "",
+        name: client?.name || "",
         email: client?.email || null,
         phone: client?.phone || null,
         idCardNumber: client?.idCardNumber || null,
         passportNumber: client?.passportNumber || null,
       },
       vehicle: {
-        id: vehicle?.id || '',
-        brand: vehicle?.brand || '',
-        model: vehicle?.model || '',
-        registrationNumber: vehicle?.registrationNumber || '',
+        id: vehicle?.id || "",
+        brand: vehicle?.brand || "",
+        model: vehicle?.model || "",
+        registrationNumber: vehicle?.registrationNumber || "",
       },
       booking: {
         id: booking.id,
-        bookingNumber: booking.bookingNumber || '',
-        startDate: booking.startDate?.toISOString() || '',
-        endDate: booking.endDate?.toISOString() || '',
+        bookingNumber: booking.bookingNumber || "",
+        startDate: booking.startDate?.toISOString() || "",
+        endDate: booking.endDate?.toISOString() || "",
         originalEndDate: booking.originalEndDate?.toISOString() || null,
         extensionDays: booking.extensionDays || null,
         totalPrice: amounts.subtotal,
         lateFeeAmount: amounts.lateFees || null,
-        depositAmount: booking.depositAmount ? Number(booking.depositAmount) : null,
+        depositAmount: booking.depositAmount
+          ? Number(booking.depositAmount)
+          : null,
         depositRequired: booking.depositRequired || false,
         depositStatusFinal: booking.depositStatusFinal || null,
       },
@@ -191,7 +207,7 @@ export class InvoiceService {
         subtotal: amounts.subtotal,
         lateFees: amounts.lateFees,
         total: amounts.total,
-        currency: company?.currency || 'MAD',
+        currency: company?.currency || "MAD",
       },
     };
   }
@@ -213,36 +229,38 @@ export class InvoiceService {
         vehicle: true,
         client: true,
         incidents: {
-          where: { status: 'DISPUTED' },
+          where: { status: "DISPUTED" },
         },
       },
     });
 
     if (!booking) {
-      throw new NotFoundException('Réservation introuvable');
+      throw new NotFoundException("Réservation introuvable");
     }
 
     const companyId = booking.agency?.companyId;
     if (!companyId) {
-      throw new BadRequestException('L\'agence de la réservation n\'a pas de société');
+      throw new BadRequestException(
+        "L'agence de la réservation n'a pas de société",
+      );
     }
 
     // ============================================
     // VALIDATION FACTURATION (R6)
     // ============================================
     // Vérifier qu'il n'y a pas de litige en cours
-    if (booking.incidents.some((inc: any) => inc.status === 'DISPUTED')) {
+    if (booking.incidents.some((inc: any) => inc.status === "DISPUTED")) {
       throw new BadRequestException(
-        'Impossible de générer la facture: un ou plusieurs incidents sont en litige (DISPUTED). ' +
-        'Veuillez résoudre les litiges avant de générer la facture.',
+        "Impossible de générer la facture: un ou plusieurs incidents sont en litige (DISPUTED). " +
+          "Veuillez résoudre les litiges avant de générer la facture.",
       );
     }
 
     // Vérifier que la caution n'est pas en DISPUTED
-    if (booking.depositStatusFinal === 'DISPUTED') {
+    if (booking.depositStatusFinal === "DISPUTED") {
       throw new BadRequestException(
-        'Impossible de générer la facture: la caution est en litige (DISPUTED). ' +
-        'Veuillez résoudre le litige avant de générer la facture.',
+        "Impossible de générer la facture: la caution est en litige (DISPUTED). " +
+          "Veuillez résoudre le litige avant de générer la facture.",
       );
     }
 
@@ -262,16 +280,19 @@ export class InvoiceService {
     const year = this.getMoroccoYear(issuedAt);
 
     // V2: Générer le numéro de facture (séquence par Company + année)
-    const { invoiceNumber, sequence } = await this.getNextInvoiceNumber(companyId, year);
+    const { invoiceNumber, sequence } = await this.getNextInvoiceNumber(
+      companyId,
+      year,
+    );
 
     // Calculer les montants
     const totalPriceValue = booking.totalPrice
-      ? typeof booking.totalPrice === 'number'
+      ? typeof booking.totalPrice === "number"
         ? booking.totalPrice
         : Number(booking.totalPrice)
       : 0;
     const lateFeeValue = booking.lateFeeAmount
-      ? typeof booking.lateFeeAmount === 'number'
+      ? typeof booking.lateFeeAmount === "number"
         ? booking.lateFeeAmount
         : Number(booking.lateFeeAmount)
       : 0;
@@ -314,9 +335,9 @@ export class InvoiceService {
 
     // V2: Emit domain event InvoiceIssued
     await this.outboxService.enqueue({
-      aggregateType: 'Invoice',
+      aggregateType: "Invoice",
       aggregateId: invoice.id,
-      eventType: 'InvoiceIssued',
+      eventType: "InvoiceIssued",
       payload: {
         invoiceId: invoice.id,
         invoiceNumber,
@@ -335,7 +356,7 @@ export class InvoiceService {
       companyId,
       agencyId: booking.agencyId,
       action: AuditAction.CREATE,
-      entityType: 'Invoice',
+      entityType: "Invoice",
       entityId: invoice.id,
       description: `Facture ${invoiceNumber} générée pour le booking ${bookingId}. Montant: ${totalAmount} MAD`,
       metadata: {
@@ -352,7 +373,7 @@ export class InvoiceService {
     this.businessEventLogService
       .logEvent(
         booking.agencyId,
-        'Invoice',
+        "Invoice",
         invoice.id,
         BusinessEventType.FINE_CREATED, // TODO: Add INVOICE_GENERATED to enum
         null,
@@ -389,15 +410,19 @@ export class InvoiceService {
     });
 
     if (!originalInvoice) {
-      throw new NotFoundException('Facture originale introuvable');
+      throw new NotFoundException("Facture originale introuvable");
     }
 
     if (originalInvoice.type !== InvoiceType.INVOICE) {
-      throw new BadRequestException('Impossible de créer un avoir pour un document qui n\'est pas une facture');
+      throw new BadRequestException(
+        "Impossible de créer un avoir pour un document qui n'est pas une facture",
+      );
     }
 
     if (originalInvoice.status === InvoiceStatus.CANCELLED) {
-      throw new BadRequestException('Impossible de créer un avoir pour une facture annulée');
+      throw new BadRequestException(
+        "Impossible de créer un avoir pour une facture annulée",
+      );
     }
 
     const issuedAt = this.getMoroccoTime();
@@ -411,7 +436,8 @@ export class InvoiceService {
     const creditAmount = -Number(originalInvoice.totalAmount);
 
     // Build payload from original invoice payload
-    const originalPayload = originalInvoice.payload as unknown as InvoicePayload;
+    const originalPayload =
+      originalInvoice.payload as unknown as InvoicePayload;
     const creditNotePayload: InvoicePayload = {
       ...originalPayload,
       version: 1,
@@ -429,7 +455,7 @@ export class InvoiceService {
         companyId: originalInvoice.companyId,
         agencyId: originalInvoice.agencyId,
         bookingId: originalInvoice.bookingId,
-        invoiceNumber: invoiceNumber.replace('FAC-', 'AVO-'), // AVO for Avoir
+        invoiceNumber: invoiceNumber.replace("FAC-", "AVO-"), // AVO for Avoir
         type: InvoiceType.CREDIT_NOTE,
         year,
         sequence,
@@ -443,9 +469,9 @@ export class InvoiceService {
 
     // Emit domain event
     await this.outboxService.enqueue({
-      aggregateType: 'Invoice',
+      aggregateType: "Invoice",
       aggregateId: creditNote.id,
-      eventType: 'CreditNoteIssued',
+      eventType: "CreditNoteIssued",
       payload: {
         creditNoteId: creditNote.id,
         originalInvoiceId,
@@ -461,7 +487,7 @@ export class InvoiceService {
       companyId: originalInvoice.companyId,
       agencyId: originalInvoice.agencyId,
       action: AuditAction.CREATE,
-      entityType: 'Invoice',
+      entityType: "Invoice",
       entityId: creditNote.id,
       description: `Avoir ${creditNote.invoiceNumber} créé pour la facture ${originalInvoice.invoiceNumber}. Raison: ${reason}`,
       metadata: {
@@ -485,7 +511,7 @@ export class InvoiceService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Facture introuvable');
+      throw new NotFoundException("Facture introuvable");
     }
 
     return invoice.payload as unknown as InvoicePayload;
@@ -496,9 +522,12 @@ export class InvoiceService {
    */
   async findAll(agencyId: string, user: any): Promise<any[]> {
     // Vérifier les permissions avec PermissionService
-    const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     const invoices = await this.prisma.invoice.findMany({
@@ -511,7 +540,7 @@ export class InvoiceService {
           },
         },
       },
-      orderBy: { issuedAt: 'desc' },
+      orderBy: { issuedAt: "desc" },
     });
 
     return invoices;
@@ -537,13 +566,16 @@ export class InvoiceService {
     });
 
     if (!invoice) {
-      throw new NotFoundException('Facture introuvable');
+      throw new NotFoundException("Facture introuvable");
     }
 
     // Vérifier les permissions avec PermissionService
-    const hasAccess = await this.permissionService.checkAgencyAccess(invoice.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      invoice.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette facture');
+      throw new ForbiddenException("Accès refusé à cette facture");
     }
 
     return invoice;
@@ -552,13 +584,17 @@ export class InvoiceService {
   /**
    * Mettre à jour le statut d'une facture (PAID, CANCELLED)
    */
-  async updateStatus(id: string, status: InvoiceStatus, userId: string): Promise<any> {
+  async updateStatus(
+    id: string,
+    status: InvoiceStatus,
+    userId: string,
+  ): Promise<any> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
     });
 
     if (!invoice) {
-      throw new NotFoundException('Facture introuvable');
+      throw new NotFoundException("Facture introuvable");
     }
 
     const updatedInvoice = await this.prisma.invoice.update({
@@ -571,7 +607,7 @@ export class InvoiceService {
       userId,
       agencyId: invoice.agencyId,
       action: AuditAction.UPDATE,
-      entityType: 'Invoice',
+      entityType: "Invoice",
       entityId: id,
       description: `Statut de la facture ${invoice.invoiceNumber} changé de ${invoice.status} à ${status}`,
       metadata: {
@@ -583,4 +619,3 @@ export class InvoiceService {
     return updatedInvoice;
   }
 }
-

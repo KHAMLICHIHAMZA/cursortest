@@ -1,6 +1,6 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { OutboxEvent } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { OutboxEvent } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
 
 /**
  * In-process dispatcher for Outbox events.
@@ -13,16 +13,21 @@ export class OutboxDispatcher {
 
   constructor(private prisma: PrismaService) {}
 
-  async dispatch(event: Pick<OutboxEvent, 'id' | 'eventType' | 'aggregateType' | 'aggregateId' | 'payload'>) {
+  async dispatch(
+    event: Pick<
+      OutboxEvent,
+      "id" | "eventType" | "aggregateType" | "aggregateId" | "payload"
+    >,
+  ) {
     const payload = event.payload as any;
 
     switch (event.eventType) {
       // Booking Events
-      case 'BookingCreated':
+      case "BookingCreated":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'BOOKING_CREATED',
+          type: "BOOKING_CREATED",
           title: `Réservation créée: ${payload.bookingNumber}`,
           content: `Nouvelle réservation ${payload.bookingNumber} créée pour le véhicule.`,
           bookingId: payload.bookingId,
@@ -33,11 +38,11 @@ export class OutboxDispatcher {
         });
         return;
 
-      case 'BookingNumberAssigned':
+      case "BookingNumberAssigned":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'BOOKING_UPDATED',
+          type: "BOOKING_UPDATED",
           title: `Numéro attribué: ${payload.bookingNumber}`,
           content: `Le numéro ${payload.bookingNumber} a été attribué à la réservation.`,
           bookingId: payload.bookingId,
@@ -46,11 +51,11 @@ export class OutboxDispatcher {
         });
         return;
 
-      case 'CheckInCompleted':
+      case "CheckInCompleted":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'CHECK_IN',
+          type: "CHECK_IN",
           title: `Check-in: ${payload.bookingNumber}`,
           content: `Check-in effectué pour la réservation ${payload.bookingNumber}.`,
           bookingId: payload.bookingId,
@@ -61,11 +66,11 @@ export class OutboxDispatcher {
         });
         return;
 
-      case 'CheckOutCompleted':
+      case "CheckOutCompleted":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'CHECK_OUT',
+          type: "CHECK_OUT",
           title: `Check-out: ${payload.bookingNumber}`,
           content: `Check-out effectué pour la réservation ${payload.bookingNumber}.`,
           bookingId: payload.bookingId,
@@ -77,11 +82,11 @@ export class OutboxDispatcher {
         return;
 
       // Invoice Events
-      case 'InvoiceIssued':
+      case "InvoiceIssued":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'INVOICE_ISSUED',
+          type: "INVOICE_ISSUED",
           title: `Facture: ${payload.invoiceNumber}`,
           content: `Facture ${payload.invoiceNumber} émise pour la réservation ${payload.bookingNumber}. Montant: ${payload.totalAmount} MAD.`,
           bookingId: payload.bookingId,
@@ -91,11 +96,11 @@ export class OutboxDispatcher {
         });
         return;
 
-      case 'CreditNoteIssued':
+      case "CreditNoteIssued":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'CREDIT_NOTE_ISSUED',
+          type: "CREDIT_NOTE_ISSUED",
           title: `Avoir: ${payload.creditNoteId}`,
           content: `Avoir créé pour la facture ${payload.originalInvoiceId}. Raison: ${payload.reason}`,
           invoiceId: payload.creditNoteId,
@@ -104,11 +109,11 @@ export class OutboxDispatcher {
         return;
 
       // Contract Events
-      case 'ContractCreated':
+      case "ContractCreated":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'CONTRACT_CREATED',
+          type: "CONTRACT_CREATED",
           title: `Contrat créé: ${payload.bookingNumber}`,
           content: `Contrat créé pour la réservation ${payload.bookingNumber}.`,
           bookingId: payload.bookingId,
@@ -118,13 +123,13 @@ export class OutboxDispatcher {
         });
         return;
 
-      case 'ContractSigned':
+      case "ContractSigned":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'CONTRACT_SIGNED',
+          type: "CONTRACT_SIGNED",
           title: `Contrat signé par ${payload.signerType}`,
-          content: `Le contrat a été signé par ${payload.signerType === 'client' ? 'le client' : "l'agent"}.${payload.isFullySigned ? ' Contrat complet.' : ''}`,
+          content: `Le contrat a été signé par ${payload.signerType === "client" ? "le client" : "l'agent"}.${payload.isFullySigned ? " Contrat complet." : ""}`,
           contractId: payload.contractId,
           userId: payload.userId,
           metadata: payload,
@@ -132,11 +137,11 @@ export class OutboxDispatcher {
         return;
 
       // Incident Events
-      case 'IncidentReported':
+      case "IncidentReported":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'INCIDENT_REPORTED',
+          type: "INCIDENT_REPORTED",
           title: `Incident: ${payload.title}`,
           content: `Incident signalé: ${payload.description}`,
           bookingId: payload.bookingId,
@@ -148,13 +153,13 @@ export class OutboxDispatcher {
         });
         return;
 
-      case 'IncidentResolved':
+      case "IncidentResolved":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'INCIDENT_RESOLVED',
+          type: "INCIDENT_RESOLVED",
           title: `Incident résolu: ${payload.title}`,
-          content: `Incident résolu: ${payload.resolution || 'Résolution non spécifiée'}`,
+          content: `Incident résolu: ${payload.resolution || "Résolution non spécifiée"}`,
           incidentId: payload.incidentId,
           userId: payload.resolvedBy,
           metadata: payload,
@@ -162,11 +167,11 @@ export class OutboxDispatcher {
         return;
 
       // GPS Events
-      case 'GpsSnapshotCaptured':
+      case "GpsSnapshotCaptured":
         await this.appendJournalEntry({
           agencyId: payload.agencyId,
           companyId: payload.companyId,
-          type: 'GPS_SNAPSHOT',
+          type: "GPS_SNAPSHOT",
           title: `GPS: ${payload.reason}`,
           content: `Snapshot GPS capturé (${payload.reason}). Lat: ${payload.latitude}, Lon: ${payload.longitude}`,
           bookingId: payload.bookingId,
@@ -222,9 +227,11 @@ export class OutboxDispatcher {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to append journal entry: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to append journal entry: ${error.message}`,
+        error.stack,
+      );
       // Don't throw - journal projection failure shouldn't break the event processing
     }
   }
 }
-

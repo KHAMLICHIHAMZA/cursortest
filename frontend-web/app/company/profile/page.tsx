@@ -19,6 +19,13 @@ import { LoadingState } from '@/components/ui/loading-state';
 export default function CompanyProfilePage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [addressLine2, setAddressLine2] = useState('');
+  const [addressCity, setAddressCity] = useState('');
+  const [addressPostalCode, setAddressPostalCode] = useState('');
+  const [addressCountry, setAddressCountry] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -41,12 +48,31 @@ export default function CompanyProfilePage() {
   useEffect(() => {
     if (user) {
       setName(user.name ?? '');
+      setPhone(user.phone ?? '');
+      setDateOfBirth(user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().slice(0, 10) : '');
+      const details = user.addressDetails || {};
+      setAddressLine1(details.line1 || user.address || '');
+      setAddressLine2(details.line2 || '');
+      setAddressCity(details.city || '');
+      setAddressPostalCode(details.postalCode || '');
+      setAddressCountry(details.country || '');
       setSelectedAgencyId(user.agencyIds?.[0] ?? '');
     }
   }, [user]);
 
-  const updateNameMutation = useMutation({
-    mutationFn: (payload: { name: string }) => apiClient.patch('/users/me', payload),
+  const updateProfileMutation = useMutation({
+    mutationFn: (payload: {
+      name: string;
+      phone?: string;
+      dateOfBirth?: string;
+      addressDetails?: {
+        line1: string;
+        line2?: string;
+        city: string;
+        postalCode: string;
+        country: string;
+      };
+    }) => apiClient.patch('/users/me', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
       toast.success('Profil mis à jour');
@@ -90,7 +116,57 @@ export default function CompanyProfilePage() {
 
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
-    updateNameMutation.mutate({ name });
+    if (!name.trim()) {
+      toast.error('Le nom est requis');
+      return;
+    }
+
+    const payload: {
+      name: string;
+      phone?: string;
+      dateOfBirth?: string;
+      addressDetails?: {
+        line1: string;
+        line2?: string;
+        city: string;
+        postalCode: string;
+        country: string;
+      };
+    } = { name: name.trim() };
+
+    if (phone.trim()) payload.phone = phone.trim();
+    if (dateOfBirth) {
+      const parsed = new Date(dateOfBirth);
+      if (Number.isNaN(parsed.getTime())) {
+        toast.error('Date de naissance invalide');
+        return;
+      }
+      payload.dateOfBirth = parsed.toISOString();
+    }
+
+    const hasAnyAddressInput = [
+      addressLine1,
+      addressLine2,
+      addressCity,
+      addressPostalCode,
+      addressCountry,
+    ].some((value) => value.trim().length > 0);
+
+    if (hasAnyAddressInput) {
+      if (!addressLine1.trim() || !addressCity.trim() || !addressPostalCode.trim() || !addressCountry.trim()) {
+        toast.error('Adresse incomplète: ligne 1, ville, code postal et pays sont requis');
+        return;
+      }
+      payload.addressDetails = {
+        line1: addressLine1.trim(),
+        line2: addressLine2.trim() || undefined,
+        city: addressCity.trim(),
+        postalCode: addressPostalCode.trim(),
+        country: addressCountry.trim(),
+      };
+    }
+
+    updateProfileMutation.mutate(payload);
   };
 
   const handleSavePassword = (e: React.FormEvent) => {
@@ -159,12 +235,71 @@ export default function CompanyProfilePage() {
                       className="bg-card text-text border-border"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-muted mb-1">Téléphone</label>
+                    <Input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Ex: +212600000000"
+                      className="bg-card text-text border-border"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-muted mb-1">Date de naissance</label>
+                    <Input
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                      className="bg-card text-text border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-text-muted">Adresse structurée</label>
+                    <Input
+                      type="text"
+                      value={addressLine1}
+                      onChange={(e) => setAddressLine1(e.target.value)}
+                      placeholder="Ligne 1 (numéro, rue...)"
+                      className="bg-card text-text border-border"
+                    />
+                    <Input
+                      type="text"
+                      value={addressLine2}
+                      onChange={(e) => setAddressLine2(e.target.value)}
+                      placeholder="Ligne 2 (bâtiment, quartier...)"
+                      className="bg-card text-text border-border"
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Input
+                        type="text"
+                        value={addressPostalCode}
+                        onChange={(e) => setAddressPostalCode(e.target.value)}
+                        placeholder="Code postal"
+                        className="bg-card text-text border-border"
+                      />
+                      <Input
+                        type="text"
+                        value={addressCity}
+                        onChange={(e) => setAddressCity(e.target.value)}
+                        placeholder="Ville"
+                        className="bg-card text-text border-border"
+                      />
+                      <Input
+                        type="text"
+                        value={addressCountry}
+                        onChange={(e) => setAddressCountry(e.target.value)}
+                        placeholder="Pays"
+                        className="bg-card text-text border-border"
+                      />
+                    </div>
+                  </div>
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={updateNameMutation.isPending || name === (user.name ?? '')}
+                    disabled={updateProfileMutation.isPending}
                   >
-                    {updateNameMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                    {updateProfileMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
                   </Button>
                 </form>
               </CardContent>

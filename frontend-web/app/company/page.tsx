@@ -33,42 +33,56 @@ export default function CompanyDashboard() {
     queryKey: ['agencies'],
     queryFn: () => agencyApi.getAll(),
     enabled: !!user?.companyId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => userApi.getAll(),
     enabled: !!user?.companyId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: vehicles, isLoading: vehiclesLoading } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => vehicleApi.getAll(),
     enabled: !!user?.companyId,
+    staleTime: 2 * 60 * 1000,
   });
 
-  const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ['bookings'],
-    queryFn: () => bookingApi.getAll(),
+  const { data: bookingsSummary, isLoading: bookingsLoading } = useQuery({
+    queryKey: ['bookings-summary', user?.companyId],
+    queryFn: () => bookingApi.getSummary(),
     enabled: !!user?.companyId,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: activeBookingsPage } = useQuery({
+    queryKey: ['bookings-light-active', user?.companyId],
+    queryFn: () => bookingApi.getLight({ status: 'IN_PROGRESS', page: 1, pageSize: 5 }),
+    enabled: !!user?.companyId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: subscription } = useQuery({
     queryKey: ['subscription', user?.companyId],
     queryFn: () => subscriptionApi.getByCompany(user!.companyId!),
     enabled: !!user?.companyId,
+    staleTime: 60 * 1000,
   });
 
   const { data: companyInfo } = useQuery({
     queryKey: ['company', user?.companyId],
     queryFn: () => companyApi.getMyCompany(),
     enabled: !!user?.companyId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: invoices } = useQuery({
     queryKey: ['invoices', user?.companyId],
     queryFn: () => billingApi.getCompanyInvoices(user!.companyId!),
     enabled: !!user?.companyId,
+    staleTime: 60 * 1000,
   });
 
   // Filtrer les données par companyId
@@ -88,25 +102,9 @@ export default function CompanyDashboard() {
     return vehicles.filter((v) => agencyIds.includes(v.agencyId));
   }, [vehicles, companyAgencies]);
 
-  const activeBookings = useMemo(() => {
-    if (!bookings || !companyAgencies.length) return [];
-    const agencyIds = companyAgencies.map((a) => a.id);
-    return bookings.filter(
-      (b) => agencyIds.includes(b.agencyId) && b.status === 'IN_PROGRESS',
-    );
-  }, [bookings, companyAgencies]);
-
-  const completedBookings = useMemo(() => {
-    if (!bookings || !companyAgencies.length) return [];
-    const agencyIds = companyAgencies.map((a) => a.id);
-    return bookings.filter(
-      (b) => agencyIds.includes(b.agencyId) && b.status === 'RETURNED',
-    );
-  }, [bookings, companyAgencies]);
-
-  const totalRevenue = useMemo(() => {
-    return completedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-  }, [completedBookings]);
+  const activeBookings = activeBookingsPage?.items || [];
+  const completedBookingsCount = bookingsSummary?.completed || 0;
+  const totalRevenue = bookingsSummary?.estimatedRevenue || 0;
 
   // Calculer les jours restants avant expiration
   const daysUntilExpiration = subscription?.endDate
@@ -222,7 +220,7 @@ export default function CompanyDashboard() {
             />
             <StatCard
               title="Locations actives"
-              value={activeBookings.length || 0}
+              value={bookingsSummary?.active || 0}
               icon={TrendingUp}
               isLoading={bookingsLoading}
               onClick={() => router.push('/company/planning')}
@@ -238,7 +236,7 @@ export default function CompanyDashboard() {
               <CardContent>
                 <p className="text-3xl font-bold text-text">{totalRevenue.toLocaleString('fr-FR')} MAD</p>
                 <p className="text-sm text-text-muted mt-1">
-                  {completedBookings.length} location(s) terminée(s)
+                  {completedBookingsCount} location(s) terminée(s)
                 </p>
               </CardContent>
             </Card>
@@ -269,7 +267,7 @@ export default function CompanyDashboard() {
               <CardContent>
                 <p className="text-3xl font-bold text-text">
                   {companyVehicles.length > 0
-                    ? ((activeBookings.length / companyVehicles.length) * 100).toFixed(1)
+                    ? (((bookingsSummary?.active || 0) / companyVehicles.length) * 100).toFixed(1)
                     : 0}
                   %
                 </p>

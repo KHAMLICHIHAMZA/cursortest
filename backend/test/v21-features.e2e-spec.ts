@@ -53,14 +53,27 @@ describe('V2.1 Features Integration', () => {
     });
     testCompanyId = company.id;
 
-    // ── Enable VEHICLES module for this company (needed by GPS guards) ──
+    // ── Enable modules required by guards for this company ──
     try {
-      await prisma.companyModule.create({
-        data: {
-          companyId: testCompanyId,
-          moduleCode: 'VEHICLES',
-          isActive: true,
-        },
+      await prisma.companyModule.createMany({
+        data: [
+          {
+            companyId: testCompanyId,
+            moduleCode: 'VEHICLES',
+            isActive: true,
+          },
+          {
+            companyId: testCompanyId,
+            moduleCode: 'BOOKINGS',
+            isActive: true,
+          },
+          {
+            companyId: testCompanyId,
+            moduleCode: 'NOTIFICATIONS',
+            isActive: true,
+          },
+        ],
+        skipDuplicates: true,
       });
     } catch {
       // Module might already exist or moduleCode might not match

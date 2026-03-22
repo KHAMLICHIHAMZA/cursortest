@@ -1,20 +1,26 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PrismaSoftDeleteService } from '../../common/prisma/prisma-soft-delete.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { AuditService } from '../../common/services/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { CreateClientDto } from './dto/create-client.dto';
-import { UpdateClientDto } from './dto/update-client.dto';
-import { BusinessEventType } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaSoftDeleteService } from "../../common/prisma/prisma-soft-delete.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { AuditService } from "../../common/services/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import { CreateClientDto } from "./dto/create-client.dto";
+import { UpdateClientDto } from "./dto/update-client.dto";
+import { BusinessEventType } from "@prisma/client";
 
 @Injectable()
 export class ClientService {
   private readonly logger = new Logger(ClientService.name);
   private visionApiKey: string;
   private visionApiUrl: string;
-  private visionProvider: 'openai' | 'google' | 'none';
+  private visionProvider: "openai" | "google" | "none";
 
   constructor(
     private prisma: PrismaService,
@@ -24,20 +30,28 @@ export class ClientService {
     private businessEventLogService: BusinessEventLogService,
     private configService: ConfigService,
   ) {
-    this.visionApiKey = this.configService.get<string>('VISION_API_KEY') || '';
-    this.visionProvider = (this.configService.get<string>('VISION_PROVIDER') || 'openai') as 'openai' | 'google' | 'none';
-    
-    if (this.visionProvider === 'openai') {
-      this.visionApiUrl = this.configService.get<string>('OPENAI_API_URL') || 'https://api.openai.com/v1/chat/completions';
-    } else if (this.visionProvider === 'google') {
-      this.visionApiUrl = this.configService.get<string>('GOOGLE_VISION_API_URL') || 'https://vision.googleapis.com/v1/images:annotate';
+    this.visionApiKey = this.configService.get<string>("VISION_API_KEY") || "";
+    this.visionProvider = (this.configService.get<string>("VISION_PROVIDER") ||
+      "openai") as "openai" | "google" | "none";
+
+    if (this.visionProvider === "openai") {
+      this.visionApiUrl =
+        this.configService.get<string>("OPENAI_API_URL") ||
+        "https://api.openai.com/v1/chat/completions";
+    } else if (this.visionProvider === "google") {
+      this.visionApiUrl =
+        this.configService.get<string>("GOOGLE_VISION_API_URL") ||
+        "https://vision.googleapis.com/v1/images:annotate";
     } else {
-      this.visionApiUrl = '';
+      this.visionApiUrl = "";
     }
   }
 
   async findAll(user: any, agencyId?: string) {
-    const agencyFilter = this.permissionService.buildAgencyFilter(user, agencyId);
+    const agencyFilter = this.permissionService.buildAgencyFilter(
+      user,
+      agencyId,
+    );
     if (!agencyFilter) return [];
 
     const where = this.softDeleteService.addSoftDeleteFilter({
@@ -86,7 +100,7 @@ export class ClientService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Remove audit fields from public responses
@@ -104,12 +118,19 @@ export class ClientService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client introuvable. Vérifiez l\'identifiant du client.');
+      throw new NotFoundException(
+        "Client introuvable. Vérifiez l'identifiant du client.",
+      );
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(client.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      client.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce client');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour accéder à ce client",
+      );
     }
 
     // Remove audit fields from public responses
@@ -117,9 +138,12 @@ export class ClientService {
   }
 
   async create(createClientDto: CreateClientDto, user: any) {
-    const hasAccess = await this.permissionService.checkAgencyAccess(createClientDto.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      createClientDto.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     // Vérifier les doublons par email (si email fourni)
@@ -132,16 +156,21 @@ export class ClientService {
       });
 
       if (existingClientByEmail) {
-        throw new BadRequestException('Un client avec cet email existe déjà dans cette agence');
+        throw new BadRequestException(
+          "Un client avec cet email existe déjà dans cette agence",
+        );
       }
     }
 
     // Vérifier les doublons par nom + prénom + numéro de permis
-    const clientName = `${createClientDto.firstName} ${createClientDto.lastName}`.trim();
-    
+    const clientName =
+      `${createClientDto.firstName} ${createClientDto.lastName}`.trim();
+
     // Validation stricte : nom + prénom + numéro de permis
     if (!createClientDto.licenseNumber) {
-      throw new BadRequestException('Le numéro de permis est requis pour créer un client');
+      throw new BadRequestException(
+        "Le numéro de permis est requis pour créer un client",
+      );
     }
 
     const existingClient = await this.prisma.client.findFirst({
@@ -153,8 +182,22 @@ export class ClientService {
 
     if (existingClient) {
       throw new BadRequestException(
-        `Un client avec le même nom (${clientName}) et le même numéro de permis (${createClientDto.licenseNumber}) existe déjà`
+        `Un client avec le même nom (${clientName}) et le même numéro de permis (${createClientDto.licenseNumber}) existe déjà`,
       );
+    }
+
+    const noteParts: string[] = [];
+    if (createClientDto.address) {
+      noteParts.push(`Adresse: ${createClientDto.address}`);
+    }
+    if (createClientDto.licenseNumber) {
+      noteParts.push(`Permis: ${createClientDto.licenseNumber}`);
+    }
+    if (createClientDto.licenseType) {
+      noteParts.push(`Type permis: ${createClientDto.licenseType}`);
+    }
+    if (createClientDto.note) {
+      noteParts.push(createClientDto.note);
     }
 
     return this.prisma.client.create({
@@ -163,7 +206,9 @@ export class ClientService {
         email: createClientDto.email,
         phone: createClientDto.phone,
         agencyId: createClientDto.agencyId,
-        dateOfBirth: createClientDto.dateOfBirth ? new Date(createClientDto.dateOfBirth) : null,
+        dateOfBirth: createClientDto.dateOfBirth
+          ? new Date(createClientDto.dateOfBirth)
+          : null,
         licenseImageUrl: createClientDto.licenseImageUrl,
         isMoroccan: createClientDto.isMoroccan ?? true,
         countryOfOrigin: createClientDto.countryOfOrigin,
@@ -172,10 +217,14 @@ export class ClientService {
         licenseExpiryDate: new Date(createClientDto.licenseExpiryDate),
         isForeignLicense: createClientDto.isForeignLicense ?? false,
         idCardNumber: createClientDto.idCardNumber,
-        idCardExpiryDate: createClientDto.idCardExpiryDate ? new Date(createClientDto.idCardExpiryDate) : null,
+        idCardExpiryDate: createClientDto.idCardExpiryDate
+          ? new Date(createClientDto.idCardExpiryDate)
+          : null,
         passportNumber: createClientDto.passportNumber,
-        passportExpiryDate: createClientDto.passportExpiryDate ? new Date(createClientDto.passportExpiryDate) : null,
-        note: createClientDto.note || null,
+        passportExpiryDate: createClientDto.passportExpiryDate
+          ? new Date(createClientDto.passportExpiryDate)
+          : null,
+        note: noteParts.length > 0 ? noteParts.join(", ") : null,
       },
       include: {
         agency: {
@@ -191,57 +240,93 @@ export class ClientService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client introuvable. Vérifiez l\'identifiant du client.');
+      throw new NotFoundException(
+        "Client introuvable. Vérifiez l'identifiant du client.",
+      );
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(client.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      client.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce client');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour accéder à ce client",
+      );
     }
 
     const updateData: any = {};
     if (updateClientDto.firstName || updateClientDto.lastName) {
-      const currentName = client.name ? client.name.split(' ') : [];
-      const firstName = updateClientDto.firstName || currentName[0] || '';
-      const lastName = updateClientDto.lastName || currentName.slice(1).join(' ') || '';
+      const currentName = client.name ? client.name.split(" ") : [];
+      const firstName = updateClientDto.firstName || currentName[0] || "";
+      const lastName =
+        updateClientDto.lastName || currentName.slice(1).join(" ") || "";
       updateData.name = `${firstName} ${lastName}`.trim();
     }
-    if (updateClientDto.email !== undefined) updateData.email = updateClientDto.email;
-    if (updateClientDto.phone !== undefined) updateData.phone = updateClientDto.phone;
-    if (updateClientDto.licenseImageUrl !== undefined) updateData.licenseImageUrl = updateClientDto.licenseImageUrl;
-    if (updateClientDto.isMoroccan !== undefined) updateData.isMoroccan = updateClientDto.isMoroccan;
-    if (updateClientDto.countryOfOrigin !== undefined) updateData.countryOfOrigin = updateClientDto.countryOfOrigin;
-    if (updateClientDto.licenseNumber !== undefined) updateData.licenseNumber = updateClientDto.licenseNumber;
-    if (updateClientDto.licenseType !== undefined) updateData.licenseType = updateClientDto.licenseType;
+    if (updateClientDto.email !== undefined)
+      updateData.email = updateClientDto.email;
+    if (updateClientDto.phone !== undefined)
+      updateData.phone = updateClientDto.phone;
+    if (updateClientDto.licenseImageUrl !== undefined)
+      updateData.licenseImageUrl = updateClientDto.licenseImageUrl;
+    if (updateClientDto.isMoroccan !== undefined)
+      updateData.isMoroccan = updateClientDto.isMoroccan;
+    if (updateClientDto.countryOfOrigin !== undefined)
+      updateData.countryOfOrigin = updateClientDto.countryOfOrigin;
+    if (updateClientDto.licenseNumber !== undefined)
+      updateData.licenseNumber = updateClientDto.licenseNumber;
+    if (updateClientDto.licenseType !== undefined)
+      updateData.licenseType = updateClientDto.licenseType;
     if (updateClientDto.licenseExpiryDate !== undefined) {
       // licenseExpiryDate est maintenant obligatoire (NOT NULL), donc on ne peut pas le mettre à null
-      updateData.licenseExpiryDate = new Date(updateClientDto.licenseExpiryDate);
+      updateData.licenseExpiryDate = new Date(
+        updateClientDto.licenseExpiryDate,
+      );
     }
     if (updateClientDto.dateOfBirth !== undefined) {
-      updateData.dateOfBirth = updateClientDto.dateOfBirth ? new Date(updateClientDto.dateOfBirth) : null;
+      updateData.dateOfBirth = updateClientDto.dateOfBirth
+        ? new Date(updateClientDto.dateOfBirth)
+        : null;
     }
-    if (updateClientDto.isForeignLicense !== undefined) updateData.isForeignLicense = updateClientDto.isForeignLicense;
-    if (updateClientDto.idCardNumber !== undefined) updateData.idCardNumber = updateClientDto.idCardNumber;
+    if (updateClientDto.isForeignLicense !== undefined)
+      updateData.isForeignLicense = updateClientDto.isForeignLicense;
+    if (updateClientDto.idCardNumber !== undefined)
+      updateData.idCardNumber = updateClientDto.idCardNumber;
     if (updateClientDto.idCardExpiryDate !== undefined) {
-      updateData.idCardExpiryDate = updateClientDto.idCardExpiryDate ? new Date(updateClientDto.idCardExpiryDate) : null;
+      updateData.idCardExpiryDate = updateClientDto.idCardExpiryDate
+        ? new Date(updateClientDto.idCardExpiryDate)
+        : null;
     }
-    if (updateClientDto.passportNumber !== undefined) updateData.passportNumber = updateClientDto.passportNumber;
+    if (updateClientDto.passportNumber !== undefined)
+      updateData.passportNumber = updateClientDto.passportNumber;
     if (updateClientDto.passportExpiryDate !== undefined) {
-      updateData.passportExpiryDate = updateClientDto.passportExpiryDate ? new Date(updateClientDto.passportExpiryDate) : null;
+      updateData.passportExpiryDate = updateClientDto.passportExpiryDate
+        ? new Date(updateClientDto.passportExpiryDate)
+        : null;
     }
-    if (updateClientDto.address || updateClientDto.licenseNumber || updateClientDto.licenseType) {
+    if (
+      updateClientDto.address ||
+      updateClientDto.licenseNumber ||
+      updateClientDto.licenseType
+    ) {
       const noteParts = [];
-      if (updateClientDto.address) noteParts.push(`Adresse: ${updateClientDto.address}`);
-      if (updateClientDto.licenseNumber) noteParts.push(`Permis: ${updateClientDto.licenseNumber}`);
-      if (updateClientDto.licenseType) noteParts.push(`Type permis: ${updateClientDto.licenseType}`);
-      updateData.note = noteParts.length > 0 ? noteParts.join(', ') : null;
+      if (updateClientDto.address)
+        noteParts.push(`Adresse: ${updateClientDto.address}`);
+      if (updateClientDto.licenseNumber)
+        noteParts.push(`Permis: ${updateClientDto.licenseNumber}`);
+      if (updateClientDto.licenseType)
+        noteParts.push(`Type permis: ${updateClientDto.licenseType}`);
+      updateData.note = noteParts.length > 0 ? noteParts.join(", ") : null;
     }
 
     // Store previous state for event log
     const previousState = { ...client };
 
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(updateData, user.id);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      updateData,
+      user.id,
+    );
 
     const updatedClient = await this.prisma.client.update({
       where: { id },
@@ -257,7 +342,7 @@ export class ClientService {
     this.businessEventLogService
       .logEvent(
         updatedClient.agencyId,
-        'Client',
+        "Client",
         updatedClient.id,
         BusinessEventType.CLIENT_UPDATED,
         previousState,
@@ -278,19 +363,30 @@ export class ClientService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client introuvable. Vérifiez l\'identifiant du client.');
+      throw new NotFoundException(
+        "Client introuvable. Vérifiez l'identifiant du client.",
+      );
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(client.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      client.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour accéder à ce client');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour accéder à ce client",
+      );
     }
 
     // Store previous state for event log
     const previousState = { ...client };
 
     // Add audit fields for soft delete
-    const deleteData = this.auditService.addDeleteAuditFields({}, user.id, reason);
+    const deleteData = this.auditService.addDeleteAuditFields(
+      {},
+      user.id,
+      reason,
+    );
 
     await this.prisma.client.update({
       where: { id },
@@ -301,7 +397,7 @@ export class ClientService {
     this.businessEventLogService
       .logEvent(
         client.agencyId,
-        'Client',
+        "Client",
         client.id,
         BusinessEventType.CLIENT_DELETED,
         previousState,
@@ -312,7 +408,7 @@ export class ClientService {
         // Error already logged in service
       });
 
-    return { message: 'Client supprimé avec succès' };
+    return { message: "Client supprimé avec succès" };
   }
 
   async analyzeLicenseImage(imageUrl: string): Promise<{
@@ -329,33 +425,34 @@ export class ClientService {
     confidence: number;
     message: string;
   }> {
-    if (!this.visionApiKey || this.visionProvider === 'none') {
+    if (!this.visionApiKey || this.visionProvider === "none") {
       return {
         isValid: false,
         isMoroccan: true,
         confidence: 0,
-        message: 'Service d\'analyse non configuré - Vérification manuelle requise',
+        message:
+          "Service d'analyse non configuré - Vérification manuelle requise",
       };
     }
 
     try {
-      if (this.visionProvider === 'openai') {
+      if (this.visionProvider === "openai") {
         return await this.analyzeLicenseWithOpenAI(imageUrl);
       } else {
         return {
           isValid: false,
           isMoroccan: true,
           confidence: 0,
-          message: 'Service d\'analyse non disponible',
+          message: "Service d'analyse non disponible",
         };
       }
     } catch (error: any) {
-      this.logger.error('License analysis error:', error);
+      this.logger.error("License analysis error:", error);
       return {
         isValid: false,
         isMoroccan: true,
         confidence: 0,
-        message: 'Erreur lors de l\'analyse - Vérification manuelle requise',
+        message: "Erreur lors de l'analyse - Vérification manuelle requise",
       };
     }
   }
@@ -375,19 +472,19 @@ export class ClientService {
     message: string;
   }> {
     const response = await fetch(this.visionApiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${this.visionApiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.visionApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
+        model: "gpt-4-vision-preview",
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: [
               {
-                type: 'text',
+                type: "text",
                 text: `Analyse cette photo de permis de conduite et extrais les informations suivantes. Réponds UNIQUEMENT en JSON valide avec cette structure exacte:
 {
   "isValid": boolean (true si c'est un permis valide),
@@ -407,7 +504,7 @@ export class ClientService {
 Si certaines informations ne sont pas visibles, utilise null ou une chaîne vide.`,
               },
               {
-                type: 'image_url',
+                type: "image_url",
                 image_url: {
                   url: imageUrl,
                 },
@@ -427,7 +524,9 @@ Si certaines informations ne sont pas visibles, utilise null ou une chaîne vide
     const content = data.choices[0]?.message?.content;
 
     if (!content) {
-      throw new Error('Aucune réponse de l\'API Vision. Le service de reconnaissance est peut-être indisponible.');
+      throw new Error(
+        "Aucune réponse de l'API Vision. Le service de reconnaissance est peut-être indisponible.",
+      );
     }
 
     // Parser le JSON de la réponse
@@ -441,15 +540,15 @@ Si certaines informations ne sont pas visibles, utilise null ou une chaîne vide
         licenseType: analysis.licenseType || undefined,
         extractedData: analysis.extractedData || undefined,
         confidence: analysis.confidence ?? 0,
-        message: analysis.message || 'Analyse terminée',
+        message: analysis.message || "Analyse terminée",
       };
     } catch (parseError) {
-      this.logger.error('Failed to parse Vision API response:', parseError);
+      this.logger.error("Failed to parse Vision API response:", parseError);
       return {
         isValid: false,
         isMoroccan: true,
         confidence: 0,
-        message: 'Erreur lors de l\'analyse de la réponse',
+        message: "Erreur lors de l'analyse de la réponse",
       };
     }
   }

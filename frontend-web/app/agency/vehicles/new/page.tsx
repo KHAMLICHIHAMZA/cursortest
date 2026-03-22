@@ -21,6 +21,7 @@ import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import Cookies from 'js-cookie';
 import { getImageUrl } from '@/lib/utils/image-url';
+import { getApiErrorMessage } from '@/lib/utils/api-error';
 
 export default function NewVehiclePage() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function NewVehiclePage() {
       dailyRate: undefined,
       status: 'AVAILABLE',
       horsepower: undefined,
+      maintenanceAlertIntervalKm: undefined,
     },
   });
 
@@ -104,14 +106,12 @@ export default function NewVehiclePage() {
     },
     onError: (error: any) => {
       if (error.response) {
-        const message = error.response.data?.message || 
-                       error.response.data?.error ||
-                       `Erreur serveur (${error.response.status})`;
+        const message = getApiErrorMessage(error, `Erreur serveur (${error.response.status})`);
         toast.error(message);
       } else if (error.request) {
         toast.error('Aucune réponse du serveur. Vérifiez votre connexion.');
       } else {
-        toast.error(error.message || 'Erreur inconnue lors de la création');
+        toast.error(getApiErrorMessage(error, 'Erreur inconnue lors de la création'));
       }
     },
   });
@@ -148,9 +148,7 @@ export default function NewVehiclePage() {
         setValue('imageUrl', result.imageUrl, { shouldValidate: true });
         toast.success('Image uploadée avec succès');
       } catch (error: any) {
-        const errorMessage = error.response?.data?.message || 
-                           error.message || 
-                           'Erreur lors de l\'upload de l\'image';
+        const errorMessage = getApiErrorMessage(error, 'Erreur lors de l\'upload de l\'image');
         toast.error(errorMessage);
         setImageFile(null);
         setImagePreview(null);
@@ -242,6 +240,15 @@ export default function NewVehiclePage() {
           <VehicleAutocomplete
             onSelect={handleVehicleSelect}
             selectedVehicle={selectedVehicle}
+            onBrandChange={(value) => {
+              setValue('brand', value, { shouldValidate: true });
+            }}
+            onModelChange={(value) => {
+              setValue('model', value, { shouldValidate: true });
+            }}
+            onClearSelection={() => {
+              setSelectedVehicle(null);
+            }}
           />
           
           {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand.message}</p>}
@@ -392,6 +399,28 @@ export default function NewVehiclePage() {
               />
               {errors.depositAmount && <p className="text-red-500 text-sm mt-1">{errors.depositAmount.message}</p>}
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="maintenanceAlertIntervalKm" className="block text-sm font-medium text-text mb-2">
+              Palier entretien personnalisé (km)
+            </label>
+            <Input
+              id="maintenanceAlertIntervalKm"
+              type="number"
+              min="1000"
+              step="500"
+              {...register('maintenanceAlertIntervalKm', {
+                setValueAs: (value) => (value === '' ? undefined : Number(value)),
+              })}
+              placeholder="Ex: 15000 (laisser vide = règle globale SaaS)"
+            />
+            <p className="text-xs text-text-muted mt-1">
+              Exemple: une Range peut être à 15 000 km, une Clio à 10 000 km.
+            </p>
+            {errors.maintenanceAlertIntervalKm && (
+              <p className="text-red-500 text-sm mt-1">{errors.maintenanceAlertIntervalKm.message}</p>
+            )}
           </div>
 
           {/* Informations financières */}

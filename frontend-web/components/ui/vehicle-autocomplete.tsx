@@ -20,12 +20,18 @@ export interface VehicleSuggestion {
 interface VehicleAutocompleteProps {
   onSelect: (vehicle: VehicleSuggestion) => void;
   selectedVehicle?: VehicleSuggestion | null;
+  onBrandChange?: (brand: string) => void;
+  onModelChange?: (model: string) => void;
+  onClearSelection?: () => void;
   className?: string;
 }
 
 export function VehicleAutocomplete({
   onSelect,
   selectedVehicle,
+  onBrandChange,
+  onModelChange,
+  onClearSelection,
   className,
 }: VehicleAutocompleteProps) {
   const [brandQuery, setBrandQuery] = useState('');
@@ -120,12 +126,17 @@ export function VehicleAutocomplete({
     setShowBrandsDropdown(false);
     setModelQuery('');
     setModels([]);
+    onBrandChange?.(brand);
+    onModelChange?.('');
+    onClearSelection?.();
   };
 
   const handleModelSelect = (vehicle: VehicleSuggestion) => {
     onSelect(vehicle);
     setModelQuery(`${vehicle.brand} ${vehicle.model}`);
     setShowModelsDropdown(false);
+    onBrandChange?.(vehicle.brand);
+    onModelChange?.(vehicle.model);
   };
 
   // Initialiser avec le véhicule sélectionné
@@ -149,16 +160,19 @@ export function VehicleAutocomplete({
             id="brand"
             value={brandQuery}
             onChange={(e) => {
-              setBrandQuery(e.target.value);
+              const value = e.target.value;
+              setBrandQuery(value);
               setSelectedBrand('');
               setModelQuery('');
               setModels([]);
+              onBrandChange?.(value);
+              onModelChange?.('');
+              if (selectedVehicle) onClearSelection?.();
             }}
             onFocus={() => {
               if (brands.length > 0) setShowBrandsDropdown(true);
             }}
             placeholder="Rechercher une marque (ex: Peugeot, Renault...)"
-            disabled={!!selectedVehicle}
           />
           {isLoadingBrands && (
             <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-text-muted" />
@@ -194,12 +208,16 @@ export function VehicleAutocomplete({
             <Input
               id="model"
               value={modelQuery}
-              onChange={(e) => setModelQuery(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setModelQuery(value);
+                onModelChange?.(value);
+                if (selectedVehicle) onClearSelection?.();
+              }}
               onFocus={() => {
                 if (models.length > 0) setShowModelsDropdown(true);
               }}
               placeholder="Rechercher un modèle (ex: 208, Clio...)"
-              disabled={!!selectedVehicle}
             />
             {isLoadingModels && (
               <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-text-muted" />
@@ -233,6 +251,29 @@ export function VehicleAutocomplete({
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {selectedVehicle && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="text-xs text-primary hover:underline"
+            onClick={() => {
+              setSelectedBrand('');
+              setBrandQuery('');
+              setModelQuery('');
+              setBrands([]);
+              setModels([]);
+              setShowBrandsDropdown(false);
+              setShowModelsDropdown(false);
+              onBrandChange?.('');
+              onModelChange?.('');
+              onClearSelection?.();
+            }}
+          >
+            Réinitialiser la sélection
+          </button>
         </div>
       )}
     </div>

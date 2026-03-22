@@ -1,13 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PrismaSoftDeleteService } from '../../common/prisma/prisma-soft-delete.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { AuditService } from '../../common/services/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { PlanningService } from '../planning/planning.service';
-import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
-import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
-import { MaintenanceStatus, BusinessEventType } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  ConflictException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaSoftDeleteService } from "../../common/prisma/prisma-soft-delete.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { AuditService } from "../../common/services/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import { PlanningService } from "../planning/planning.service";
+import { CreateMaintenanceDto } from "./dto/create-maintenance.dto";
+import { UpdateMaintenanceDto } from "./dto/update-maintenance.dto";
+import { MaintenanceStatus, BusinessEventType } from "@prisma/client";
 
 @Injectable()
 export class MaintenanceService {
@@ -20,14 +26,21 @@ export class MaintenanceService {
     private planningService: PlanningService,
   ) {}
 
-  async findAll(user: any, filters?: { agencyId?: string; vehicleId?: string; status?: MaintenanceStatus }) {
-    let where: any = {};
+  async findAll(
+    user: any,
+    filters?: {
+      agencyId?: string;
+      vehicleId?: string;
+      status?: MaintenanceStatus;
+    },
+  ) {
+    const where: any = {};
 
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       if (filters?.agencyId) where.agencyId = filters.agencyId;
       if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
       if (filters?.status) where.status = filters.status;
-    } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    } else if (user.role === "COMPANY_ADMIN" && user.companyId) {
       where.agency = { companyId: user.companyId };
       if (filters?.agencyId) {
         const agency = await this.prisma.agency.findFirst({
@@ -62,7 +75,7 @@ export class MaintenanceService {
         },
         vehicle: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Remove audit fields from public responses
@@ -81,12 +94,17 @@ export class MaintenanceService {
     });
 
     if (!maintenance) {
-      throw new NotFoundException('Maintenance introuvable');
+      throw new NotFoundException("Maintenance introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(maintenance.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      maintenance.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour consulter cette maintenance');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour consulter cette maintenance",
+      );
     }
 
     // Remove audit fields from public responses
@@ -94,15 +112,28 @@ export class MaintenanceService {
   }
 
   async create(createMaintenanceDto: CreateMaintenanceDto, user: any) {
-    const { agencyId, vehicleId, description, plannedAt, cost, status, documentUrl } = createMaintenanceDto;
+    const {
+      agencyId,
+      vehicleId,
+      description,
+      plannedAt,
+      cost,
+      status,
+      documentUrl,
+    } = createMaintenanceDto;
 
     if (!agencyId || !vehicleId || !description) {
-      throw new BadRequestException('Champs requis manquants : l\'identifiant agence, le véhicule et la description sont obligatoires');
+      throw new BadRequestException(
+        "Champs requis manquants : l'identifiant agence, le véhicule et la description sont obligatoires",
+      );
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     // Check if vehicle exists and belongs to agency
@@ -111,7 +142,9 @@ export class MaintenanceService {
     });
 
     if (!vehicle || vehicle.agencyId !== agencyId) {
-      throw new BadRequestException('Véhicule introuvable ou n\'appartient pas à cette agence');
+      throw new BadRequestException(
+        "Véhicule introuvable ou n'appartient pas à cette agence",
+      );
     }
 
     // Vérifier qu'il n'y a pas de location en cours pour ce véhicule
@@ -132,11 +165,12 @@ export class MaintenanceService {
           maintenanceStart,
           maintenanceEnd,
         );
-        
-        const bookingConflicts = conflicts.filter((c) => c.type === 'BOOKING');
+
+        const bookingConflicts = conflicts.filter((c) => c.type === "BOOKING");
         if (bookingConflicts.length > 0) {
           throw new ConflictException({
-            message: 'Le véhicule est en location pendant cette période. Impossible de planifier une maintenance.',
+            message:
+              "Le véhicule est en location pendant cette période. Impossible de planifier une maintenance.",
             conflicts: bookingConflicts,
           });
         }
@@ -148,16 +182,17 @@ export class MaintenanceService {
           vehicleId,
           deletedAt: null,
           status: {
-            in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'],
+            in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
           },
         },
       });
 
       if (activeBookings.length > 0) {
         throw new ConflictException({
-          message: 'Le véhicule est actuellement en location. Impossible de démarrer une maintenance.',
+          message:
+            "Le véhicule est actuellement en location. Impossible de démarrer une maintenance.",
           conflicts: activeBookings.map((b) => ({
-            type: 'BOOKING',
+            type: "BOOKING",
             id: b.id,
             startDate: b.startDate,
             endDate: b.endDate,
@@ -194,7 +229,7 @@ export class MaintenanceService {
     if (maintenance.status === MaintenanceStatus.IN_PROGRESS) {
       await this.prisma.vehicle.update({
         where: { id: vehicleId },
-        data: { status: 'MAINTENANCE' },
+        data: { status: "MAINTENANCE" },
       });
     }
 
@@ -202,7 +237,7 @@ export class MaintenanceService {
     this.businessEventLogService
       .logEvent(
         maintenance.agencyId,
-        'Maintenance',
+        "Maintenance",
         maintenance.id,
         BusinessEventType.MAINTENANCE_CREATED,
         null,
@@ -217,19 +252,28 @@ export class MaintenanceService {
     return this.auditService.removeAuditFields(maintenance);
   }
 
-  async update(id: string, updateMaintenanceDto: UpdateMaintenanceDto, user: any) {
+  async update(
+    id: string,
+    updateMaintenanceDto: UpdateMaintenanceDto,
+    user: any,
+  ) {
     const maintenance = await this.prisma.maintenance.findUnique({
       where: { id },
       include: { vehicle: true },
     });
 
     if (!maintenance) {
-      throw new NotFoundException('Maintenance introuvable');
+      throw new NotFoundException("Maintenance introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(maintenance.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      maintenance.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour modifier cette maintenance');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour modifier cette maintenance",
+      );
     }
 
     // Store previous state for event log
@@ -242,13 +286,17 @@ export class MaintenanceService {
     };
 
     if (updateMaintenanceDto.plannedAt !== undefined) {
-      updateData.plannedAt = updateMaintenanceDto.plannedAt ? new Date(updateMaintenanceDto.plannedAt) : null;
+      updateData.plannedAt = updateMaintenanceDto.plannedAt
+        ? new Date(updateMaintenanceDto.plannedAt)
+        : null;
     } else {
       updateData.plannedAt = maintenance.plannedAt;
     }
 
     if (updateMaintenanceDto.cost !== undefined) {
-      updateData.cost = updateMaintenanceDto.cost ? parseFloat(updateMaintenanceDto.cost.toString()) : null;
+      updateData.cost = updateMaintenanceDto.cost
+        ? parseFloat(updateMaintenanceDto.cost.toString())
+        : null;
     } else {
       updateData.cost = maintenance.cost;
     }
@@ -260,7 +308,10 @@ export class MaintenanceService {
     }
 
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(updateData, user.id);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      updateData,
+      user.id,
+    );
 
     const updatedMaintenance = await this.prisma.maintenance.update({
       where: { id },
@@ -274,10 +325,13 @@ export class MaintenanceService {
     });
 
     // Update vehicle status based on maintenance status
-    if (updatedMaintenance.status === MaintenanceStatus.IN_PROGRESS && oldStatus !== MaintenanceStatus.IN_PROGRESS) {
+    if (
+      updatedMaintenance.status === MaintenanceStatus.IN_PROGRESS &&
+      oldStatus !== MaintenanceStatus.IN_PROGRESS
+    ) {
       await this.prisma.vehicle.update({
         where: { id: maintenance.vehicleId },
-        data: { status: 'MAINTENANCE' },
+        data: { status: "MAINTENANCE" },
       });
     } else if (
       (updatedMaintenance.status === MaintenanceStatus.COMPLETED ||
@@ -286,19 +340,20 @@ export class MaintenanceService {
     ) {
       await this.prisma.vehicle.update({
         where: { id: maintenance.vehicleId },
-        data: { status: 'AVAILABLE' },
+        data: { status: "AVAILABLE" },
       });
     }
 
     // Log business event
-    const eventType = updateMaintenanceDto.status && updateMaintenanceDto.status !== oldStatus
-      ? BusinessEventType.MAINTENANCE_STATUS_CHANGED
-      : BusinessEventType.MAINTENANCE_UPDATED;
+    const eventType =
+      updateMaintenanceDto.status && updateMaintenanceDto.status !== oldStatus
+        ? BusinessEventType.MAINTENANCE_STATUS_CHANGED
+        : BusinessEventType.MAINTENANCE_UPDATED;
 
     this.businessEventLogService
       .logEvent(
         updatedMaintenance.agencyId,
-        'Maintenance',
+        "Maintenance",
         updatedMaintenance.id,
         eventType,
         previousState,
@@ -320,19 +375,28 @@ export class MaintenanceService {
     });
 
     if (!maintenance) {
-      throw new NotFoundException('Maintenance introuvable');
+      throw new NotFoundException("Maintenance introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(maintenance.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      maintenance.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour supprimer cette maintenance');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour supprimer cette maintenance",
+      );
     }
 
     // Store previous state for event log
     const previousState = { ...maintenance };
 
     // Add audit fields for soft delete
-    const deleteData = this.auditService.addDeleteAuditFields({}, user.id, reason);
+    const deleteData = this.auditService.addDeleteAuditFields(
+      {},
+      user.id,
+      reason,
+    );
 
     await this.prisma.maintenance.update({
       where: { id },
@@ -343,10 +407,10 @@ export class MaintenanceService {
     if (maintenance.status === MaintenanceStatus.IN_PROGRESS) {
       await this.prisma.vehicle.update({
         where: { id: maintenance.vehicleId },
-        data: { status: 'AVAILABLE' },
+        data: { status: "AVAILABLE" },
       });
     }
 
-    return { message: 'Maintenance supprimée avec succès' };
+    return { message: "Maintenance supprimée avec succès" };
   }
 }

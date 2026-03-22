@@ -5,6 +5,7 @@ export const createFineSchema = z.object({
   bookingId: z.string().min(1, 'La réservation est requise'),
   amount: z.number().min(0.01, 'Le montant doit être supérieur à 0'),
   description: z.string().min(1, 'La description est requise'),
+  attachmentUrl: z.string().optional(),
 });
 
 export const updateFineSchema = z.object({
@@ -12,6 +13,7 @@ export const updateFineSchema = z.object({
   amount: z.number().min(0.01, 'Le montant doit être supérieur à 0').optional(),
   description: z.string().min(1, 'La description est requise').optional(),
   status: z.enum(['RECUE', 'CLIENT_IDENTIFIE', 'TRANSMISE', 'CONTESTEE', 'CLOTUREE']).optional(),
+  attachmentUrl: z.string().optional(),
 });
 
 export type CreateFineFormData = z.infer<typeof createFineSchema>;

@@ -1,17 +1,18 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ModuleCode } from '@prisma/client';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { ModuleCode } from "@prisma/client";
+import { IsEnum, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class SimulateSaasPricingDto {
   @ApiPropertyOptional({
-    description: 'Plan cible pour la simulation',
+    description: "Plan cible pour la simulation",
   })
   @IsOptional()
   @IsString()
   planId?: string;
 
   @ApiPropertyOptional({
-    description: "Nombre d'agences souhaité (null/undefined = quota plan ou non défini)",
+    description:
+      "Nombre d'agences souhaité (null/undefined = quota plan ou non défini)",
     minimum: 0,
   })
   @IsOptional()
@@ -20,7 +21,7 @@ export class SimulateSaasPricingDto {
   maxAgencies?: number;
 
   @ApiPropertyOptional({
-    description: 'Modules additionnels demandés hors pack',
+    description: "Modules additionnels demandés hors pack",
     enum: ModuleCode,
     isArray: true,
   })
@@ -28,4 +29,3 @@ export class SimulateSaasPricingDto {
   @IsEnum(ModuleCode, { each: true })
   additionalModuleCodes?: ModuleCode[];
 }
-

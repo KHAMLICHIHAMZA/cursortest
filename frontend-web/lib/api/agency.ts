@@ -1,6 +1,21 @@
 import { apiClient } from './client';
 
 export interface Agency {
+  addressDetails?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  openingHours?: Record<
+    string,
+    {
+      isOpen: boolean;
+      openTime?: string;
+      closeTime?: string;
+    }
+  >;
   id: string;
   name: string;
   phone?: string;
@@ -24,6 +39,21 @@ export interface Agency {
 }
 
 export interface CreateAgencyDto {
+  addressDetails?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  openingHours?: Record<
+    string,
+    {
+      isOpen: boolean;
+      openTime?: string;
+      closeTime?: string;
+    }
+  >;
   name: string;
   phone?: string;
   address?: string;
@@ -31,9 +61,25 @@ export interface CreateAgencyDto {
   status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
   timezone?: string;
   capacity?: number;
+  preparationTimeMinutes?: number;
 }
 
 export interface UpdateAgencyDto {
+  addressDetails?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  openingHours?: Record<
+    string,
+    {
+      isOpen: boolean;
+      openTime?: string;
+      closeTime?: string;
+    }
+  >;
   name?: string;
   phone?: string;
   address?: string;

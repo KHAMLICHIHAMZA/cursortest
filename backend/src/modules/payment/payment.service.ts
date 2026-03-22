@@ -1,8 +1,13 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { CmiService } from './cmi.service';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { PaymentStatus, PaymentMethod } from '@prisma/client';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { CmiService } from "./cmi.service";
+import { CreatePaymentDto } from "./dto/create-payment.dto";
+import { PaymentStatus, PaymentMethod } from "@prisma/client";
 
 @Injectable()
 export class PaymentService {
@@ -16,7 +21,10 @@ export class PaymentService {
   /**
    * Créer un paiement en ligne (CMI)
    */
-  async createOnlinePayment(createPaymentDto: CreatePaymentDto, userId: string) {
+  async createOnlinePayment(
+    createPaymentDto: CreatePaymentDto,
+    userId: string,
+  ) {
     const { bookingId, amount, isDeposit, depositAmount } = createPaymentDto;
 
     const booking = await this.prisma.booking.findUnique({
@@ -28,7 +36,7 @@ export class PaymentService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new NotFoundException('Réservation introuvable');
+      throw new NotFoundException("Réservation introuvable");
     }
 
     // Calculer le montant à payer
@@ -49,22 +57,22 @@ export class PaymentService {
 
     // Générer l'URL de paiement CMI
     const orderId = `PAY-${payment.id}`;
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    
+    const baseUrl = process.env.FRONTEND_URL || "http://localhost:3001";
+
     const clientName = booking.client?.name || booking.clientId;
-    const clientEmail = booking.client?.email || '';
-    
+    const clientEmail = booking.client?.email || "";
+
     const paymentRequest = await this.cmiService.createPaymentRequest({
       amount: paymentAmount,
       orderId,
-      currency: '504', // MAD
+      currency: "504", // MAD
       clientId: booking.clientId,
       clientEmail,
       clientName,
       successUrl: `${baseUrl}/payment/success?paymentId=${payment.id}`,
       failUrl: `${baseUrl}/payment/fail?paymentId=${payment.id}`,
-      callbackUrl: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/payment/cmi/callback`,
-      language: 'fr',
+      callbackUrl: `${process.env.BACKEND_URL || "http://localhost:3000"}/api/payment/cmi/callback`,
+      language: "fr",
     });
 
     // Mettre à jour avec le transaction ID
@@ -94,7 +102,7 @@ export class PaymentService {
     });
 
     if (!booking || booking.deletedAt) {
-      throw new NotFoundException('Réservation introuvable');
+      throw new NotFoundException("Réservation introuvable");
     }
 
     const paymentAmount = isDeposit && depositAmount ? depositAmount : amount;
@@ -131,7 +139,7 @@ export class PaymentService {
       const verification = await this.cmiService.verifyCallback(data);
 
       if (!verification.valid) {
-        throw new BadRequestException('Signature de rappel invalide');
+        throw new BadRequestException("Signature de rappel invalide");
       }
 
       // Trouver le paiement (orderId = PAY-{paymentId})
@@ -145,12 +153,14 @@ export class PaymentService {
       });
 
       if (!payment) {
-        throw new NotFoundException('Paiement introuvable');
+        throw new NotFoundException("Paiement introuvable");
       }
 
       // Mettre à jour le statut
       const newStatus =
-        verification.status === 'success' ? PaymentStatus.PAID : PaymentStatus.FAILED;
+        verification.status === "success"
+          ? PaymentStatus.PAID
+          : PaymentStatus.FAILED;
 
       await this.prisma.payment.update({
         where: { id: payment.id },
@@ -165,7 +175,7 @@ export class PaymentService {
         await this.prisma.booking.update({
           where: { id: payment.bookingId },
           data: {
-            status: 'CONFIRMED',
+            status: "CONFIRMED",
           },
         });
       }
@@ -176,7 +186,7 @@ export class PaymentService {
         status: newStatus,
       };
     } catch (error) {
-      this.logger.error('CMI Callback error:', error);
+      this.logger.error("CMI Callback error:", error);
       throw error;
     }
   }
@@ -184,23 +194,29 @@ export class PaymentService {
   /**
    * Gérer la caution (déposer/retourner)
    */
-  async handleDeposit(paymentId: string, action: 'hold' | 'return', amount: number) {
+  async handleDeposit(
+    paymentId: string,
+    action: "hold" | "return",
+    amount: number,
+  ) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
     });
 
     if (!payment) {
-      throw new NotFoundException('Paiement introuvable. Vérifiez l\'identifiant du paiement.');
+      throw new NotFoundException(
+        "Paiement introuvable. Vérifiez l'identifiant du paiement.",
+      );
     }
 
-    if (action === 'hold') {
+    if (action === "hold") {
       await this.prisma.payment.update({
         where: { id: paymentId },
         data: {
           depositHeld: amount,
         },
       });
-    } else if (action === 'return') {
+    } else if (action === "return") {
       await this.prisma.payment.update({
         where: { id: paymentId },
         data: {
@@ -223,7 +239,7 @@ export class PaymentService {
         bookingId,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
   }
@@ -246,10 +262,11 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Paiement introuvable. Vérifiez l\'identifiant du paiement.');
+      throw new NotFoundException(
+        "Paiement introuvable. Vérifiez l'identifiant du paiement.",
+      );
     }
 
     return payment;
   }
 }
-

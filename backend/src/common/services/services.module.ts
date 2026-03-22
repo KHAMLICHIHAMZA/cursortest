@@ -1,17 +1,17 @@
-import { Module } from '@nestjs/common';
-import { AuditService } from './audit.service';
-import { FileStorageService } from './file-storage.service';
-import { AIVisionService } from './ai-vision.service';
-import { PermissionService } from './permission.service';
-import { OutboxService } from './outbox.service';
-import { OutboxDispatcher } from './outbox.dispatcher';
-import { OutboxProcessor } from './outbox.processor';
-import { PrismaModule } from '../prisma/prisma.module';
-import { ConfigModule } from '@nestjs/config';
+import { Module } from "@nestjs/common";
+import { AuditService } from "./audit.service";
+import { FileStorageService } from "./file-storage.service";
+import { AIVisionService } from "./ai-vision.service";
+import { PermissionService } from "./permission.service";
+import { OutboxService } from "./outbox.service";
+import { OutboxDispatcher } from "./outbox.dispatcher";
+import { OutboxProcessor } from "./outbox.processor";
+import { PrismaModule } from "../prisma/prisma.module";
+import { ConfigModule } from "@nestjs/config";
 
 /**
  * Common Services Module
- * 
+ *
  * Provides shared services used across the application:
  * - AuditService: Audit field management
  * - FileStorageService: Abstract file storage (local/S3-ready)
@@ -40,6 +40,3 @@ import { ConfigModule } from '@nestjs/config';
   ],
 })
 export class ServicesModule {}
-
-
-

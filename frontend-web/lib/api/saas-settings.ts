@@ -6,6 +6,7 @@ export interface SaasSettings {
   extraModulePriceMad: number;
   allowAgencyOverageOnCreate: boolean;
   allowAdditionalModulesOnCreate: boolean;
+  maintenanceMileageAlertIntervalKm: number;
 }
 
 export interface UpdateSaasSettingsDto {
@@ -13,6 +14,7 @@ export interface UpdateSaasSettingsDto {
   extraModulePriceMad?: number;
   allowAgencyOverageOnCreate?: boolean;
   allowAdditionalModulesOnCreate?: boolean;
+  maintenanceMileageAlertIntervalKm?: number;
 }
 
 export interface SimulateSaasPricingDto {
@@ -30,7 +32,7 @@ export interface SimulateSaasPricingResponse {
   appliedRules: {
     source: {
       extraAgencyPriceMad: 'plan' | 'global' | 'fallback_pack';
-      extraModulePriceMad: 'plan' | 'global';
+      extraModulePriceMad: 'plan' | 'global' | 'fallback_pack';
       allowAgencyOverageOnCreate: 'plan' | 'global';
       allowAdditionalModulesOnCreate: 'plan' | 'global';
     };

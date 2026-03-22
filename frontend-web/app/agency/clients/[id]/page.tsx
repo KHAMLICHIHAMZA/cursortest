@@ -23,6 +23,41 @@ import { AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 import { COUNTRIES } from '@/lib/utils/countries';
 import { Card } from '@/components/ui/card';
 
+function parseAddress(address?: string) {
+  if (!address) {
+    return {
+      addressLine1: '',
+      addressLine2: '',
+      addressCity: '',
+      addressPostalCode: '',
+      addressCountry: 'Maroc',
+    };
+  }
+  const parts = address.split(' - ').map((p) => p.trim());
+  const lineParts = (parts[0] || '').split(',').map((p) => p.trim());
+  const cityParts = (parts[1] || '').split(' ').filter(Boolean);
+  return {
+    addressLine1: lineParts[0] || parts[0] || '',
+    addressLine2: lineParts.slice(1).join(', '),
+    addressPostalCode: cityParts[0] || '',
+    addressCity: cityParts.slice(1).join(' '),
+    addressCountry: parts[2] || 'Maroc',
+  };
+}
+
+function composeAddress(data: {
+  addressLine1?: string;
+  addressLine2?: string;
+  addressCity?: string;
+  addressPostalCode?: string;
+  addressCountry?: string;
+}): string | undefined {
+  const line = [data.addressLine1, data.addressLine2].filter(Boolean).join(', ');
+  const cityLine = [data.addressPostalCode, data.addressCity].filter(Boolean).join(' ');
+  const value = [line, cityLine, data.addressCountry].filter(Boolean).join(' - ').trim();
+  return value || undefined;
+}
+
 export default function EditClientPage() {
   const router = useRouter();
   const params = useParams();
@@ -64,7 +99,11 @@ export default function EditClientPage() {
       email: '',
       phone: '',
       dateOfBirth: '',
-      address: '',
+      addressLine1: '',
+      addressLine2: '',
+      addressCity: '',
+      addressPostalCode: '',
+      addressCountry: 'Maroc',
       licenseNumber: '',
       isMoroccan: true,
       countryOfOrigin: '',
@@ -115,13 +154,18 @@ export default function EditClientPage() {
       const nameParts = (client.name || '').split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
+      const parsedAddress = parseAddress(client.address);
       reset({
         firstName: firstName,
         lastName: lastName,
         email: client.email || '',
         phone: client.phone || '',
         dateOfBirth: client.dateOfBirth || '',
-        address: client.address || '',
+        addressLine1: parsedAddress.addressLine1,
+        addressLine2: parsedAddress.addressLine2,
+        addressCity: parsedAddress.addressCity,
+        addressPostalCode: parsedAddress.addressPostalCode,
+        addressCountry: parsedAddress.addressCountry,
         licenseNumber: client.licenseNumber || '',
         isMoroccan: client.isMoroccan ?? true,
         countryOfOrigin: client.countryOfOrigin || '',
@@ -163,7 +207,7 @@ export default function EditClientPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: UpdateClientFormData) => clientApi.update(clientId, data),
+    mutationFn: (data: UpdateClientFormData & { address?: string }) => clientApi.update(clientId, data),
     onSuccess: () => {
       toast.success('Client mis à jour avec succès');
       queryClient.invalidateQueries({ queryKey: ['client', clientId] });
@@ -227,11 +271,16 @@ export default function EditClientPage() {
     }
 
     // Nettoyer les données avant soumission (convertir chaînes vides en undefined)
-    const submitData: UpdateClientFormData = {
+    const submitData: UpdateClientFormData & { address?: string } = {
       ...data,
       licenseImageUrl: uploadedImageUrl !== null ? uploadedImageUrl : (client?.licenseImageUrl || undefined),
       dateOfBirth: data.dateOfBirth || undefined,
-      address: data.address || undefined,
+      addressLine1: data.addressLine1 || undefined,
+      addressLine2: data.addressLine2 || undefined,
+      addressCity: data.addressCity || undefined,
+      addressPostalCode: data.addressPostalCode || undefined,
+      addressCountry: data.addressCountry || undefined,
+      address: composeAddress(data),
       licenseNumber: data.licenseNumber || undefined,
       licenseExpiryDate: data.licenseExpiryDate || undefined,
       countryOfOrigin: data.countryOfOrigin || undefined,
@@ -401,40 +450,32 @@ export default function EditClientPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-text mb-2">
-                  Date de naissance
-                </label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  {...register('dateOfBirth')}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-                {errors.dateOfBirth && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.dateOfBirth.message}
-                  </p>
-                )}
-              </div>
+            <div>
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-text mb-2">
+                Date de naissance
+              </label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                {...register('dateOfBirth')}
+                max={new Date().toISOString().split('T')[0]}
+              />
+              {errors.dateOfBirth && (
+                <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.dateOfBirth.message}
+                </p>
+              )}
+            </div>
 
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-text mb-2">
-                  Adresse
-                </label>
-                <Input
-                  id="address"
-                  {...register('address')}
-                  placeholder="Adresse complète"
-                />
-                {errors.address && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.address.message}
-                  </p>
-                )}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-text">Adresse</label>
+              <Input id="addressLine1" {...register('addressLine1')} placeholder="Adresse ligne 1" />
+              <Input id="addressLine2" {...register('addressLine2')} placeholder="Adresse ligne 2 (optionnel)" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input id="addressPostalCode" {...register('addressPostalCode')} placeholder="Code postal" />
+                <Input id="addressCity" {...register('addressCity')} placeholder="Ville" />
+                <Input id="addressCountry" {...register('addressCountry')} placeholder="Pays" />
               </div>
             </div>
           </div>

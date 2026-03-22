@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { vehicleApi, Vehicle } from '@/lib/api/vehicle';
 import { updateVehicleSchema, UpdateVehicleFormData } from '@/lib/validations/vehicle';
@@ -21,6 +21,7 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import { getImageUrl } from '@/lib/utils/image-url';
+import { getApiErrorMessage } from '@/lib/utils/api-error';
 
 export default function EditVehiclePage() {
   const router = useRouter();
@@ -31,6 +32,23 @@ export default function EditVehiclePage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const formatDateForInput = (value?: string | Date | null): string | undefined => {
+    if (!value) return undefined;
+    const raw = typeof value === 'string' ? value : value.toISOString();
+    const datePrefixMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (datePrefixMatch) return datePrefixMatch[1];
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return undefined;
+    const year = parsed.getUTCFullYear();
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const toOptionalNumber = (value: unknown) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
 
   const { data: vehicle, isLoading } = useQuery({
     queryKey: ['vehicle', vehicleId],
@@ -53,6 +71,7 @@ export default function EditVehiclePage() {
   } = useForm<UpdateVehicleFormData>({
     resolver: zodResolver(updateVehicleSchema),
     defaultValues: {
+      agencyId: '',
       brand: '',
       model: '',
       registrationNumber: '',
@@ -66,6 +85,7 @@ export default function EditVehiclePage() {
       horsepower: undefined,
       fuel: '',
       gearbox: '',
+      maintenanceAlertIntervalKm: undefined,
     },
   });
 
@@ -73,6 +93,7 @@ export default function EditVehiclePage() {
   useEffect(() => {
     if (vehicle) {
       reset({
+        agencyId: vehicle.agencyId,
         brand: vehicle.brand || '',
         model: vehicle.model || '',
         registrationNumber: vehicle.registrationNumber || '',
@@ -87,13 +108,14 @@ export default function EditVehiclePage() {
         fuel: vehicle.fuel || '',
         gearbox: vehicle.gearbox || '',
         purchasePrice: (vehicle as any).purchasePrice ?? undefined,
-        acquisitionDate: (vehicle as any).acquisitionDate ? new Date((vehicle as any).acquisitionDate).toISOString().split('T')[0] : undefined,
+        acquisitionDate: formatDateForInput((vehicle as any).acquisitionDate),
         amortizationYears: (vehicle as any).amortizationYears ?? undefined,
         financingType: (vehicle as any).financingType ?? undefined,
         downPayment: (vehicle as any).downPayment ?? undefined,
         monthlyPayment: (vehicle as any).monthlyPayment ?? undefined,
         financingDurationMonths: (vehicle as any).financingDurationMonths ?? undefined,
-        creditStartDate: (vehicle as any).creditStartDate ? new Date((vehicle as any).creditStartDate).toISOString().split('T')[0] : undefined,
+        creditStartDate: formatDateForInput((vehicle as any).creditStartDate),
+        maintenanceAlertIntervalKm: (vehicle as any).maintenanceAlertIntervalKm ?? undefined,
       });
       
       // Initialiser l'image existante
@@ -134,72 +156,36 @@ export default function EditVehiclePage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: UpdateVehicleFormData) => {
-      console.log('=== UPDATE MUTATION CALLED ===');
-      console.log('Vehicle ID:', vehicleId);
-      console.log('Data to send:', JSON.stringify(data, null, 2));
-      return vehicleApi.update(vehicleId, data);
-    },
-    onSuccess: (response) => {
-      console.log('=== UPDATE MUTATION SUCCESS ===');
-      console.log('Response:', response);
+    mutationFn: (data: UpdateVehicleFormData) => vehicleApi.update(vehicleId, data),
+    onSuccess: () => {
       toast.success('Véhicule mis à jour avec succès');
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       router.push('/agency/vehicles');
     },
     onError: (error: any) => {
-      console.error('=== UPDATE MUTATION ERROR ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error.message);
-      console.error('Error response:', error.response);
-      
       if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        
-        const message = error.response.data?.message || 
-                       error.response.data?.error ||
-                       `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
+        const message = getApiErrorMessage(error, `Erreur serveur: ${error.response.status}`);
         toast.error(`Erreur mise à jour: ${message}`);
       } else if (error.request) {
-        console.error('No response received');
         toast.error('Aucune réponse du serveur. Vérifiez votre connexion.');
       } else {
-        console.error('Request setup error:', error.message);
-        toast.error(`Erreur: ${error.message}`);
+        toast.error(`Erreur: ${getApiErrorMessage(error, 'Erreur inconnue')}`);
       }
     },
   });
 
   const handleImageChange = async (file: File | null, previewUrl?: string) => {
-    console.log('=== HANDLE IMAGE CHANGE (EDIT) ===');
-    console.log('File:', file ? { name: file.name, type: file.type, size: file.size } : null);
-    console.log('Preview URL:', previewUrl ? 'present' : 'none');
-    
     setImageFile(file);
     setImagePreview(previewUrl || null);
 
     if (file) {
       try {
-        console.log('Starting image upload mutation...');
         const result = await uploadImageMutation.mutateAsync(file);
-        
-        console.log('=== IMAGE UPLOAD SUCCESS (EDIT) ===');
-        console.log('Result:', result);
         setUploadedImageUrl(result.imageUrl);
         setValue('imageUrl', result.imageUrl, { shouldValidate: true });
         toast.success('Image uploadée avec succès');
       } catch (error: any) {
-        console.error('=== IMAGE UPLOAD ERROR (EDIT) ===');
-        console.error('Error:', error);
-        console.error('Error message:', error.message);
-        
-        if (error.response) {
-          console.error('Response status:', error.response.status);
-          console.error('Response data:', error.response.data);
-        }
-        
         const errorMessage = error.message || 
                            error.response?.data?.message || 
                            error.response?.data?.error ||
@@ -214,51 +200,33 @@ export default function EditVehiclePage() {
         setValue('imageUrl', undefined);
       }
     } else {
-      console.log('No file, resetting image state');
       setUploadedImageUrl(null);
       setValue('imageUrl', undefined);
     }
   };
 
   const onSubmit = async (data: UpdateVehicleFormData) => {
-    console.log('=== FORM SUBMISSION START (EDIT) ===');
-    console.log('Form data:', JSON.stringify(data, null, 2));
-    console.log('Uploaded image URL:', uploadedImageUrl);
-    console.log('Current vehicle image URL:', vehicle?.imageUrl);
-    console.log('Image upload state:', {
-      isPending: uploadImageMutation.isPending,
-      isError: uploadImageMutation.isError,
-      isSuccess: uploadImageMutation.isSuccess,
-      error: uploadImageMutation.error,
-    });
-    console.log('Image file:', imageFile ? { name: imageFile.name, size: imageFile.size } : null);
-    
     // Vérifier si un upload est en cours
     if (uploadImageMutation.isPending) {
-      console.warn('Upload still pending, blocking submission');
       toast.error('Veuillez attendre la fin de l\'upload de l\'image');
       return;
     }
 
     // Si une image a été sélectionnée mais l'upload n'est pas terminé
     if (imageFile && !uploadedImageUrl && !uploadImageMutation.isError && !uploadImageMutation.isSuccess) {
-      console.warn('Image selected but upload not completed');
       toast.error('Veuillez attendre la fin de l\'upload de l\'image');
       return;
     }
 
     // Si l'upload a échoué, informer l'utilisateur mais permettre la soumission
     if (imageFile && uploadImageMutation.isError) {
-      console.warn('Image upload failed, asking user to continue');
       const errorMessage = uploadImageMutation.error?.message || 'Erreur inconnue';
       const shouldContinue = window.confirm(
         `L'upload de l'image a échoué: ${errorMessage}\n\nVoulez-vous continuer sans modifier l'image ?`
       );
       if (!shouldContinue) {
-        console.log('User chose not to continue without image');
         return;
       }
-      console.log('User chose to continue without image');
     }
     
     try {
@@ -274,18 +242,19 @@ export default function EditVehiclePage() {
       if (submitData.creditStartDate === '') submitData.creditStartDate = undefined;
       if (submitData.acquisitionDate === '') submitData.acquisitionDate = undefined;
       
-      console.log('=== SUBMITTING DATA (EDIT) ===');
-      console.log('Submit data:', JSON.stringify(submitData, null, 2));
-      console.log('Vehicle ID:', vehicleId);
-      
       updateMutation.mutate(submitData);
     } catch (error: any) {
-      console.error('=== SUBMISSION ERROR (EDIT) ===');
-      console.error('Error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      toast.error(`Erreur lors de la mise à jour: ${error.message || 'Erreur inconnue'}`);
+      toast.error(`Erreur lors de la mise à jour: ${getApiErrorMessage(error, 'Erreur inconnue')}`);
     }
+  };
+
+  const onInvalidSubmit = (formErrors: FieldErrors<UpdateVehicleFormData>) => {
+    const firstError = Object.values(formErrors).find((entry: any) => entry?.message);
+    toast.error(
+      firstError?.message
+        ? String(firstError.message)
+        : 'Le formulaire contient des champs invalides. Vérifiez les valeurs numériques.',
+    );
   };
 
   if (isLoading) {
@@ -325,7 +294,7 @@ export default function EditVehiclePage() {
             title="Modifier le véhicule"
             description="Mettez à jour les informations du véhicule"
             backHref="/agency/vehicles"
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}
             isLoading={isSubmitting || updateMutation.isPending || uploadImageMutation.isPending}
             submitLabel="Enregistrer"
           >
@@ -335,8 +304,7 @@ export default function EditVehiclePage() {
               </label>
               <Select
                 id="agencyId"
-                value={vehicle.agencyId}
-                disabled
+                {...register('agencyId')}
               >
                 {agencies?.map((agency) => (
                   <option key={agency.id} value={agency.id}>
@@ -344,6 +312,10 @@ export default function EditVehiclePage() {
                   </option>
                 ))}
               </Select>
+              <p className="text-xs text-text-muted mt-1">
+                Transfert possible uniquement vers une agence active de la même société, et sans réservation en cours sur ce véhicule.
+              </p>
+              {errors.agencyId && <p className="text-red-500 text-sm mt-1">{errors.agencyId.message}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -392,7 +364,7 @@ export default function EditVehiclePage() {
                 <Input
                   id="year"
                   type="number"
-                  {...register('year', { valueAsNumber: true })}
+                  {...register('year', { setValueAs: toOptionalNumber })}
                   placeholder="2020"
                 />
                 {errors.year && <p className="text-red-500 text-sm mt-1">{errors.year.message}</p>}
@@ -422,7 +394,7 @@ export default function EditVehiclePage() {
                 <Input
                   id="horsepower"
                   type="number"
-                  {...register('horsepower', { valueAsNumber: true })}
+                  {...register('horsepower', { setValueAs: toOptionalNumber })}
                   placeholder="100"
                 />
                 {errors.horsepower && <p className="text-red-500 text-sm mt-1">{errors.horsepower.message}</p>}
@@ -436,7 +408,7 @@ export default function EditVehiclePage() {
                   id="dailyRate"
                   type="number"
                   step="0.01"
-                  {...register('dailyRate', { valueAsNumber: true })}
+                  {...register('dailyRate', { setValueAs: toOptionalNumber })}
                   placeholder="500"
                 />
                 {errors.dailyRate && <p className="text-red-500 text-sm mt-1">{errors.dailyRate.message}</p>}
@@ -452,7 +424,7 @@ export default function EditVehiclePage() {
                   id="mileage"
                   type="number"
                   min="0"
-                  {...register('mileage', { valueAsNumber: true })}
+                  {...register('mileage', { setValueAs: toOptionalNumber })}
                   placeholder="0"
                 />
                 {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage.message}</p>}
@@ -467,11 +439,33 @@ export default function EditVehiclePage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  {...register('depositAmount', { valueAsNumber: true })}
+                  {...register('depositAmount', { setValueAs: toOptionalNumber })}
                   placeholder="5000"
                 />
                 {errors.depositAmount && <p className="text-red-500 text-sm mt-1">{errors.depositAmount.message}</p>}
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="maintenanceAlertIntervalKm" className="block text-sm font-medium text-text mb-2">
+                Palier entretien personnalisé (km)
+              </label>
+              <Input
+                id="maintenanceAlertIntervalKm"
+                type="number"
+                min="1000"
+                step="500"
+                {...register('maintenanceAlertIntervalKm', {
+                  setValueAs: toOptionalNumber,
+                })}
+                placeholder="Ex: 15000 (laisser vide = règle globale SaaS)"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Exemple: une Range peut être à 15 000 km, une Clio à 10 000 km.
+              </p>
+              {errors.maintenanceAlertIntervalKm && (
+                <p className="text-red-500 text-sm mt-1">{errors.maintenanceAlertIntervalKm.message}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -554,7 +548,7 @@ export default function EditVehiclePage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        {...register('downPayment', { valueAsNumber: true })}
+                        {...register('downPayment', { setValueAs: toOptionalNumber })}
                         placeholder="50000"
                       />
                       {errors.downPayment && <p className="text-red-500 text-sm mt-1">{errors.downPayment.message}</p>}
@@ -571,7 +565,7 @@ export default function EditVehiclePage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        {...register('monthlyPayment', { valueAsNumber: true })}
+                        {...register('monthlyPayment', { setValueAs: toOptionalNumber })}
                         placeholder="3500"
                       />
                       {errors.monthlyPayment && <p className="text-red-500 text-sm mt-1">{errors.monthlyPayment.message}</p>}
@@ -586,7 +580,7 @@ export default function EditVehiclePage() {
                         type="number"
                         min="1"
                         max="120"
-                        {...register('financingDurationMonths', { valueAsNumber: true })}
+                        {...register('financingDurationMonths', { setValueAs: toOptionalNumber })}
                         placeholder="48"
                       />
                       {errors.financingDurationMonths && <p className="text-red-500 text-sm mt-1">{errors.financingDurationMonths.message}</p>}
@@ -624,7 +618,7 @@ export default function EditVehiclePage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    {...register('purchasePrice', { valueAsNumber: true })}
+                    {...register('purchasePrice', { setValueAs: toOptionalNumber })}
                     placeholder="150000"
                     readOnly={financingType === 'CREDIT' || financingType === 'MIXED'}
                     className={financingType === 'CREDIT' || financingType === 'MIXED' ? 'bg-card cursor-not-allowed' : ''}
@@ -660,7 +654,7 @@ export default function EditVehiclePage() {
                     type="number"
                     min="1"
                     max="30"
-                    {...register('amortizationYears', { valueAsNumber: true })}
+                    {...register('amortizationYears', { setValueAs: toOptionalNumber })}
                     placeholder="5"
                   />
                   {errors.amortizationYears && <p className="text-red-500 text-sm mt-1">{errors.amortizationYears.message}</p>}

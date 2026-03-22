@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { getApiErrorMessage } from '../utils/api-error';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
@@ -31,8 +32,8 @@ apiClient.interceptors.response.use(
   async (error) => {
     // Skip message parsing for blob responses (PDF downloads etc.)
     const isBlob = error?.config?.responseType === 'blob';
-    if (!isBlob && error?.response?.data?.message && Array.isArray(error.response.data.message)) {
-      error.response.data.message = error.response.data.message.join(' • ');
+    if (!isBlob && error?.response?.data) {
+      error.response.data.message = getApiErrorMessage(error, 'Erreur serveur');
     }
     const originalRequest = error.config;
 

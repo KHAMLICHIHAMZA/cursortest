@@ -1,34 +1,61 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { UpdateSaasSettingsDto } from './dto/update-saas-settings.dto';
-import { SimulateSaasPricingDto } from './dto/simulate-saas-pricing.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { UpdateSaasSettingsDto } from "./dto/update-saas-settings.dto";
+import { SimulateSaasPricingDto } from "./dto/simulate-saas-pricing.dto";
 import {
   DEFAULT_SAAS_SETTINGS,
   SAAS_SETTINGS_RULE_KEYS,
   SaasSettings,
-} from './saas-settings.types';
+} from "./saas-settings.types";
 
 @Injectable()
 export class SaasSettingsService {
   constructor(private prisma: PrismaService) {}
 
-  private parseNumber(value: string | null | undefined, fallback: number): number {
+  private parseNumber(
+    value: string | null | undefined,
+    fallback: number,
+  ): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  private parseBoolean(value: string | null | undefined, fallback: boolean): boolean {
+  private parseBoolean(
+    value: string | null | undefined,
+    fallback: boolean,
+  ): boolean {
     if (value === undefined || value === null) return fallback;
-    return value === 'true' || value === '1';
+    return value === "true" || value === "1";
   }
 
   /**
    * Legacy safeguard: when surcharge config is 0, derive a non-zero overage
    * price from the selected plan.
    */
-  private resolveFallbackExtraAgencyPrice(planPrice: number, includedAgenciesQuota?: number): number {
+  private resolveFallbackExtraAgencyPrice(
+    planPrice: number,
+    includedAgenciesQuota?: number,
+  ): number {
     if (includedAgenciesQuota !== undefined && includedAgenciesQuota > 0) {
       return Math.max(1, Math.ceil(planPrice / includedAgenciesQuota));
+    }
+    return Math.max(1, planPrice);
+  }
+
+  /**
+   * Legacy safeguard: when module surcharge config is 0, derive a non-zero
+   * module price from plan economics so extra modules are never silently free.
+   */
+  private resolveFallbackExtraModulePrice(
+    planPrice: number,
+    includedModulesCount?: number,
+  ): number {
+    if (includedModulesCount !== undefined && includedModulesCount > 0) {
+      return Math.max(1, Math.ceil(planPrice / includedModulesCount));
     }
     return Math.max(1, planPrice);
   }
@@ -42,7 +69,7 @@ export class SaasSettingsService {
         agencyId: null,
         isActive: true,
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
     });
 
     const latestByKey = new Map<string, string>();
@@ -66,41 +93,61 @@ export class SaasSettingsService {
         DEFAULT_SAAS_SETTINGS.allowAgencyOverageOnCreate,
       ),
       allowAdditionalModulesOnCreate: this.parseBoolean(
-        latestByKey.get(SAAS_SETTINGS_RULE_KEYS.ALLOW_ADDITIONAL_MODULES_ON_CREATE),
+        latestByKey.get(
+          SAAS_SETTINGS_RULE_KEYS.ALLOW_ADDITIONAL_MODULES_ON_CREATE,
+        ),
         DEFAULT_SAAS_SETTINGS.allowAdditionalModulesOnCreate,
+      ),
+      maintenanceMileageAlertIntervalKm: Math.max(
+        1000,
+        this.parseNumber(
+          latestByKey.get(
+            SAAS_SETTINGS_RULE_KEYS.MAINTENANCE_MILEAGE_ALERT_INTERVAL_KM,
+          ),
+          DEFAULT_SAAS_SETTINGS.maintenanceMileageAlertIntervalKm,
+        ),
       ),
     };
   }
 
   async updateSettings(dto: UpdateSaasSettingsDto): Promise<SaasSettings> {
-    const updates: Array<{ key: string; value: string; description: string }> = [];
+    const updates: Array<{ key: string; value: string; description: string }> =
+      [];
 
     if (dto.extraAgencyPriceMad !== undefined) {
       updates.push({
         key: SAAS_SETTINGS_RULE_KEYS.EXTRA_AGENCY_PRICE_MAD,
         value: String(dto.extraAgencyPriceMad),
-        description: 'Prix agence supplementaire en MAD/mois',
+        description: "Prix agence supplementaire en MAD/mois",
       });
     }
     if (dto.extraModulePriceMad !== undefined) {
       updates.push({
         key: SAAS_SETTINGS_RULE_KEYS.EXTRA_MODULE_PRICE_MAD,
         value: String(dto.extraModulePriceMad),
-        description: 'Prix module supplementaire en MAD/mois',
+        description: "Prix module supplementaire en MAD/mois",
       });
     }
     if (dto.allowAgencyOverageOnCreate !== undefined) {
       updates.push({
         key: SAAS_SETTINGS_RULE_KEYS.ALLOW_AGENCY_OVERAGE_ON_CREATE,
         value: String(dto.allowAgencyOverageOnCreate),
-        description: 'Autoriser depassement quota agences a la creation',
+        description: "Autoriser depassement quota agences a la creation",
       });
     }
     if (dto.allowAdditionalModulesOnCreate !== undefined) {
       updates.push({
         key: SAAS_SETTINGS_RULE_KEYS.ALLOW_ADDITIONAL_MODULES_ON_CREATE,
         value: String(dto.allowAdditionalModulesOnCreate),
-        description: 'Autoriser modules additionnels a la creation',
+        description: "Autoriser modules additionnels a la creation",
+      });
+    }
+    if (dto.maintenanceMileageAlertIntervalKm !== undefined) {
+      updates.push({
+        key: SAAS_SETTINGS_RULE_KEYS.MAINTENANCE_MILEAGE_ALERT_INTERVAL_KM,
+        value: String(dto.maintenanceMileageAlertIntervalKm),
+        description:
+          "Palier kilometrage pour alerte maintenance automatique (km)",
       });
     }
 
@@ -112,7 +159,7 @@ export class SaasSettingsService {
           agencyId: null,
           isActive: true,
         },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { updatedAt: "desc" },
       });
 
       if (existing) {
@@ -147,7 +194,7 @@ export class SaasSettingsService {
         companyId: null,
         agencyId: null,
       },
-      orderBy: [{ updatedAt: 'desc' }],
+      orderBy: [{ updatedAt: "desc" }],
       select: {
         id: true,
         key: true,
@@ -172,27 +219,34 @@ export class SaasSettingsService {
       : null;
 
     if (dto.planId && !selectedPlan) {
-      throw new NotFoundException('Plan introuvable');
+      throw new NotFoundException("Plan introuvable");
     }
 
     if (selectedPlan && !selectedPlan.isActive) {
-      throw new BadRequestException('Le plan selectionne est inactif');
+      throw new BadRequestException("Le plan selectionne est inactif");
     }
 
-    const uniqueAdditionalModules = Array.from(new Set(dto.additionalModuleCodes || []));
-    const planModuleCodes = selectedPlan?.planModules.map((pm) => pm.moduleCode) || [];
+    const uniqueAdditionalModules = Array.from(
+      new Set(dto.additionalModuleCodes || []),
+    );
+    const planModuleCodes =
+      selectedPlan?.planModules.map((pm) => pm.moduleCode) || [];
     const extraModuleCodes = uniqueAdditionalModules.filter(
       (code) => !planModuleCodes.includes(code),
     );
-    const allModuleCodes = Array.from(new Set([...planModuleCodes, ...extraModuleCodes]));
+    const allModuleCodes = Array.from(
+      new Set([...planModuleCodes, ...extraModuleCodes]),
+    );
 
     // Backward-compatible behavior: if legacy plan pricing rule is 0, use global settings.
     const configuredExtraAgencyPriceMad =
-      selectedPlan?.pricingRule && selectedPlan.pricingRule.extraAgencyPriceMad > 0
+      selectedPlan?.pricingRule &&
+      selectedPlan.pricingRule.extraAgencyPriceMad > 0
         ? selectedPlan.pricingRule.extraAgencyPriceMad
         : settings.extraAgencyPriceMad;
-    const effectiveExtraModulePriceMad =
-      selectedPlan?.pricingRule && selectedPlan.pricingRule.extraModulePriceMad > 0
+    const configuredExtraModulePriceMad =
+      selectedPlan?.pricingRule &&
+      selectedPlan.pricingRule.extraModulePriceMad > 0
         ? selectedPlan.pricingRule.extraModulePriceMad
         : settings.extraModulePriceMad;
     const effectiveAllowAgencyOverageOnCreate =
@@ -204,25 +258,35 @@ export class SaasSettingsService {
 
     const planAgencyQuota = selectedPlan?.planQuotas.find(
       (q) =>
-        q.quotaKey === 'agencies' ||
-        q.quotaKey === 'max_agencies' ||
-        q.quotaKey === 'maxAgencies',
+        q.quotaKey === "agencies" ||
+        q.quotaKey === "max_agencies" ||
+        q.quotaKey === "maxAgencies",
     );
     const baseQuota = planAgencyQuota?.quotaValue;
     const fallbackExtraAgencyPriceMad = this.resolveFallbackExtraAgencyPrice(
       selectedPlan?.price ?? 0,
       baseQuota,
     );
+    const fallbackExtraModulePriceMad = this.resolveFallbackExtraModulePrice(
+      selectedPlan?.price ?? 0,
+      planModuleCodes.length,
+    );
     const effectiveExtraAgencyPriceMad =
       configuredExtraAgencyPriceMad > 0
         ? configuredExtraAgencyPriceMad
         : fallbackExtraAgencyPriceMad;
+    const effectiveExtraModulePriceMad =
+      configuredExtraModulePriceMad > 0
+        ? configuredExtraModulePriceMad
+        : fallbackExtraModulePriceMad;
     const requestedMaxAgencies =
       dto.maxAgencies ??
       (baseQuota !== undefined && baseQuota >= 0 ? baseQuota : undefined);
 
     const extraAgenciesCount =
-      requestedMaxAgencies !== undefined && baseQuota !== undefined && baseQuota >= 0
+      requestedMaxAgencies !== undefined &&
+      baseQuota !== undefined &&
+      baseQuota >= 0
         ? Math.max(0, requestedMaxAgencies - baseQuota)
         : 0;
 
@@ -232,7 +296,10 @@ export class SaasSettingsService {
         "Le depassement du quota d'agences est desactive par la regle active.",
       );
     }
-    if (!effectiveAllowAdditionalModulesOnCreate && extraModuleCodes.length > 0) {
+    if (
+      !effectiveAllowAdditionalModulesOnCreate &&
+      extraModuleCodes.length > 0
+    ) {
       validationErrors.push(
         "L'ajout de modules hors pack est desactive par la regle active.",
       );
@@ -266,29 +333,35 @@ export class SaasSettingsService {
       appliedRules: {
         source: {
           extraAgencyPriceMad:
-            selectedPlan?.pricingRule && selectedPlan.pricingRule.extraAgencyPriceMad > 0
-              ? 'plan'
+            selectedPlan?.pricingRule &&
+            selectedPlan.pricingRule.extraAgencyPriceMad > 0
+              ? "plan"
               : settings.extraAgencyPriceMad > 0
-                ? 'global'
-                : 'fallback_pack',
+                ? "global"
+                : "fallback_pack",
           extraModulePriceMad:
-            selectedPlan?.pricingRule && selectedPlan.pricingRule.extraModulePriceMad > 0
-              ? 'plan'
-              : 'global',
+            selectedPlan?.pricingRule &&
+            selectedPlan.pricingRule.extraModulePriceMad > 0
+              ? "plan"
+              : settings.extraModulePriceMad > 0
+                ? "global"
+                : "fallback_pack",
           allowAgencyOverageOnCreate:
             selectedPlan?.pricingRule?.allowAgencyOverageOnCreate !== undefined
-              ? 'plan'
-              : 'global',
+              ? "plan"
+              : "global",
           allowAdditionalModulesOnCreate:
-            selectedPlan?.pricingRule?.allowAdditionalModulesOnCreate !== undefined
-              ? 'plan'
-              : 'global',
+            selectedPlan?.pricingRule?.allowAdditionalModulesOnCreate !==
+            undefined
+              ? "plan"
+              : "global",
         },
         values: {
           extraAgencyPriceMad: effectiveExtraAgencyPriceMad,
           extraModulePriceMad: effectiveExtraModulePriceMad,
           allowAgencyOverageOnCreate: effectiveAllowAgencyOverageOnCreate,
-          allowAdditionalModulesOnCreate: effectiveAllowAdditionalModulesOnCreate,
+          allowAdditionalModulesOnCreate:
+            effectiveAllowAdditionalModulesOnCreate,
         },
       },
       breakdown: {
@@ -305,4 +378,3 @@ export class SaasSettingsService {
     };
   }
 }
-

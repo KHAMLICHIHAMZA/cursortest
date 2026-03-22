@@ -1,9 +1,9 @@
-import { IsString, IsNumber, IsEnum } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNumber, IsEnum } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export enum DepositAction {
-  HOLD = 'hold',
-  RETURN = 'return',
+  HOLD = "hold",
+  RETURN = "return",
 }
 
 export class HandleDepositDto {
@@ -19,8 +19,3 @@ export class HandleDepositDto {
   @IsNumber()
   amount: number;
 }
-
-
-
-
-

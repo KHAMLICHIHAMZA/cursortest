@@ -1,13 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { SubscriptionService } from './subscription.service';
-import { BillingService } from '../billing/billing.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { CompanyStatus, SubscriptionStatus, PaymentStatus } from '@prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { SubscriptionService } from "./subscription.service";
+import { BillingService } from "../billing/billing.service";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  CompanyStatus,
+  SubscriptionStatus,
+  PaymentStatus,
+} from "@prisma/client";
 
 /**
  * Scheduler pour les tâches automatiques de facturation
- * 
+ *
  * Tâches :
  * - Vérification des abonnements expirés (quotidien)
  * - Génération des factures récurrentes (quotidien)
@@ -30,7 +34,7 @@ export class SubscriptionScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async checkExpiredSubscriptions() {
-    this.logger.log('Checking expired subscriptions...');
+    this.logger.log("Checking expired subscriptions...");
     const count = await this.subscriptionService.checkExpiredSubscriptions();
     this.logger.log(`${count} subscriptions expired and suspended`);
   }
@@ -41,8 +45,8 @@ export class SubscriptionScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async generateRecurringInvoices() {
-    this.logger.log('Generating recurring invoices...');
-    
+    this.logger.log("Generating recurring invoices...");
+
     try {
       // Récupérer tous les abonnements actifs
       const activeSubscriptions = await this.prisma.subscription.findMany({
@@ -55,46 +59,53 @@ export class SubscriptionScheduler {
               status: PaymentStatus.PENDING,
             },
             orderBy: {
-              dueDate: 'desc',
+              dueDate: "desc",
             },
             take: 1,
           },
         },
       });
-      
+
       let invoicesGenerated = 0;
-      
+
       for (const subscription of activeSubscriptions) {
         // Vérifier si une facture en attente existe déjà pour cette période
-        const hasPendingInvoice = subscription.paymentsSaas && subscription.paymentsSaas.length > 0;
-        
+        const hasPendingInvoice =
+          subscription.paymentsSaas && subscription.paymentsSaas.length > 0;
+
         if (hasPendingInvoice) {
           continue; // Facture déjà générée
         }
-        
+
         // Générer une facture 7 jours avant l'échéance de l'abonnement
         const endDate = new Date(subscription.endDate);
         const sevenDaysBefore = new Date(endDate);
         sevenDaysBefore.setDate(sevenDaysBefore.getDate() - 7);
-        
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         sevenDaysBefore.setHours(0, 0, 0, 0);
-        
+
         // Si on est à 7 jours avant l'échéance, générer la facture
-        if (today.getTime() >= sevenDaysBefore.getTime() && today.getTime() <= endDate.getTime()) {
+        if (
+          today.getTime() >= sevenDaysBefore.getTime() &&
+          today.getTime() <= endDate.getTime()
+        ) {
           try {
             await this.billingService.generateInvoice(subscription.id);
             invoicesGenerated++;
           } catch (error) {
-            this.logger.error(`Error generating invoice for subscription ${subscription.id}:`, error);
+            this.logger.error(
+              `Error generating invoice for subscription ${subscription.id}:`,
+              error,
+            );
           }
         }
       }
-      
+
       this.logger.log(`${invoicesGenerated} invoices generated`);
     } catch (error) {
-      this.logger.error('Error in generateRecurringInvoices:', error);
+      this.logger.error("Error in generateRecurringInvoices:", error);
     }
   }
 
@@ -104,13 +115,13 @@ export class SubscriptionScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async deleteExpiredCompanies() {
-    this.logger.log('Checking companies for permanent deletion (J+100)...');
-    
+    this.logger.log("Checking companies for permanent deletion (J+100)...");
+
     try {
       const now = new Date();
       const hundredDaysAgo = new Date(now);
       hundredDaysAgo.setDate(hundredDaysAgo.getDate() - 100);
-      
+
       // Récupérer les companies suspendues depuis plus de 100 jours
       const expiredCompanies = await this.prisma.company.findMany({
         where: {
@@ -129,9 +140,9 @@ export class SubscriptionScheduler {
           },
         },
       });
-      
+
       let deletedCount = 0;
-      
+
       for (const company of expiredCompanies) {
         try {
           // Annuler tous les abonnements actifs/suspendus
@@ -144,7 +155,7 @@ export class SubscriptionScheduler {
               },
             });
           }
-          
+
           // Marquer la company comme DELETED (soft delete)
           await this.prisma.company.update({
             where: { id: company.id },
@@ -152,18 +163,19 @@ export class SubscriptionScheduler {
               status: CompanyStatus.DELETED,
             },
           });
-          
+
           deletedCount++;
-          this.logger.log(`Company ${company.id} (${company.name}) permanently deleted`);
+          this.logger.log(
+            `Company ${company.id} (${company.name}) permanently deleted`,
+          );
         } catch (error) {
           this.logger.error(`Error deleting company ${company.id}:`, error);
         }
       }
-      
+
       this.logger.log(`${deletedCount} companies permanently deleted`);
     } catch (error) {
-      this.logger.error('Error in deleteExpiredCompanies:', error);
+      this.logger.error("Error in deleteExpiredCompanies:", error);
     }
   }
 }
-
