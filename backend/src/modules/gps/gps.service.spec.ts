@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { GpsService } from './gps.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Test, TestingModule } from "@nestjs/testing";
+import { GpsService } from "./gps.service";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Role } from "@prisma/client";
 
-describe('GpsService', () => {
+describe("GpsService", () => {
   let service: GpsService;
   let prismaService: any;
 
@@ -36,11 +36,11 @@ describe('GpsService', () => {
     jest.clearAllMocks();
   });
 
-  describe('captureSnapshot', () => {
-    it('should capture CHECK_IN snapshot for any role', async () => {
+  describe("captureSnapshot", () => {
+    it("should capture CHECK_IN snapshot for any role", async () => {
       mockPrismaService.gpsSnapshot.create.mockResolvedValue({
-        id: 'snap-1',
-        reason: 'CHECK_IN',
+        id: "snap-1",
+        reason: "CHECK_IN",
         latitude: 33.5731,
         longitude: -7.5898,
         isGpsMissing: false,
@@ -48,91 +48,91 @@ describe('GpsService', () => {
 
       const result = await service.captureSnapshot(
         {
-          agencyId: 'agency-1',
-          bookingId: 'booking-1',
-          vehicleId: 'vehicle-1',
+          agencyId: "agency-1",
+          bookingId: "booking-1",
+          vehicleId: "vehicle-1",
           latitude: 33.5731,
           longitude: -7.5898,
           accuracy: 10,
-          reason: 'CHECK_IN',
+          reason: "CHECK_IN",
         },
-        'user-1',
+        "user-1",
         Role.AGENT,
       );
 
-      expect(result.reason).toBe('CHECK_IN');
+      expect(result.reason).toBe("CHECK_IN");
       expect(result.isGpsMissing).toBe(false);
     });
 
-    it('should allow MANUAL snapshot for AGENCY_MANAGER', async () => {
+    it("should allow MANUAL snapshot for AGENCY_MANAGER", async () => {
       mockPrismaService.gpsSnapshot.create.mockResolvedValue({
-        id: 'snap-2',
-        reason: 'MANUAL',
+        id: "snap-2",
+        reason: "MANUAL",
       });
 
       const result = await service.captureSnapshot(
         {
-          agencyId: 'agency-1',
+          agencyId: "agency-1",
           latitude: 33.5731,
           longitude: -7.5898,
-          reason: 'MANUAL',
+          reason: "MANUAL",
         },
-        'user-1',
+        "user-1",
         Role.AGENCY_MANAGER,
       );
 
-      expect(result.reason).toBe('MANUAL');
+      expect(result.reason).toBe("MANUAL");
     });
 
-    it('should reject MANUAL snapshot for AGENT role', async () => {
+    it("should reject MANUAL snapshot for AGENT role", async () => {
       await expect(
         service.captureSnapshot(
           {
-            agencyId: 'agency-1',
+            agencyId: "agency-1",
             latitude: 33.5731,
             longitude: -7.5898,
-            reason: 'MANUAL',
+            reason: "MANUAL",
           },
-          'user-1',
+          "user-1",
           Role.AGENT,
         ),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should allow MANUAL snapshot for SUPER_ADMIN', async () => {
+    it("should allow MANUAL snapshot for SUPER_ADMIN", async () => {
       mockPrismaService.gpsSnapshot.create.mockResolvedValue({
-        id: 'snap-3',
-        reason: 'MANUAL',
+        id: "snap-3",
+        reason: "MANUAL",
       });
 
       const result = await service.captureSnapshot(
         {
-          agencyId: 'agency-1',
+          agencyId: "agency-1",
           latitude: 33.5731,
           longitude: -7.5898,
-          reason: 'MANUAL',
+          reason: "MANUAL",
         },
-        'user-1',
+        "user-1",
         Role.SUPER_ADMIN,
       );
 
       expect(result).toBeDefined();
     });
 
-    it('should allow MANUAL snapshot for COMPANY_ADMIN', async () => {
+    it("should allow MANUAL snapshot for COMPANY_ADMIN", async () => {
       mockPrismaService.gpsSnapshot.create.mockResolvedValue({
-        id: 'snap-4',
-        reason: 'MANUAL',
+        id: "snap-4",
+        reason: "MANUAL",
       });
 
       const result = await service.captureSnapshot(
         {
-          agencyId: 'agency-1',
+          agencyId: "agency-1",
           latitude: 33.5731,
           longitude: -7.5898,
-          reason: 'MANUAL',
+          reason: "MANUAL",
         },
-        'user-1',
+        "user-1",
         Role.COMPANY_ADMIN,
       );
 
@@ -140,46 +140,46 @@ describe('GpsService', () => {
     });
   });
 
-  describe('recordGpsMissing', () => {
-    it('should record GPS missing with reason', async () => {
+  describe("recordGpsMissing", () => {
+    it("should record GPS missing with reason", async () => {
       mockPrismaService.gpsSnapshot.create.mockResolvedValue({
-        id: 'snap-5',
-        reason: 'CHECK_IN',
+        id: "snap-5",
+        reason: "CHECK_IN",
         isGpsMissing: true,
-        gpsMissingReason: 'permissionDenied',
+        gpsMissingReason: "permissionDenied",
         latitude: 0,
         longitude: 0,
       });
 
       const result = await service.recordGpsMissing(
         {
-          agencyId: 'agency-1',
-          bookingId: 'booking-1',
-          reason: 'CHECK_IN',
-          gpsMissingReason: 'permissionDenied',
+          agencyId: "agency-1",
+          bookingId: "booking-1",
+          reason: "CHECK_IN",
+          gpsMissingReason: "permissionDenied",
         },
-        'user-1',
+        "user-1",
         Role.AGENT,
       );
 
       expect(result.isGpsMissing).toBe(true);
-      expect(result.gpsMissingReason).toBe('permissionDenied');
+      expect(result.gpsMissingReason).toBe("permissionDenied");
     });
 
-    it('should allow recording GPS missing for any reason type', async () => {
+    it("should allow recording GPS missing for any reason type", async () => {
       mockPrismaService.gpsSnapshot.create.mockResolvedValue({
-        id: 'snap-6',
+        id: "snap-6",
         isGpsMissing: true,
-        gpsMissingReason: 'offline',
+        gpsMissingReason: "offline",
       });
 
       const result = await service.recordGpsMissing(
         {
-          agencyId: 'agency-1',
-          reason: 'CHECK_OUT',
-          gpsMissingReason: 'offline',
+          agencyId: "agency-1",
+          reason: "CHECK_OUT",
+          gpsMissingReason: "offline",
         },
-        'user-1',
+        "user-1",
         Role.AGENT,
       );
 
@@ -187,61 +187,61 @@ describe('GpsService', () => {
     });
   });
 
-  describe('findByBooking', () => {
-    it('should return snapshots for a booking', async () => {
+  describe("findByBooking", () => {
+    it("should return snapshots for a booking", async () => {
       mockPrismaService.gpsSnapshot.findMany.mockResolvedValue([
-        { id: 's1', reason: 'CHECK_IN' },
-        { id: 's2', reason: 'CHECK_OUT' },
+        { id: "s1", reason: "CHECK_IN" },
+        { id: "s2", reason: "CHECK_OUT" },
       ]);
 
-      const result = await service.findByBooking('booking-1');
+      const result = await service.findByBooking("booking-1");
 
       expect(result).toHaveLength(2);
       expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { bookingId: 'booking-1' },
-          orderBy: { createdAt: 'desc' },
+          where: { bookingId: "booking-1" },
+          orderBy: { createdAt: "desc" },
         }),
       );
     });
   });
 
-  describe('findByVehicle', () => {
-    it('should return snapshots for a vehicle with limit', async () => {
+  describe("findByVehicle", () => {
+    it("should return snapshots for a vehicle with limit", async () => {
       mockPrismaService.gpsSnapshot.findMany.mockResolvedValue([]);
 
-      await service.findByVehicle('vehicle-1');
+      await service.findByVehicle("vehicle-1");
 
       expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { vehicleId: 'vehicle-1' },
-          orderBy: { createdAt: 'desc' },
+          where: { vehicleId: "vehicle-1" },
+          orderBy: { createdAt: "desc" },
           take: 100,
         }),
       );
     });
   });
 
-  describe('findByAgency', () => {
-    it('should filter by reason', async () => {
+  describe("findByAgency", () => {
+    it("should filter by reason", async () => {
       mockPrismaService.gpsSnapshot.findMany.mockResolvedValue([]);
 
-      await service.findByAgency('agency-1', { reason: 'CHECK_IN' });
+      await service.findByAgency("agency-1", { reason: "CHECK_IN" });
 
       expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ reason: 'CHECK_IN' }),
+          where: expect.objectContaining({ reason: "CHECK_IN" }),
         }),
       );
     });
 
-    it('should filter by date range', async () => {
+    it("should filter by date range", async () => {
       mockPrismaService.gpsSnapshot.findMany.mockResolvedValue([]);
 
-      const dateFrom = new Date('2026-01-01');
-      const dateTo = new Date('2026-01-31');
+      const dateFrom = new Date("2026-01-01");
+      const dateTo = new Date("2026-01-31");
 
-      await service.findByAgency('agency-1', { dateFrom, dateTo });
+      await service.findByAgency("agency-1", { dateFrom, dateTo });
 
       expect(mockPrismaService.gpsSnapshot.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -253,23 +253,23 @@ describe('GpsService', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('should return snapshot by id', async () => {
+  describe("findOne", () => {
+    it("should return snapshot by id", async () => {
       mockPrismaService.gpsSnapshot.findUnique.mockResolvedValue({
-        id: 'snap-1',
+        id: "snap-1",
         latitude: 33.5731,
         longitude: -7.5898,
       });
 
-      const result = await service.findOne('snap-1');
+      const result = await service.findOne("snap-1");
 
-      expect(result.id).toBe('snap-1');
+      expect(result.id).toBe("snap-1");
     });
 
-    it('should throw if snapshot not found', async () => {
+    it("should throw if snapshot not found", async () => {
       mockPrismaService.gpsSnapshot.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('invalid-id')).rejects.toThrow(
+      await expect(service.findOne("invalid-id")).rejects.toThrow(
         NotFoundException,
       );
     });

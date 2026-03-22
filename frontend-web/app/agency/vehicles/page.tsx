@@ -5,25 +5,26 @@ import { vehicleApi, Vehicle } from '@/lib/api/vehicle';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import { getImageUrl } from '@/lib/utils/image-url';
-import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
-import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
 
 export default function VehiclesPage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
 
@@ -31,7 +32,7 @@ export default function VehiclesPage() {
   const userStr = typeof window !== 'undefined' ? Cookies.get('user') : null;
   const user = userStr ? JSON.parse(userStr) : null;
   const agencyId = user?.agencyId || user?.userAgencies?.[0]?.agencyId;
-  const { isModuleActive, isLoading: isLoadingModule } = useModuleAccess('VEHICLES', agencyId);
+  const { isModuleActive } = useModuleAccess('VEHICLES', agencyId);
 
   // Récupérer le rôle pour masquer les actions selon les specs
   const { data: currentUser } = useQuery({
@@ -75,164 +76,147 @@ export default function VehiclesPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        {/* Page header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Vehicules</h1>
-            <p className="mt-1 text-sm text-foreground-muted">
-              {filteredVehicles?.length || 0} vehicule{(filteredVehicles?.length || 0) > 1 ? 's' : ''} dans la flotte
-            </p>
-          </div>
-          {canManageVehicles && (
-            <Link href="/agency/vehicles/new">
-              <Button variant="primary">
-                <Plus className="h-4 w-4" />
-                Nouveau vehicule
-              </Button>
-            </Link>
-          )}
-        </div>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Véhicules"
+            description="Gérer la flotte de véhicules"
+            actionHref={canManageVehicles ? '/agency/vehicles/new' : undefined}
+            actionLabel={canManageVehicles ? 'Nouveau véhicule' : undefined}
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
 
-        {isError ? (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface-1 py-16">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-error/10 mb-4">
-              <AlertTriangle className="h-5 w-5 text-error" />
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher un véhicule (marque, modèle, immatriculation)..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
+
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-text-muted mb-4">Erreur lors du chargement des véhicules</p>
+              <Button variant="primary" onClick={() => refetch()}>
+                Réessayer
+              </Button>
             </div>
-            <p className="text-sm text-foreground-muted mb-4">Erreur lors du chargement des vehicules</p>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Reessayer
-            </Button>
-          </div>
-        ) : isLoading || isLoadingModule ? (
-          <LoadingState message="Chargement des vehicules..." />
-        ) : !isModuleActive ? (
-          <ModuleNotIncluded moduleName="Vehicules" />
-        ) : filteredVehicles && filteredVehicles.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredVehicles.map((vehicle) => (
-              <div
-                key={vehicle.id}
-                className="group overflow-hidden rounded-lg border border-border bg-surface-1 transition-all duration-200 hover:border-primary/30 hover:shadow-glow"
-              >
-                {/* Vehicle image */}
-                {vehicle.imageUrl ? (
-                  <div className="relative overflow-hidden">
-                    <img
+          ) : isLoading ? (
+            <LoadingState message="Chargement des véhicules..." />
+          ) : filteredVehicles && filteredVehicles.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredVehicles.map((vehicle) => (
+                <Card key={vehicle.id} className="hover:border-primary transition-colors">
+                  {vehicle.imageUrl ? (
+                    <Image
                       src={getImageUrl(vehicle.imageUrl) || ''}
                       alt={`${vehicle.brand} ${vehicle.model}`}
-                      className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-105"
+                      width={800}
+                      height={480}
+                      unoptimized
+                      className="w-full h-48 object-cover rounded-t-lg mb-4"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                  </div>
-                ) : (
-                  <div className="w-full h-40 bg-surface-2 flex items-center justify-center">
-                    <Car className="h-10 w-10 text-foreground-subtle" />
-                  </div>
-                )}
-
-                {/* Vehicle info */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-foreground truncate">
-                        {vehicle.brand} {vehicle.model}
-                      </h3>
-                      <p className="text-xs text-foreground-subtle">{vehicle.registrationNumber}</p>
+                  ) : (
+                    <div className="w-full h-48 bg-background rounded-t-lg mb-4 flex items-center justify-center">
+                      <Car className="w-12 h-12 text-text-muted" />
                     </div>
-                    <Badge status={vehicle.status.toLowerCase() as any} size="sm">
-                      {vehicle.status}
-                    </Badge>
-                  </div>
+                  )}
+                  <div className="px-4 pb-4">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-text">
+                          {vehicle.brand} {vehicle.model}
+                        </h3>
+                        <p className="text-sm text-text-muted">{vehicle.registrationNumber}</p>
+                      </div>
+                      <Badge status={vehicle.status.toLowerCase() as any}>
+                        {vehicle.status}
+                      </Badge>
+                    </div>
 
-                  {/* Details grid */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-4 text-xs">
-                    {vehicle.year && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground-subtle">Annee</span>
-                        <span className="text-foreground">{vehicle.year}</span>
-                      </div>
-                    )}
-                    {vehicle.color && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground-subtle">Couleur</span>
-                        <span className="text-foreground">{vehicle.color}</span>
-                      </div>
-                    )}
-                    {vehicle.horsepower && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground-subtle">Puissance</span>
-                        <span className="text-foreground">{vehicle.horsepower} CV</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Price + Actions */}
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                    {vehicle.dailyRate ? (
-                      <p className="text-sm font-semibold text-primary">
-                        {vehicle.dailyRate} <span className="text-xs font-normal text-foreground-subtle">MAD/jour</span>
-                      </p>
-                    ) : (
-                      <span />
-                    )}
-                    <div className="flex items-center gap-1">
-                      <Link href={`/agency/vehicles/${vehicle.id}`}>
-                        <button className="flex h-8 w-8 items-center justify-center rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-2 transition-colors">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                      </Link>
-                      {canManageVehicles && (
-                        <button
-                          onClick={() => {
-                            setVehicleToDelete(vehicle);
-                            setDeleteDialogOpen(true);
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-foreground-subtle hover:text-error hover:bg-error/10 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <div className="space-y-2 mb-4">
+                      {vehicle.year && (
+                        <p className="text-sm text-text-muted">Année: {vehicle.year}</p>
+                      )}
+                      {vehicle.color && (
+                        <p className="text-sm text-text-muted">Couleur: {vehicle.color}</p>
+                      )}
+                      {vehicle.horsepower && (
+                        <p className="text-sm text-text-muted">Puissance: {vehicle.horsepower} CV</p>
+                      )}
+                      {vehicle.dailyRate && (
+                        <p className="text-sm font-medium text-text">
+                          {vehicle.dailyRate} MAD/jour
+                        </p>
                       )}
                     </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={Car}
-            title="Aucun vehicule trouve"
-            description={searchTerm ? "Aucun vehicule ne correspond a votre recherche" : "Commencez par ajouter votre premier vehicule"}
-            action={
-              !searchTerm && canManageVehicles && (
-                <Link href="/agency/vehicles/new">
-                  <Button variant="primary">
-                    <Plus className="h-4 w-4" />
-                    Ajouter un vehicule
-                  </Button>
-                </Link>
-              )
-            }
-          />
-        )}
 
-        <ConfirmDialog
-          isOpen={deleteDialogOpen}
-          title="Supprimer le vehicule"
-          message={`Etes-vous sur de vouloir supprimer le vehicule "${vehicleToDelete?.brand} ${vehicleToDelete?.model}" ? Cette action est irreversible.`}
-          confirmText="Supprimer"
-          cancelText="Annuler"
-          variant="danger"
-          onConfirm={() => {
-            if (vehicleToDelete) {
-              deleteMutation.mutate(vehicleToDelete.id);
-            }
-          }}
-          onCancel={() => {
-            setDeleteDialogOpen(false);
-            setVehicleToDelete(null);
-          }}
-        />
+                    <div className="flex items-center gap-2">
+                      <Link href={`/agency/vehicles/${vehicle.id}`} className="flex-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          aria-label="Modifier le véhicule"
+                          title="Modifier le véhicule"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Modifier
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0"
+                        aria-label="Supprimer le véhicule"
+                        title="Supprimer le véhicule"
+                        onClick={() => {
+                          setVehicleToDelete(vehicle);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Car}
+              title="Aucun véhicule trouvé"
+              description={searchTerm ? "Aucun véhicule ne correspond à votre recherche" : "Commencez par ajouter votre premier véhicule"}
+              action={
+                !searchTerm && (
+                  <Link href="/agency/vehicles/new">
+                    <Button variant="primary">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Ajouter un véhicule
+                    </Button>
+                  </Link>
+                )
+              }
+            />
+          )}
+
+          <ConfirmDialog
+            isOpen={deleteDialogOpen}
+            title="Supprimer le véhicule"
+            message={`Êtes-vous sûr de vouloir supprimer le véhicule "${vehicleToDelete?.brand} ${vehicleToDelete?.model}" ? Cette action est irréversible.`}
+            confirmText="Supprimer"
+            cancelText="Annuler"
+            variant="danger"
+            onConfirm={() => {
+              if (vehicleToDelete) {
+                deleteMutation.mutate(vehicleToDelete.id);
+              }
+            }}
+            onCancel={() => {
+              setDeleteDialogOpen(false);
+              setVehicleToDelete(null);
+            }}
+          />
+        </div>
       </MainLayout>
     </RouteGuard>
   );

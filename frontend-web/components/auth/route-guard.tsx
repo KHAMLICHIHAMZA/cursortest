@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
@@ -13,7 +13,23 @@ interface RouteGuardProps {
 
 export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
   const router = useRouter();
-  const token = Cookies.get('accessToken');
+  const [isClient, setIsClient] = useState(false);
+  const token = isClient ? Cookies.get('accessToken') : undefined;
+  const [guardTimeoutReached, setGuardTimeoutReached] = useState(false);
+  const cachedUser = useMemo(() => {
+    if (!isClient) return null;
+    const raw = Cookies.get('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }, [isClient]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const { data: user, isLoading, error } = useQuery({
     queryKey: ['me'],
@@ -29,36 +45,106 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
       }
       return me;
     },
-    enabled: !!token,
+    enabled: isClient && !!token,
+    initialData: cachedUser || undefined,
     retry: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
+    if (!isClient || !token || cachedUser || !isLoading) {
+      setGuardTimeoutReached(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setGuardTimeoutReached(true);
+    }, 12000);
+
+    return () => clearTimeout(timer);
+  }, [isClient, token, cachedUser, isLoading]);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     if (!token) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
     if (error) {
       Cookies.remove('accessToken');
       Cookies.remove('refreshToken');
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
     if (user && allowedRoles && !allowedRoles.includes(user.role)) {
       // Redirect based on role
       if (user.role === 'SUPER_ADMIN') {
-        router.push('/admin');
+        router.replace('/admin');
       } else if (user.role === 'COMPANY_ADMIN') {
-        router.push('/company');
+        router.replace('/company');
       } else {
-        router.push('/agency');
+        router.replace('/agency');
       }
     }
-  }, [token, user, error, allowedRoles, router]);
+  }, [isClient, token, user, error, allowedRoles, router]);
 
-  if (!token || isLoading) {
+  // Keep first paint identical between server and client to avoid hydration mismatch.
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-text-muted">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-text-muted">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (guardTimeoutReached && !cachedUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 text-center">
+          <p className="text-sm text-text">
+            La verification de session prend trop de temps.
+          </p>
+          <p className="mt-1 text-xs text-text-muted">
+            Verifiez la connexion API puis reessayez.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-border px-3 py-2 text-sm text-text"
+              onClick={() => window.location.reload()}
+            >
+              Reessayer
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-primary px-3 py-2 text-sm text-white"
+              onClick={() => {
+                Cookies.remove('accessToken');
+                Cookies.remove('refreshToken');
+                Cookies.remove('user');
+                router.replace('/login');
+              }}
+            >
+              Se reconnecter
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && !cachedUser) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-text-muted">Chargement...</div>

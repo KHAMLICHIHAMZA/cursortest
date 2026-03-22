@@ -3,9 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { maintenanceApi, Maintenance } from '@/lib/api/maintenance';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,7 +17,6 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { AgencyFilter } from '@/components/ui/agency-filter';
-import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import { toast } from '@/components/ui/toast';
@@ -24,7 +24,7 @@ import Cookies from 'js-cookie';
 
 export default function MaintenancePage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [maintenanceToDelete, setMaintenanceToDelete] = useState<Maintenance | null>(null);
@@ -110,33 +110,33 @@ export default function MaintenancePage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Maintenance</h1>
-              <p className="text-text-muted">Gérer les opérations de maintenance</p>
-            </div>
-            {isModuleActive && (
-              <Link href="/agency/maintenance/new">
-                <Button variant="primary">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle maintenance
-                </Button>
-              </Link>
-            )}
-          </div>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Maintenance"
+            description="Gérer les opérations de maintenance"
+            actionHref={isModuleActive ? '/agency/maintenance/new' : undefined}
+            actionLabel={isModuleActive ? 'Nouvelle maintenance' : undefined}
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
 
-          <div className="mb-6 flex items-center gap-4">
-            <AgencyFilter
-              selectedAgencyId={selectedAgencyId}
-              onAgencyChange={setSelectedAgencyId}
-            />
-          </div>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une maintenance (véhicule, description)..."
+            rightSlot={(
+              <AgencyFilter
+                selectedAgencyId={selectedAgencyId}
+                onAgencyChange={setSelectedAgencyId}
+              />
+            )}
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des maintenances..." />
           ) : filteredMaintenance && filteredMaintenance.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -179,13 +179,22 @@ export default function MaintenancePage() {
                           {isModuleActive && (
                             <div className="flex items-center justify-end gap-2">
                               <Link href={`/agency/maintenance/${m.id}`}>
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                  aria-label="Modifier la maintenance"
+                                  title="Modifier la maintenance"
+                                >
                                   <Edit className="w-4 h-4" />
                                 </Button>
                               </Link>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-9 w-9 p-0"
+                                aria-label="Supprimer la maintenance"
+                                title="Supprimer la maintenance"
                                 onClick={() => {
                                   setMaintenanceToDelete(m);
                                   setDeleteDialogOpen(true);

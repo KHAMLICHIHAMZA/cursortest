@@ -8,13 +8,14 @@ import { authApi } from '@/lib/api/auth';
 import { companyApi } from '@/lib/api/company';
 import { agencyApi, Agency } from '@/lib/api/agency';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { MapPin, Plus, Edit, Trash2, Search } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -66,41 +67,37 @@ export default function CompanyAgenciesPage() {
     },
   });
 
-  const filteredAgencies = companyAgencies?.filter(
-    (agency) => agency.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredAgencies = companyAgencies?.filter((agency) => {
+    const name = (agency.name || '').toLowerCase();
+    const phone = (agency.phone || '').toLowerCase();
+    const address = (agency.address || '').toLowerCase();
+    return name.includes(normalizedSearch) || phone.includes(normalizedSearch) || address.includes(normalizedSearch);
+  });
 
   const maxAgencies = companyInfo?.maxAgencies ?? null;
   const currentAgenciesCount = companyAgencies?.length || 0;
   const limitReached = maxAgencies !== null && currentAgenciesCount >= maxAgencies;
+  const visibleAgencies = filteredAgencies?.length || 0;
 
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Agences</h1>
-              <p className="text-text-muted">Gérer les agences de votre entreprise</p>
-              {maxAgencies !== null && (
-                <p className="text-sm text-text-muted mt-2">
-                  Limite d'agences: {currentAgenciesCount}/{maxAgencies}
-                </p>
-              )}
-            </div>
-            {limitReached ? (
-              <Button variant="primary" disabled>
-                Limite atteinte
-              </Button>
-            ) : (
-              <Link href="/company/agencies/new">
-                <Button variant="primary">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle agence
-                </Button>
-              </Link>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Agences"
+            description="Gérer les agences de votre entreprise"
+            actionHref={limitReached ? undefined : '/company/agencies/new'}
+            actionLabel={limitReached ? 'Limite atteinte' : 'Nouvelle agence'}
+            actionIcon={!limitReached ? <Plus className="w-4 h-4 mr-2" /> : undefined}
+            actionDisabled={limitReached}
+          >
+            {maxAgencies !== null && (
+              <p className="text-sm text-text-muted mt-2">
+                Limite d&apos;agences: {currentAgenciesCount}/{maxAgencies}
+              </p>
             )}
-          </div>
+          </PageHeader>
 
           {limitReached && (
             <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
@@ -108,23 +105,29 @@ export default function CompanyAgenciesPage() {
             </div>
           )}
 
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="search"
-                placeholder="Rechercher une agence..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 max-w-md"
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <Card className="p-4 border-l-4 border-l-primary/40">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total agences</p>
+              <p className="mt-1 text-3xl font-bold text-text">{currentAgenciesCount}</p>
+            </Card>
+            <Card className="p-4 border-l-4 border-l-indigo-500/35">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
+              <p className="mt-1 text-3xl font-bold text-text">{visibleAgencies}</p>
+            </Card>
           </div>
+
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une agence..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoading ? (
             <LoadingState message="Chargement des agences..." />
           ) : filteredAgencies && filteredAgencies.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -150,13 +153,22 @@ export default function CompanyAgenciesPage() {
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/company/agencies/${agency.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier l'agence"
+                              title="Modifier l'agence"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer l'agence"
+                            title="Supprimer l'agence"
                             onClick={() => {
                               setAgencyToDelete(agency);
                               setDeleteDialogOpen(true);

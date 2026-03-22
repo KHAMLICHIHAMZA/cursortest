@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
 
 /**
  * Push Notification Service using Firebase Cloud Messaging (FCM)
@@ -19,26 +19,38 @@ export class PushNotificationService {
     try {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(
+        /\\n/g,
+        "\n",
+      );
 
       if (!projectId || !clientEmail || !privateKey) {
-        this.logger.warn('Firebase not configured - push notifications disabled');
+        this.logger.warn(
+          "Firebase not configured - push notifications disabled",
+        );
         return;
       }
 
       // Dynamic import to avoid crash if firebase-admin not properly configured
-      const admin = require('firebase-admin');
+      const admin = require("firebase-admin");
       if (!admin.apps.length) {
         this.firebaseApp = admin.initializeApp({
-          credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+          credential: admin.credential.cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
         });
       } else {
         this.firebaseApp = admin.app();
       }
       this.isInitialized = true;
-      this.logger.log('Firebase initialized successfully');
+      this.logger.log("Firebase initialized successfully");
     } catch (error) {
-      this.logger.warn('Firebase init failed - push notifications disabled', error);
+      this.logger.warn(
+        "Firebase init failed - push notifications disabled",
+        error,
+      );
     }
   }
 
@@ -47,7 +59,9 @@ export class PushNotificationService {
    */
   async registerToken(userId: string, token: string, platform: string) {
     // Upsert: if token exists update, else create
-    const existing = await (this.prisma as any).deviceToken.findUnique({ where: { token } });
+    const existing = await (this.prisma as any).deviceToken.findUnique({
+      where: { token },
+    });
     if (existing) {
       return (this.prisma as any).deviceToken.update({
         where: { token },
@@ -63,7 +77,9 @@ export class PushNotificationService {
    * Unregister a device token
    */
   async unregisterToken(token: string) {
-    const existing = await (this.prisma as any).deviceToken.findUnique({ where: { token } });
+    const existing = await (this.prisma as any).deviceToken.findUnique({
+      where: { token },
+    });
     if (existing) {
       return (this.prisma as any).deviceToken.update({
         where: { token },
@@ -75,13 +91,16 @@ export class PushNotificationService {
   /**
    * Send push notification to a specific user
    */
-  async sendToUser(userId: string, notification: {
-    title: string;
-    body: string;
-    data?: Record<string, string>;
-  }): Promise<{ success: number; failed: number }> {
+  async sendToUser(
+    userId: string,
+    notification: {
+      title: string;
+      body: string;
+      data?: Record<string, string>;
+    },
+  ): Promise<{ success: number; failed: number }> {
     if (!this.isInitialized) {
-      this.logger.warn('Push skipped - Firebase not initialized');
+      this.logger.warn("Push skipped - Firebase not initialized");
       return { success: 0, failed: 0 };
     }
 
@@ -103,13 +122,16 @@ export class PushNotificationService {
   /**
    * Send push notification to all users of a company
    */
-  async sendToCompany(companyId: string, notification: {
-    title: string;
-    body: string;
-    data?: Record<string, string>;
-  }): Promise<{ success: number; failed: number }> {
+  async sendToCompany(
+    companyId: string,
+    notification: {
+      title: string;
+      body: string;
+      data?: Record<string, string>;
+    },
+  ): Promise<{ success: number; failed: number }> {
     if (!this.isInitialized) {
-      this.logger.warn('Push skipped - Firebase not initialized');
+      this.logger.warn("Push skipped - Firebase not initialized");
       return { success: 0, failed: 0 };
     }
 
@@ -141,7 +163,11 @@ export class PushNotificationService {
    */
   private async sendToTokens(
     tokens: string[],
-    notification: { title: string; body: string; data?: Record<string, string> },
+    notification: {
+      title: string;
+      body: string;
+      data?: Record<string, string>;
+    },
   ): Promise<{ success: number; failed: number }> {
     if (!this.firebaseApp) {
       return { success: 0, failed: tokens.length };
@@ -150,7 +176,7 @@ export class PushNotificationService {
     let success = 0;
     let failed = 0;
 
-    const admin = require('firebase-admin');
+    const admin = require("firebase-admin");
     const messaging = admin.messaging();
 
     // Send in batches of 500 (FCM limit)
@@ -174,15 +200,20 @@ export class PushNotificationService {
 
         // Deactivate invalid tokens
         response.responses.forEach((resp: any, idx: number) => {
-          if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
-            (this.prisma as any).deviceToken.update({
-              where: { token: batch[idx] },
-              data: { isActive: false },
-            }).catch(() => {});
+          if (
+            !resp.success &&
+            resp.error?.code === "messaging/registration-token-not-registered"
+          ) {
+            (this.prisma as any).deviceToken
+              .update({
+                where: { token: batch[idx] },
+                data: { isActive: false },
+              })
+              .catch(() => {});
           }
         });
       } catch (error) {
-        this.logger.error('FCM batch send error:', error);
+        this.logger.error("FCM batch send error:", error);
         failed += batch.length;
       }
     }

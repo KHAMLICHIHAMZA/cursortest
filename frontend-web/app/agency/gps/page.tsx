@@ -104,7 +104,7 @@ export default function GpsPage() {
     refetchInterval: 30000, // Auto-refresh every 30s
   });
 
-  const allSnapshots = snapshots ?? [];
+  const allSnapshots = useMemo(() => snapshots ?? [], [snapshots]);
 
   // Filter by vehicle on the frontend side too (for instant filtering)
   const displaySnapshots = useMemo(() => {

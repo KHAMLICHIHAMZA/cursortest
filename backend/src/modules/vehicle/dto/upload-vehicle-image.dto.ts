@@ -1,9 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from "@nestjs/swagger";
 
 export class UploadVehicleImageDto {
-  @ApiProperty({ type: 'string', format: 'binary' })
+  @ApiProperty({ type: "string", format: "binary" })
   image: Express.Multer.File;
 }
-
-
-

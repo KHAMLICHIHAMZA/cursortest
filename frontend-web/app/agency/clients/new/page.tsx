@@ -21,6 +21,19 @@ import { AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 import { COUNTRIES } from '@/lib/utils/countries';
 import { Card } from '@/components/ui/card';
 
+function composeAddress(data: {
+  addressLine1?: string;
+  addressLine2?: string;
+  addressCity?: string;
+  addressPostalCode?: string;
+  addressCountry?: string;
+}): string | undefined {
+  const line = [data.addressLine1, data.addressLine2].filter(Boolean).join(', ');
+  const cityLine = [data.addressPostalCode, data.addressCity].filter(Boolean).join(' ');
+  const value = [line, cityLine, data.addressCountry].filter(Boolean).join(' - ').trim();
+  return value || undefined;
+}
+
 export default function NewClientPage() {
   const router = useRouter();
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -51,7 +64,11 @@ export default function NewClientPage() {
       phone: '',
       agencyId: '',
       dateOfBirth: '',
-      address: '',
+      addressLine1: '',
+      addressLine2: '',
+      addressCity: '',
+      addressPostalCode: '',
+      addressCountry: 'Maroc',
       licenseNumber: '',
       isMoroccan: true,
       countryOfOrigin: '',
@@ -71,9 +88,9 @@ export default function NewClientPage() {
   const idCardNumber = watch('idCardNumber');
   const passportNumber = watch('passportNumber');
   const licenseNumber = watch('licenseNumber');
-  const licenseExpiryDate = watch('licenseExpiryDate');
   const idCardExpiryDate = watch('idCardExpiryDate');
   const passportExpiryDate = watch('passportExpiryDate');
+  const idCardType = watch('idCardType');
 
   // Déterminer si la section pièce d'identité/passeport doit être affichée
   const showIdentitySection = useMemo(() => {
@@ -113,7 +130,7 @@ export default function NewClientPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: CreateClientFormData) => clientApi.create(data),
+    mutationFn: (data: CreateClientFormData & { address?: string }) => clientApi.create(data),
     onSuccess: () => {
       toast.success('Client créé avec succès');
       router.push('/agency/clients');
@@ -175,11 +192,16 @@ export default function NewClientPage() {
     }
 
     // Nettoyer les données avant soumission (convertir chaînes vides en undefined)
-    const submitData: CreateClientFormData = {
+    const submitData: CreateClientFormData & { address?: string } = {
       ...data,
       licenseImageUrl: uploadedImageUrl || undefined,
       dateOfBirth: data.dateOfBirth || undefined,
-      address: data.address || undefined,
+      addressLine1: data.addressLine1 || undefined,
+      addressLine2: data.addressLine2 || undefined,
+      addressCity: data.addressCity || undefined,
+      addressPostalCode: data.addressPostalCode || undefined,
+      addressCountry: data.addressCountry || undefined,
+      address: composeAddress(data),
       licenseNumber: data.licenseNumber || undefined,
       licenseExpiryDate: data.licenseExpiryDate || undefined,
       countryOfOrigin: data.countryOfOrigin || undefined,
@@ -197,7 +219,6 @@ export default function NewClientPage() {
   const validationStatus = useMemo(() => {
     const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'agencyId'];
     const requiredValid = requiredFields.every(field => !errors[field as keyof typeof errors]);
-    const idCardType = watch('idCardType');
     const conditionalValid = !showIdentitySection || (idCardType && idCardNumber);
     const countryValid = isMoroccan || countryOfOrigin;
     
@@ -207,22 +228,24 @@ export default function NewClientPage() {
       country: countryValid,
       overall: requiredValid && conditionalValid && countryValid && isValid,
     };
-  }, [errors, showIdentitySection, idCardNumber, passportNumber, isMoroccan, countryOfOrigin, isValid]);
+  }, [errors, showIdentitySection, idCardType, idCardNumber, isMoroccan, countryOfOrigin, isValid]);
 
   if (isLoadingAgencies) {
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
         <MainLayout>
-          <FormCard
-            title="Nouveau client"
-            description="Chargement..."
-            backHref="/agency/clients"
-            onSubmit={(e) => e.preventDefault()}
-            isLoading={true}
-            submitLabel="Créer le client"
-          >
-            <div className="text-sm text-text-muted">Chargement des données...</div>
-          </FormCard>
+          <div className="max-w-4xl mx-auto space-y-6">
+            <FormCard
+              title="Nouveau client"
+              description="Chargement..."
+              backHref="/agency/clients"
+              onSubmit={(e) => e.preventDefault()}
+              isLoading={true}
+              submitLabel="Créer le client"
+            >
+              <div className="text-sm text-text-muted">Chargement des données...</div>
+            </FormCard>
+          </div>
         </MainLayout>
       </RouteGuard>
     );
@@ -231,14 +254,15 @@ export default function NewClientPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <FormCard
-          title="Nouveau client"
-          description="Ajoutez un nouveau client à votre base de données"
-          backHref="/agency/clients"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
-          submitLabel="Créer le client"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <FormCard
+            title="Nouveau client"
+            description="Ajoutez un nouveau client à votre base de données"
+            backHref="/agency/clients"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || createMutation.isPending || uploadImageMutation.isPending}
+            submitLabel="Créer le client"
+          >
           {/* Indicateur de validation globale */}
           {validationStatus.overall && (
             <Card className="p-3 mb-6 bg-green-500/10 border-green-500/20">
@@ -355,40 +379,32 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-text mb-2">
-                  Date de naissance
-                </label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  {...register('dateOfBirth')}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-                {errors.dateOfBirth && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.dateOfBirth.message}
-                  </p>
-                )}
-              </div>
+            <div>
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-text mb-2">
+                Date de naissance
+              </label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                {...register('dateOfBirth')}
+                max={new Date().toISOString().split('T')[0]}
+              />
+              {errors.dateOfBirth && (
+                <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.dateOfBirth.message}
+                </p>
+              )}
+            </div>
 
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-text mb-2">
-                  Adresse
-                </label>
-                <Input
-                  id="address"
-                  {...register('address')}
-                  placeholder="Adresse complète"
-                />
-                {errors.address && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.address.message}
-                  </p>
-                )}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-text">Adresse</label>
+              <Input id="addressLine1" {...register('addressLine1')} placeholder="Adresse ligne 1" />
+              <Input id="addressLine2" {...register('addressLine2')} placeholder="Adresse ligne 2 (optionnel)" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input id="addressPostalCode" {...register('addressPostalCode')} placeholder="Code postal" />
+                <Input id="addressCity" {...register('addressCity')} placeholder="Ville" />
+                <Input id="addressCountry" {...register('addressCountry')} placeholder="Pays" />
               </div>
             </div>
           </div>
@@ -488,18 +504,11 @@ export default function NewClientPage() {
                   id="licenseExpiryDate"
                   type="date"
                   {...register('licenseExpiryDate')}
-                  min={new Date().toISOString().split('T')[0]}
                 />
                 {errors.licenseExpiryDate && (
                   <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {errors.licenseExpiryDate.message}
-                  </p>
-                )}
-                {licenseExpiryDate && new Date(licenseExpiryDate) < new Date() && (
-                  <p className="text-orange-500 text-sm mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    Attention: Le permis est expiré
                   </p>
                 )}
               </div>
@@ -589,7 +598,7 @@ export default function NewClientPage() {
                 </select>
               </div>
 
-              {watch('idCardType') && (
+              {idCardType && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="idCardNumber" className="block text-sm font-medium text-text mb-2">
@@ -598,7 +607,7 @@ export default function NewClientPage() {
                     <Input
                       id="idCardNumber"
                       {...register('idCardNumber')}
-                      placeholder={watch('idCardType') === 'PASSEPORT' ? 'Ex: 12AB34567' : 'Ex: AB123456'}
+                      placeholder={idCardType === 'PASSEPORT' ? 'Ex: 12AB34567' : 'Ex: AB123456'}
                       onBlur={() => trigger(['idCardNumber', 'idCardExpiryDate'])}
                     />
                     {errors.idCardNumber && (
@@ -637,7 +646,8 @@ export default function NewClientPage() {
               )}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { AiController } from './ai.controller';
-import { AiService } from './ai.service';
-import { DamageDetectionService } from './damage-detection.service';
-import { ChatbotService } from './chatbot.service';
-import { PrismaModule } from '../../common/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { AiController } from "./ai.controller";
+import { AiService } from "./ai.service";
+import { DamageDetectionService } from "./damage-detection.service";
+import { ChatbotService } from "./chatbot.service";
+import { PrismaModule } from "../../common/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule],
@@ -12,8 +12,3 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
   exports: [AiService, DamageDetectionService, ChatbotService],
 })
 export class AiModule {}
-
-
-
-
-

@@ -47,6 +47,9 @@ frontend-web/public/uploads/
 # Local reports / artifacts
 RAPPORTS_TESTS_INTEGRATION_*/
 
+# Office / LibreOffice lock files when a document is open
+~$*
+
 
 
 

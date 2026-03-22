@@ -1,5 +1,5 @@
-import { IsString, IsBoolean, IsDateString } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsBoolean, IsDateString } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreatePreparationTimeDto {
   @ApiProperty()
@@ -26,8 +26,3 @@ export class CreatePreparationTimeDto {
   @IsBoolean()
   isLate?: boolean;
 }
-
-
-
-
-

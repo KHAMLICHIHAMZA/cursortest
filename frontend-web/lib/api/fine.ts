@@ -20,6 +20,7 @@ export interface Fine {
   location?: string;
   infractionDate?: string;
   registrationNumber?: string;
+  attachmentUrl?: string | null;
   status: FineStatus;
   clientId?: string | null;
   createdAt: string;
@@ -55,6 +56,7 @@ export interface CreateFineDto {
   location?: string;
   infractionDate?: string;
   registrationNumber?: string;
+  attachmentUrl?: string;
 }
 
 export interface UpdateFineDto {
@@ -64,6 +66,7 @@ export interface UpdateFineDto {
   status?: FineStatus;
   number?: string;
   location?: string;
+  attachmentUrl?: string;
 }
 
 export const fineApi = {
@@ -89,6 +92,17 @@ export const fineApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/fines/${id}`);
+  },
+
+  uploadAttachment: async (
+    file: File,
+  ): Promise<{ attachmentUrl: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append('attachment', file);
+    const response = await apiClient.post('/fines/upload-attachment', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   },
 };
 

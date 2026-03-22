@@ -1,6 +1,12 @@
-import { IsString, IsOptional, IsEmail, IsDateString, IsBoolean } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsDateString,
+  IsBoolean,
+} from "class-validator";
+import { Transform } from "class-transformer";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class UpdateClientDto {
   @ApiPropertyOptional()
@@ -25,7 +31,7 @@ export class UpdateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   dateOfBirth?: string;
 
@@ -61,7 +67,7 @@ export class UpdateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   licenseExpiryDate?: string;
 
@@ -70,7 +76,10 @@ export class UpdateClientDto {
   @IsBoolean()
   isForeignLicense?: boolean;
 
-  @ApiPropertyOptional({ description: 'Type de pièce d\'identité (CIN, CARTE_SEJOUR, TITRE_SEJOUR, PERMIS_RESIDENCE, AUTRE)' })
+  @ApiPropertyOptional({
+    description:
+      "Type de pièce d'identité (CIN, CARTE_SEJOUR, TITRE_SEJOUR, PERMIS_RESIDENCE, AUTRE)",
+  })
   @IsOptional()
   @IsString()
   idCardType?: string;
@@ -82,7 +91,7 @@ export class UpdateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   idCardExpiryDate?: string;
 
@@ -93,7 +102,7 @@ export class UpdateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   passportExpiryDate?: string;
 
@@ -102,5 +111,3 @@ export class UpdateClientDto {
   @IsString()
   note?: string;
 }
-
-

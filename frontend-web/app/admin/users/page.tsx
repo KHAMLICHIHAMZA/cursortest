@@ -3,15 +3,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, User } from '@/lib/api/user';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Users, Plus, Edit, Trash2, Search, Key, LogIn } from 'lucide-react';
-import { useState } from 'react';
+import { Users, Plus, Edit, Trash2, Key, LogIn } from 'lucide-react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -26,8 +27,11 @@ export default function UsersPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [agencyFilter, setAgencyFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const { data: currentUser } = useQuery({
     queryKey: ['me'],
@@ -36,10 +40,33 @@ export default function UsersPage() {
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => userApi.getAll(),
+  const { data: agenciesLookup = [] } = useQuery({
+    queryKey: ['agencies', 'lookup'],
+    queryFn: async () => {
+      const res = await apiClient.get('/agencies/lookup');
+      return res.data as Array<{ id: string; name: string }>;
+    },
   });
+
+  const { data: usersPage, isLoading } = useQuery({
+    queryKey: ['users', 'light', currentPage, pageSize, deferredSearchTerm, agencyFilter],
+    queryFn: () => userApi.getLight(currentPage, pageSize, deferredSearchTerm, agencyFilter),
+  });
+
+  const users = usersPage?.items || [];
+  const totalUsers = usersPage?.total || 0;
+  const activeUsers = usersPage?.activeTotal || 0;
+  const totalPages = usersPage?.totalPages || 1;
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearchTerm, agencyFilter]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => userApi.delete(id),
@@ -105,31 +132,7 @@ export default function UsersPage() {
     },
   });
 
-  // Extract unique agencies for filter dropdown
-  const allAgencies = users
-    ? Array.from(
-        new Map(
-          users
-            .flatMap((u) => u.userAgencies || [])
-            .map((ua) => [ua.agency.id, ua.agency.name])
-        ).entries()
-      )
-        .map(([id, name]) => ({ id, name }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    : [];
-
-  const filteredUsers = users?.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesAgency =
-      !agencyFilter ||
-      user.userAgencies?.some((ua) => ua.agency.id === agencyFilter);
-
-    return matchesSearch && matchesAgency;
-  });
+  const visibleUsers = users.length;
 
   const getRoleStatus = (role: string): 'active' | 'pending' | 'completed' | 'inactive' => {
     switch (role) {
@@ -146,49 +149,91 @@ export default function UsersPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Utilisateurs</h1>
-              <p className="text-text-muted">Gérer les utilisateurs de la plateforme</p>
-            </div>
-            <Link href="/admin/users/new">
-              <Button variant="primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvel utilisateur
-              </Button>
-            </Link>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Utilisateurs"
+            description="Gérer les utilisateurs de la plateforme"
+            actionHref="/admin/users/new"
+            actionLabel="Nouvel utilisateur"
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4 border-l-4 border-l-primary/40">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total utilisateurs</p>
+              <p className="mt-1 text-3xl font-bold text-text">{totalUsers}</p>
+            </Card>
+            <Card className="p-4 border-l-4 border-l-green-500/40">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Actifs</p>
+              <p className="mt-1 text-3xl font-bold text-text">{activeUsers}</p>
+            </Card>
+            <Card className="p-4 border-l-4 border-l-indigo-500/35">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
+              <p className="mt-1 text-3xl font-bold text-text">{visibleUsers}</p>
+            </Card>
           </div>
 
-          <div className="mb-6 flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="search"
-                placeholder="Rechercher un utilisateur..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <select
-              value={agencyFilter}
-              onChange={(e) => setAgencyFilter(e.target.value)}
-              className="px-3 py-2 border border-border rounded-lg bg-card text-text text-sm min-w-[200px]"
-            >
-              <option value="">Toutes les agences</option>
-              {allAgencies.map((agency) => (
-                <option key={agency.id} value={agency.id}>
-                  {agency.name}
-                </option>
-              ))}
-            </select>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher un utilisateur..."
+            rightSlot={(
+              <select
+                value={agencyFilter}
+                onChange={(e) => setAgencyFilter(e.target.value)}
+                aria-label="Filtrer par agence"
+                className="px-3 py-2 border border-border rounded-lg bg-card text-text text-sm min-w-[220px]"
+              >
+                <option value="">Toutes les agences</option>
+                {agenciesLookup.map((agency) => (
+                  <option key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            showReset={!!searchTerm || !!agencyFilter}
+            onReset={() => {
+              setSearchTerm('');
+              setAgencyFilter('');
+            }}
+          />
+
+          <div className="mb-4 flex items-center justify-between text-sm text-text-muted">
+            <span>
+              {totalUsers === 0
+                ? 'Aucun utilisateur'
+                : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalUsers)} sur ${totalUsers}`}
+            </span>
+            {totalUsers > pageSize && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Précédent
+                </Button>
+                <span className="text-xs text-text-muted">
+                  Page {currentPage}/{totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
           </div>
 
           {isLoading ? (
             <LoadingState message="Chargement des utilisateurs..." />
-          ) : filteredUsers && filteredUsers.length > 0 ? (
-            <Card padding="none">
+          ) : users.length > 0 ? (
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -201,17 +246,17 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                             <Users className="w-5 h-5 text-primary" />
                           </div>
-                          <span className="font-medium text-text">{user.name}</span>
+                          <span className="font-medium text-text">{user.name || 'Utilisateur sans nom'}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-text-muted">{user.email}</TableCell>
+                      <TableCell className="text-text-muted">{user.email || '-'}</TableCell>
                       <TableCell>
                         <Badge status={getRoleStatus(user.role)}>
                           {user.role.replace('_', ' ')}
@@ -244,7 +289,9 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
                             onClick={() => impersonateMutation.mutate(user.id)}
+                            aria-label="Se connecter en tant que cet utilisateur"
                             title="Se connecter en tant que cet utilisateur"
                             disabled={impersonateMutation.isPending}
                           >
@@ -254,13 +301,21 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
                             onClick={() => resetPasswordMutation.mutate(user.id)}
+                            aria-label="Réinitialiser le mot de passe"
                             title="Réinitialiser le mot de passe"
                           >
                             <Key className="w-4 h-4" />
                           </Button>
                           <Link href={`/admin/users/${user.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier l'utilisateur"
+                              title="Modifier l'utilisateur"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
@@ -268,6 +323,9 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer l'utilisateur"
+                            title="Supprimer l'utilisateur"
                             onClick={() => {
                               setUserToDelete(user);
                               setDeleteDialogOpen(true);

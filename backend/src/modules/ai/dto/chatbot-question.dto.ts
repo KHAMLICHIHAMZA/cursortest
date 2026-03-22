@@ -1,5 +1,5 @@
-import { IsString, IsOptional } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class ChatbotQuestionDto {
   @ApiProperty()
@@ -21,8 +21,3 @@ export class ChatbotQuestionDto {
   @IsString()
   bookingId?: string;
 }
-
-
-
-
-

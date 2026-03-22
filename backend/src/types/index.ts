@@ -1,4 +1,9 @@
-import { Role, VehicleStatus, BookingStatus, MaintenanceStatus } from '@prisma/client';
+import {
+  Role,
+  VehicleStatus,
+  BookingStatus,
+  MaintenanceStatus,
+} from "@prisma/client";
 
 export interface JwtPayload {
   userId: string;
@@ -13,8 +18,3 @@ export interface AuthRequest extends Request {
 }
 
 export { Role, VehicleStatus, BookingStatus, MaintenanceStatus };
-
-
-
-
-

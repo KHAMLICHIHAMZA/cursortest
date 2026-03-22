@@ -3,24 +3,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientApi, Client } from '@/lib/api/client-api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { UserCircle, Plus, Edit, Trash2, Globe, FileText, Calendar } from 'lucide-react';
+import { UserCircle, Plus, Edit, Trash2, FileText, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { useDebounce } from '@/lib/hooks/use-debounce';
-import { useSearch } from '@/contexts/search-context';
 
 export default function ClientsPage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -62,19 +62,22 @@ export default function ClientsPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Clients</h1>
-              <p className="text-text-muted">Gérer les clients de l'agence</p>
-            </div>
-            <Link href="/agency/clients/new" className="w-full sm:w-auto block">
-              <Button variant="primary" className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau client
-              </Button>
-            </Link>
-          </div>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Clients"
+            description="Gérer les clients de l'agence"
+            actionHref="/agency/clients/new"
+            actionLabel="Nouveau client"
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
+
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher un client (nom, email, téléphone, document)..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
 
           {isError ? (
@@ -87,7 +90,7 @@ export default function ClientsPage() {
           ) : isLoading ? (
             <LoadingState message="Chargement des clients..." />
           ) : filteredClients && filteredClients.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -178,13 +181,22 @@ export default function ClientsPage() {
                       <TableCell>
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/agency/clients/${client.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier le client"
+                              title="Modifier le client"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Supprimer le client"
+                            title="Supprimer le client"
                             onClick={() => {
                               setClientToDelete(client);
                               setDeleteDialogOpen(true);

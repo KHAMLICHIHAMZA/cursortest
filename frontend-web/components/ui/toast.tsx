@@ -10,20 +10,20 @@ export function ToastProvider() {
       toastOptions={{
         duration: 4000,
         style: {
-          background: '#2C2F36',
-          color: '#E5E7EB',
-          border: '1px solid #3E7BFA',
+          background: 'rgb(var(--card))',
+          color: 'rgb(var(--text))',
+          border: '1px solid rgb(var(--border))',
         },
         success: {
           iconTheme: {
-            primary: '#10B981',
-            secondary: '#E5E7EB',
+            primary: 'rgb(var(--success))',
+            secondary: 'rgb(var(--text))',
           },
         },
         error: {
           iconTheme: {
-            primary: '#EF4444',
-            secondary: '#E5E7EB',
+            primary: 'rgb(var(--error))',
+            secondary: 'rgb(var(--text))',
           },
         },
       }}

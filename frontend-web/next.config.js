@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Allow per-session/per-port cache directories to avoid dev chunk corruption
+  // when multiple Next dev servers are accidentally launched.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   images: {
     domains: ['localhost'],
   },
@@ -11,20 +14,6 @@ const nextConfig = {
       config.optimization.minimize = false;
     }
     return config;
-  },
-  // Permet l'accès depuis le réseau
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
-          },
-        ],
-      },
-    ];
   },
 };
 

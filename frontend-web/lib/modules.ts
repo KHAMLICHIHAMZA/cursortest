@@ -1,6 +1,17 @@
 import { apiClient } from './api/client';
 
-export type ModuleCode = 'VEHICLES' | 'BOOKINGS' | 'INVOICES' | 'MAINTENANCE' | 'FINES' | 'ANALYTICS' | 'GPS';
+export type ModuleCode =
+  | 'VEHICLES'
+  | 'BOOKINGS'
+  | 'INVOICES'
+  | 'MAINTENANCE'
+  | 'FINES'
+  | 'ANALYTICS'
+  | 'GPS'
+  | 'CONTRACTS'
+  | 'JOURNAL'
+  | 'CHARGES'
+  | 'NOTIFICATIONS';
 
 export interface ActiveModule {
   moduleCode: ModuleCode;
@@ -8,13 +19,21 @@ export interface ActiveModule {
   activatedAt?: string;
 }
 
+type FetchModulesOptions = {
+  forceRefresh?: boolean;
+};
+
 // Cache des modules
 let modulesCache: Map<string, { modules: ActiveModule[]; timestamp: number }> = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-export const fetchAgencyModules = async (agencyId: string): Promise<ActiveModule[]> => {
+export const fetchAgencyModules = async (
+  agencyId: string,
+  options: FetchModulesOptions = {},
+): Promise<ActiveModule[]> => {
+  const forceRefresh = !!options.forceRefresh;
   const cached = modulesCache.get(`agency-${agencyId}`);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.modules;
   }
 
@@ -29,9 +48,13 @@ export const fetchAgencyModules = async (agencyId: string): Promise<ActiveModule
   }
 };
 
-export const fetchCompanyModules = async (companyId: string): Promise<ActiveModule[]> => {
+export const fetchCompanyModules = async (
+  companyId: string,
+  options: FetchModulesOptions = {},
+): Promise<ActiveModule[]> => {
+  const forceRefresh = !!options.forceRefresh;
   const cached = modulesCache.get(`company-${companyId}`);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.modules;
   }
 
@@ -47,9 +70,9 @@ export const fetchCompanyModules = async (companyId: string): Promise<ActiveModu
 };
 
 export const isModuleActive = (modules: ActiveModule[], code: ModuleCode): boolean => {
-  if (modules.length === 0) return true;
+  if (modules.length === 0) return false;
   const found = modules.find(m => m.moduleCode === code);
-  return found?.isActive ?? true;
+  return found?.isActive ?? false;
 };
 
 export const clearModulesCache = (): void => {
@@ -64,14 +87,14 @@ export const agencyRouteModuleMap: Record<string, ModuleCode | null> = {
   '/agency/bookings': 'BOOKINGS',
   '/agency/planning': 'BOOKINGS',
   '/agency/invoices': 'INVOICES',
-  '/agency/contracts': 'BOOKINGS', // Contrats liés aux réservations
-  '/agency/journal': null, // Journal toujours visible
+  '/agency/contracts': 'CONTRACTS',
+  '/agency/journal': 'JOURNAL',
   '/agency/maintenance': 'MAINTENANCE',
   '/agency/fines': 'FINES',
-  '/agency/charges': 'VEHICLES', // Charges & Depenses liees aux vehicules
+  '/agency/charges': 'CHARGES',
   '/agency/kpi': 'BOOKINGS', // KPI necessite au minimum le module Bookings
-  '/agency/gps': 'VEHICLES', // GPS (utilise le module VEHICLES cote backend)
-  '/agency/notifications': null, // Notifications toujours visibles
+  '/agency/gps': 'GPS',
+  '/agency/notifications': 'NOTIFICATIONS',
 };
 
 // Mapping des routes company vers les modules requis
@@ -81,4 +104,5 @@ export const companyRouteModuleMap: Record<string, ModuleCode | null> = {
   '/company/users': null,
   '/company/analytics': 'ANALYTICS',
   '/company/planning': 'BOOKINGS',
+  '/company/notifications': 'NOTIFICATIONS',
 };

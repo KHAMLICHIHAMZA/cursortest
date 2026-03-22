@@ -28,13 +28,13 @@ export default function NewUserPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: companies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyApi.getAll(),
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
   });
 
   const { data: agencies } = useQuery({
-    queryKey: ['agencies', formData.companyId],
-    queryFn: () => agencyApi.getAll(),
+    queryKey: ['agencies', 'lookup', formData.companyId],
+    queryFn: () => agencyApi.getLookup(formData.companyId),
     enabled: !!formData.companyId,
   });
 
@@ -76,14 +76,20 @@ export default function NewUserPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Nouvel utilisateur"
-          description="Remplissez les informations pour créer un nouvel utilisateur"
-          backHref="/admin/users"
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
-          submitLabel="Créer l'utilisateur"
-        >
+        <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-6 px-2 sm:px-0">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Astuce: sélectionnez d&apos;abord l&apos;entreprise pour afficher les agences disponibles.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvel utilisateur"
+            description="Remplissez les informations pour créer un nouvel utilisateur"
+            backHref="/admin/users"
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isPending}
+            submitLabel="Créer l'utilisateur"
+          >
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
                 Nom complet *
@@ -149,9 +155,7 @@ export default function NewUserPage() {
                   Agences (multi-sélection)
                 </label>
                 <Card variant="outlined" padding="sm" className="max-h-48 overflow-y-auto">
-                  {agencies
-                    .filter((a) => a.companyId === formData.companyId)
-                    .map((agency) => (
+                  {agencies.map((agency) => (
                       <label key={agency.id} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -171,7 +175,8 @@ export default function NewUserPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { NotificationChannel, NotificationType } from '@prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { NotificationChannel, NotificationType } from "@prisma/client";
 
 /**
  * WhatsApp Business API Service
@@ -18,9 +18,10 @@ export class WhatsAppService {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.apiUrl = this.configService.get<string>('WHATSAPP_API_URL') || '';
-    this.apiToken = this.configService.get<string>('WHATSAPP_API_TOKEN') || '';
-    this.phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '';
+    this.apiUrl = this.configService.get<string>("WHATSAPP_API_URL") || "";
+    this.apiToken = this.configService.get<string>("WHATSAPP_API_TOKEN") || "";
+    this.phoneNumberId =
+      this.configService.get<string>("WHATSAPP_PHONE_NUMBER_ID") || "";
   }
 
   async sendMessage(
@@ -29,26 +30,29 @@ export class WhatsAppService {
     type: NotificationType = NotificationType.TRANSACTIONAL,
   ): Promise<void> {
     if (!this.apiUrl || !this.apiToken || !this.phoneNumberId) {
-      this.logger.warn('WhatsApp API not configured, skipping message');
+      this.logger.warn("WhatsApp API not configured, skipping message");
       return;
     }
 
     try {
-      const response = await fetch(`${this.apiUrl}/${this.phoneNumberId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: to.replace(/[^0-9]/g, ''), // Nettoyer le numéro
-          type: 'text',
-          text: {
-            body: message,
+      const response = await fetch(
+        `${this.apiUrl}/${this.phoneNumberId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: to.replace(/[^0-9]/g, ""), // Nettoyer le numéro
+            type: "text",
+            text: {
+              body: message,
+            },
+          }),
+        },
+      );
 
       const data = await response.json();
 
@@ -66,7 +70,7 @@ export class WhatsAppService {
         },
       });
     } catch (error) {
-      this.logger.error('WhatsApp send error:', error);
+      this.logger.error("WhatsApp send error:", error);
 
       await this.prisma.notification.create({
         data: {
@@ -75,7 +79,7 @@ export class WhatsAppService {
           recipient: to,
           content: message,
           sent: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         },
       });
     }
@@ -89,9 +93,8 @@ export class WhatsAppService {
       startDate: Date;
     },
   ): Promise<void> {
-    const message = `Bonjour ${bookingDetails.clientName},\n\nRappel : Votre location de ${bookingDetails.vehicleInfo} commence le ${bookingDetails.startDate.toLocaleDateString('fr-FR')}.\n\nMerci !`;
+    const message = `Bonjour ${bookingDetails.clientName},\n\nRappel : Votre location de ${bookingDetails.vehicleInfo} commence le ${bookingDetails.startDate.toLocaleDateString("fr-FR")}.\n\nMerci !`;
 
     await this.sendMessage(phone, message, NotificationType.TRANSACTIONAL);
   }
 }
-

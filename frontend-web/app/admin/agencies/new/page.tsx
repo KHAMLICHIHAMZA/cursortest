@@ -8,24 +8,38 @@ import { companyApi } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import {
+  AgencyAddressHoursFields,
+  createDefaultOpeningHours,
+  hasInvalidOpeningHours,
+} from '@/components/agency/agency-address-hours-fields';
 
 export default function NewAgencyPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<CreateAgencyDto>({
     name: '',
     phone: '',
-    address: '',
+    addressDetails: {
+      line1: '',
+      line2: '',
+      city: '',
+      postalCode: '',
+      country: 'Maroc',
+    },
+    openingHours: createDefaultOpeningHours(),
     companyId: '',
+    preparationTimeMinutes: 60,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: companies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyApi.getAll(),
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
   });
 
   const createMutation = useMutation({
@@ -50,20 +64,31 @@ export default function NewAgencyPage() {
       return;
     }
 
+    if (hasInvalidOpeningHours(formData.openingHours)) {
+      setErrors({ submit: 'Corrigez les horaires d ouverture invalides avant de continuer.' });
+      return;
+    }
+
     createMutation.mutate(formData);
   };
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Nouvelle agence"
-          description="Remplissez les informations pour créer une nouvelle agence"
-          backHref="/admin/agencies"
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
-          submitLabel="Créer l'agence"
-        >
+        <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-6 px-2 sm:px-0">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Créez l&apos;agence puis configurez les utilisateurs et véhicules depuis la fiche agence.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvelle agence"
+            description="Remplissez les informations pour créer une nouvelle agence"
+            backHref="/admin/agencies"
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isPending}
+            submitLabel="Créer l'agence"
+          >
             <div>
               <label htmlFor="companyId" className="block text-sm font-medium text-text mb-2">
                 Entreprise *
@@ -103,30 +128,47 @@ export default function NewAgencyPage() {
               </label>
               <Input
                 id="phone"
-                value={formData.phone}
+                value={formData.phone || ''}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+212 6XX XXX XXX"
               />
             </div>
 
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-text mb-2">
-                Adresse
+              <label htmlFor="preparationTimeMinutes" className="block text-sm font-medium text-text mb-2">
+                Temps de preparation apres retour (minutes)
               </label>
               <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Adresse complète"
+                id="preparationTimeMinutes"
+                type="number"
+                min="1"
+                value={formData.preparationTimeMinutes ?? 60}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    preparationTimeMinutes: e.target.value ? parseInt(e.target.value, 10) : 60,
+                  })
+                }
               />
+              <p className="text-xs text-text-muted mt-1">
+                Temps minimum entre la fin d une location et le debut de la suivante
+              </p>
             </div>
+
+            <AgencyAddressHoursFields
+              addressDetails={formData.addressDetails || {}}
+              onAddressDetailsChange={(next) => setFormData({ ...formData, addressDetails: next })}
+              openingHours={formData.openingHours || createDefaultOpeningHours()}
+              onOpeningHoursChange={(next) => setFormData({ ...formData, openingHours: next })}
+            />
 
           {errors.submit && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

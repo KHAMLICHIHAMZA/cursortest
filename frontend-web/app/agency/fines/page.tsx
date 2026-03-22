@@ -3,9 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fineApi, Fine } from '@/lib/api/fine';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -15,7 +16,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
-import { useSearch } from '@/contexts/search-context';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import { toast } from '@/components/ui/toast';
@@ -23,7 +23,7 @@ import Cookies from 'js-cookie';
 
 export default function FinesPage() {
   const queryClient = useQueryClient();
-  const { searchTerm } = useSearch();
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fineToDelete, setFineToDelete] = useState<Fine | null>(null);
 
@@ -98,27 +98,28 @@ export default function FinesPage() {
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Amendes</h1>
-              <p className="text-text-muted">Gérer les amendes et contraventions</p>
-            </div>
-            {isModuleActive && (
-              <Link href="/agency/fines/new" className="w-full sm:w-auto block">
-                <Button variant="primary" className="w-full sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle amende
-                </Button>
-              </Link>
-            )}
-          </div>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Amendes"
+            description="Gérer les amendes et contraventions"
+            actionHref={isModuleActive ? '/agency/fines/new' : undefined}
+            actionLabel={isModuleActive ? 'Nouvelle amende' : undefined}
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
+
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher une amende (véhicule, client, description)..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
 
           {isLoadingModule || isLoading ? (
             <LoadingState message="Chargement des amendes..." />
           ) : filteredFines && filteredFines.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -161,13 +162,22 @@ export default function FinesPage() {
                         {isModuleActive && (
                           <div className="flex items-center justify-end gap-2">
                             <Link href={`/agency/fines/${fine.id}`}>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 w-9 p-0"
+                                aria-label="Modifier l'amende"
+                                title="Modifier l'amende"
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
                             </Link>
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Supprimer l'amende"
+                              title="Supprimer l'amende"
                               onClick={() => {
                                 setFineToDelete(fine);
                                 setDeleteDialogOpen(true);

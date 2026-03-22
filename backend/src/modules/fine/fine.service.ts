@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PrismaSoftDeleteService } from '../../common/prisma/prisma-soft-delete.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { AuditService } from '../../common/services/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { CreateFineDto } from './dto/create-fine.dto';
-import { UpdateFineDto } from './dto/update-fine.dto';
-import { BookingStatus, BusinessEventType, FineStatus } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaSoftDeleteService } from "../../common/prisma/prisma-soft-delete.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { AuditService } from "../../common/services/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import { CreateFineDto } from "./dto/create-fine.dto";
+import { UpdateFineDto } from "./dto/update-fine.dto";
+import { BookingStatus, BusinessEventType, FineStatus } from "@prisma/client";
 
 @Injectable()
 export class FineService {
@@ -18,13 +23,16 @@ export class FineService {
     private businessEventLogService: BusinessEventLogService,
   ) {}
 
-  async findAll(user: any, filters?: { agencyId?: string; bookingId?: string }) {
-    let where: any = {};
+  async findAll(
+    user: any,
+    filters?: { agencyId?: string; bookingId?: string },
+  ) {
+    const where: any = {};
 
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       if (filters?.agencyId) where.agencyId = filters.agencyId;
       if (filters?.bookingId) where.bookingId = filters.bookingId;
-    } else if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    } else if (user.role === "COMPANY_ADMIN" && user.companyId) {
       where.agency = { companyId: user.companyId };
       if (filters?.agencyId) {
         const agency = await this.prisma.agency.findFirst({
@@ -62,7 +70,7 @@ export class FineService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     // Remove audit fields from public responses
@@ -86,12 +94,17 @@ export class FineService {
     });
 
     if (!fine) {
-      throw new NotFoundException('Amende introuvable');
+      throw new NotFoundException("Amende introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(fine.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      fine.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour consulter cette amende');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour consulter cette amende",
+      );
     }
 
     // Remove audit fields from public responses
@@ -113,16 +126,23 @@ export class FineService {
     } = createFineDto;
 
     if (!agencyId || !amount || !description) {
-      throw new BadRequestException('Champs requis manquants : l\'identifiant agence, le montant et la description sont obligatoires');
+      throw new BadRequestException(
+        "Champs requis manquants : l'identifiant agence, le montant et la description sont obligatoires",
+      );
     }
 
     if (!bookingId && !registrationNumber) {
-      throw new BadRequestException('Le bookingId ou le numéro d\'immatriculation doit être fourni');
+      throw new BadRequestException(
+        "Le bookingId ou le numéro d'immatriculation doit être fourni",
+      );
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     let resolvedBookingId: string | null = bookingId || null;
@@ -139,7 +159,10 @@ export class FineService {
       const vehicle = await this.prisma.vehicle.findFirst({
         where: {
           agencyId,
-          registrationNumber: { equals: registrationNumber, mode: 'insensitive' },
+          registrationNumber: {
+            equals: registrationNumber,
+            mode: "insensitive",
+          },
           deletedAt: null,
         },
       });
@@ -151,11 +174,17 @@ export class FineService {
             vehicleId: vehicle.id,
             startDate: { lte: infractionDate },
             endDate: { gte: infractionDate },
-            status: { in: [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.RETURNED] },
+            status: {
+              in: [
+                BookingStatus.CONFIRMED,
+                BookingStatus.IN_PROGRESS,
+                BookingStatus.RETURNED,
+              ],
+            },
             deletedAt: null,
           },
           include: { client: true },
-          orderBy: { startDate: 'desc' },
+          orderBy: { startDate: "desc" },
         });
 
         if (activeBooking) {
@@ -173,11 +202,34 @@ export class FineService {
       });
 
       if (!booking || booking.agencyId !== agencyId) {
-        throw new BadRequestException('Réservation introuvable ou n\'appartient pas à cette agence');
+        throw new BadRequestException(
+          "Réservation introuvable ou n'appartient pas à cette agence",
+        );
       }
 
       if (!resolvedClientId) {
         resolvedClientId = booking.clientId;
+      }
+
+      // Règle métier: une amende ne peut pas être créée pour une réservation
+      // qui n'a pas encore commencé.
+      const now = new Date();
+      if (new Date(booking.startDate) > now) {
+        throw new BadRequestException(
+          "Impossible de créer une amende: la réservation n'a pas encore commencé",
+        );
+      }
+
+      // Règle métier: amende autorisée uniquement pour une réservation active.
+      // On bloque explicitement les cas annulés, client absent, et tout statut non actif.
+      const allowedStatuses: BookingStatus[] = [
+        BookingStatus.IN_PROGRESS,
+        BookingStatus.LATE,
+      ];
+      if (!allowedStatuses.includes(booking.status as BookingStatus)) {
+        throw new BadRequestException(
+          "Impossible de créer une amende: la réservation doit être active (en cours ou en retard)",
+        );
       }
     }
 
@@ -219,7 +271,7 @@ export class FineService {
     this.businessEventLogService
       .logEvent(
         fine.agencyId,
-        'Fine',
+        "Fine",
         fine.id,
         BusinessEventType.FINE_CREATED,
         null,
@@ -237,12 +289,17 @@ export class FineService {
     });
 
     if (!fine) {
-      throw new NotFoundException('Amende introuvable');
+      throw new NotFoundException("Amende introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(fine.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      fine.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour modifier cette amende');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour modifier cette amende",
+      );
     }
 
     // Store previous state for event log
@@ -274,7 +331,10 @@ export class FineService {
     }
 
     // Add audit fields
-    const dataWithAudit = this.auditService.addUpdateAuditFields(updateData, user.userId || user.id);
+    const dataWithAudit = this.auditService.addUpdateAuditFields(
+      updateData,
+      user.userId || user.id,
+    );
 
     const updatedFine = await this.prisma.fine.update({
       where: { id },
@@ -296,7 +356,7 @@ export class FineService {
     this.businessEventLogService
       .logEvent(
         updatedFine.agencyId,
-        'Fine',
+        "Fine",
         updatedFine.id,
         BusinessEventType.FINE_UPDATED,
         previousState,
@@ -317,12 +377,17 @@ export class FineService {
     });
 
     if (!fine) {
-      throw new NotFoundException('Amende introuvable');
+      throw new NotFoundException("Amende introuvable");
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(fine.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      fine.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé : vous n\'avez pas les droits pour supprimer cette amende');
+      throw new ForbiddenException(
+        "Accès refusé : vous n'avez pas les droits pour supprimer cette amende",
+      );
     }
 
     // Store previous state for event log
@@ -338,7 +403,7 @@ export class FineService {
     this.businessEventLogService
       .logEvent(
         fine.agencyId,
-        'Fine',
+        "Fine",
         fine.id,
         BusinessEventType.FINE_DELETED,
         previousState,
@@ -349,7 +414,6 @@ export class FineService {
         // Error already logged in service
       });
 
-    return { message: 'Amende supprimée avec succès' };
+    return { message: "Amende supprimée avec succès" };
   }
 }
-

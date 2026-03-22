@@ -31,6 +31,7 @@ export const createVehicleSchema = z.object({
   monthlyPayment: z.number().min(0, 'La mensualité doit être positive').optional(),
   financingDurationMonths: z.number().int().min(1).max(120, 'Maximum 10 ans').optional(),
   creditStartDate: z.string().optional(),
+  maintenanceAlertIntervalKm: z.number().int().min(1000, 'Minimum 1000 km').optional(),
 });
 
 export const updateVehicleSchema = createVehicleSchema.partial();

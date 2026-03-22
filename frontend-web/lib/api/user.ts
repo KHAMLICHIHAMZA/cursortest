@@ -39,9 +39,30 @@ export interface UpdateUserDto {
   }>;
 }
 
+export interface PaginatedUsersResponse {
+  items: User[];
+  total: number;
+  activeTotal: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export const userApi = {
   getAll: async (): Promise<User[]> => {
     const { data } = await apiClient.get<User[]>('/users');
+    return data;
+  },
+
+  getLight: async (
+    page = 1,
+    pageSize = 25,
+    q?: string,
+    agencyId?: string,
+  ): Promise<PaginatedUsersResponse> => {
+    const { data } = await apiClient.get<PaginatedUsersResponse>('/users/light', {
+      params: { page, pageSize, q: q || undefined, agencyId: agencyId || undefined },
+    });
     return data;
   },
 

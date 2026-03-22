@@ -1,30 +1,29 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
 
 // In-App Notification Status (mirroring Prisma enum)
 const InAppNotificationStatus = {
-  DRAFT: 'DRAFT',
-  SCHEDULED: 'SCHEDULED',
-  SENT: 'SENT',
-  READ: 'READ',
+  DRAFT: "DRAFT",
+  SCHEDULED: "SCHEDULED",
+  SENT: "SENT",
+  READ: "READ",
 } as const;
 
 // In-App Notification Type (mirroring Prisma enum)
 const InAppNotificationType = {
-  CONTRACT_TO_SIGN: 'CONTRACT_TO_SIGN',
-  INVOICE_AVAILABLE: 'INVOICE_AVAILABLE',
-  BOOKING_LATE: 'BOOKING_LATE',
-  CHECK_OUT_REMINDER: 'CHECK_OUT_REMINDER',
-  INCIDENT_REPORTED: 'INCIDENT_REPORTED',
-  SYSTEM_ALERT: 'SYSTEM_ALERT',
-  ADMIN_ANNOUNCEMENT: 'ADMIN_ANNOUNCEMENT',
+  CONTRACT_TO_SIGN: "CONTRACT_TO_SIGN",
+  INVOICE_AVAILABLE: "INVOICE_AVAILABLE",
+  BOOKING_LATE: "BOOKING_LATE",
+  CHECK_OUT_REMINDER: "CHECK_OUT_REMINDER",
+  INCIDENT_REPORTED: "INCIDENT_REPORTED",
+  SYSTEM_ALERT: "SYSTEM_ALERT",
+  ADMIN_ANNOUNCEMENT: "ADMIN_ANNOUNCEMENT",
 } as const;
 
-type InAppNotificationStatusType = (typeof InAppNotificationStatus)[keyof typeof InAppNotificationStatus];
-type InAppNotificationTypeType = (typeof InAppNotificationType)[keyof typeof InAppNotificationType];
+type InAppNotificationStatusType =
+  (typeof InAppNotificationStatus)[keyof typeof InAppNotificationStatus];
+type InAppNotificationTypeType =
+  (typeof InAppNotificationType)[keyof typeof InAppNotificationType];
 
 export interface CreateNotificationDto {
   userId: string;
@@ -78,12 +77,14 @@ export class InAppNotificationService {
    * V2: Send a notification (mark as sent)
    */
   async sendNotification(notificationId: string): Promise<any> {
-    const notification = await (this.prisma as any).inAppNotification.findUnique({
+    const notification = await (
+      this.prisma as any
+    ).inAppNotification.findUnique({
       where: { id: notificationId },
     });
 
     if (!notification) {
-      throw new NotFoundException('Notification non trouvée');
+      throw new NotFoundException("Notification non trouvée");
     }
 
     return (this.prisma as any).inAppNotification.update({
@@ -99,17 +100,19 @@ export class InAppNotificationService {
    * V2: Mark notification as read
    */
   async markAsRead(notificationId: string, userId: string): Promise<any> {
-    const notification = await (this.prisma as any).inAppNotification.findUnique({
+    const notification = await (
+      this.prisma as any
+    ).inAppNotification.findUnique({
       where: { id: notificationId },
     });
 
     if (!notification) {
-      throw new NotFoundException('Notification non trouvée');
+      throw new NotFoundException("Notification non trouvée");
     }
 
     // Verify owner
     if (notification.userId !== userId) {
-      throw new NotFoundException('Notification non trouvée');
+      throw new NotFoundException("Notification non trouvée");
     }
 
     return (this.prisma as any).inAppNotification.update({
@@ -162,12 +165,14 @@ export class InAppNotificationService {
     }
 
     if (options?.unreadOnly) {
-      where.status = { in: [InAppNotificationStatus.DRAFT, InAppNotificationStatus.SENT] };
+      where.status = {
+        in: [InAppNotificationStatus.DRAFT, InAppNotificationStatus.SENT],
+      };
     }
 
     return (this.prisma as any).inAppNotification.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: options?.limit || 100,
     });
   }
@@ -179,7 +184,9 @@ export class InAppNotificationService {
     const count = await (this.prisma as any).inAppNotification.count({
       where: {
         userId,
-        status: { in: [InAppNotificationStatus.DRAFT, InAppNotificationStatus.SENT] },
+        status: {
+          in: [InAppNotificationStatus.DRAFT, InAppNotificationStatus.SENT],
+        },
         readAt: null,
       },
     });
@@ -191,12 +198,14 @@ export class InAppNotificationService {
    * V2: Get a single notification
    */
   async findOne(id: string, userId: string): Promise<any> {
-    const notification = await (this.prisma as any).inAppNotification.findUnique({
+    const notification = await (
+      this.prisma as any
+    ).inAppNotification.findUnique({
       where: { id },
     });
 
     if (!notification || notification.userId !== userId) {
-      throw new NotFoundException('Notification non trouvée');
+      throw new NotFoundException("Notification non trouvée");
     }
 
     return notification;
@@ -254,14 +263,63 @@ export class InAppNotificationService {
       invoiceId: null,
       scheduledAt: dto.scheduledAt || null,
       sentAt: dto.scheduledAt ? null : now,
-      metadata: { senderId: dto.senderId, broadcast: true, targetCompanyId: dto.companyId || 'ALL' },
+      metadata: {
+        senderId: dto.senderId,
+        broadcast: true,
+        targetCompanyId: dto.companyId || "ALL",
+      },
     }));
 
-    const result = await (this.prisma as any).inAppNotification.createMany({
-      data: createData,
-    });
+    try {
+      const result = await (this.prisma as any).inAppNotification.createMany({
+        data: createData,
+      });
+      return { count: result.count };
+    } catch (error: any) {
+      // Users can be deleted between findMany and createMany in concurrent flows.
+      if (error?.code !== "P2003") {
+        throw error;
+      }
 
-    return { count: result.count };
+      const stillActiveUsers = await (this.prisma as any).user.findMany({
+        where: {
+          id: { in: users.map((u: any) => u.id) },
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { id: true, companyId: true },
+      });
+
+      if (stillActiveUsers.length === 0) {
+        return { count: 0 };
+      }
+
+      const retryData = stillActiveUsers.map((u: any) => ({
+        userId: u.id,
+        companyId: u.companyId || null,
+        agencyId: null,
+        type: InAppNotificationType.ADMIN_ANNOUNCEMENT,
+        status,
+        title: dto.title,
+        message: dto.message,
+        actionUrl: dto.actionUrl || null,
+        bookingId: null,
+        contractId: null,
+        invoiceId: null,
+        scheduledAt: dto.scheduledAt || null,
+        sentAt: dto.scheduledAt ? null : now,
+        metadata: {
+          senderId: dto.senderId,
+          broadcast: true,
+          targetCompanyId: dto.companyId || "ALL",
+        },
+      }));
+
+      const retryResult = await (this.prisma as any).inAppNotification.createMany({
+        data: retryData,
+      });
+      return { count: retryResult.count };
+    }
   }
 
   /**

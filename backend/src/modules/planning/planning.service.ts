@@ -1,10 +1,14 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PlanningEventType } from '@prisma/client';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PlanningEventType } from "@prisma/client";
 
 /**
  * PlanningService - Source de vérité absolue pour la disponibilité
- * 
+ *
  * Règles métier :
  * - Le planning inclut : réservations, maintenances, blocages, temps de préparation
  * - Aucun booking ne peut contourner le planning
@@ -34,7 +38,7 @@ export class PlanningService {
         vehicleId,
         deletedAt: null,
         status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'],
+          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
         },
         OR: [
           {
@@ -57,7 +61,7 @@ export class PlanningService {
         vehicleId,
         deletedAt: null,
         status: {
-          in: ['PLANNED', 'IN_PROGRESS'],
+          in: ["PLANNED", "IN_PROGRESS"],
         },
         OR: [
           {
@@ -66,21 +70,23 @@ export class PlanningService {
             },
           },
           {
-            status: 'IN_PROGRESS',
+            status: "IN_PROGRESS",
           },
         ],
       },
     });
 
     const hasMaintenanceConflict = maintenanceCandidates.some((maintenance) => {
-      if (maintenance.status === 'IN_PROGRESS') {
+      if (maintenance.status === "IN_PROGRESS") {
         return true;
       }
       if (!maintenance.plannedAt) {
         return false;
       }
       const maintenanceEnd = new Date(maintenance.plannedAt);
-      maintenanceEnd.setHours(maintenanceEnd.getHours() + maintenanceDurationHours);
+      maintenanceEnd.setHours(
+        maintenanceEnd.getHours() + maintenanceDurationHours,
+      );
       return maintenance.plannedAt <= endDate && maintenanceEnd >= startDate;
     });
 
@@ -112,7 +118,7 @@ export class PlanningService {
       where: { id: vehicleId },
     });
 
-    if (!vehicle || vehicle.deletedAt || vehicle.status !== 'AVAILABLE') {
+    if (!vehicle || vehicle.deletedAt || vehicle.status !== "AVAILABLE") {
       return false;
     }
 
@@ -127,8 +133,15 @@ export class PlanningService {
     startDate: Date,
     endDate: Date,
     excludeBookingId?: string,
-  ): Promise<Array<{ type: string; id: string; startDate: Date; endDate: Date }>> {
-    const conflicts: Array<{ type: string; id: string; startDate: Date; endDate: Date }> = [];
+  ): Promise<
+    Array<{ type: string; id: string; startDate: Date; endDate: Date }>
+  > {
+    const conflicts: Array<{
+      type: string;
+      id: string;
+      startDate: Date;
+      endDate: Date;
+    }> = [];
     const maintenanceDurationHours = 4;
 
     // Conflits avec bookings
@@ -138,7 +151,7 @@ export class PlanningService {
         deletedAt: null,
         id: excludeBookingId ? { not: excludeBookingId } : undefined,
         status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'],
+          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
         },
         OR: [
           {
@@ -153,7 +166,7 @@ export class PlanningService {
 
     bookingConflicts.forEach((booking) => {
       conflicts.push({
-        type: 'BOOKING',
+        type: "BOOKING",
         id: booking.id,
         startDate: booking.startDate,
         endDate: booking.endDate,
@@ -166,7 +179,7 @@ export class PlanningService {
         vehicleId,
         deletedAt: null,
         status: {
-          in: ['PLANNED', 'IN_PROGRESS'],
+          in: ["PLANNED", "IN_PROGRESS"],
         },
         OR: [
           {
@@ -175,16 +188,16 @@ export class PlanningService {
             },
           },
           {
-            status: 'IN_PROGRESS',
+            status: "IN_PROGRESS",
           },
         ],
       },
     });
 
     maintenanceConflicts.forEach((maintenance) => {
-      if (maintenance.status === 'IN_PROGRESS' && !maintenance.plannedAt) {
+      if (maintenance.status === "IN_PROGRESS" && !maintenance.plannedAt) {
         conflicts.push({
-          type: 'MAINTENANCE',
+          type: "MAINTENANCE",
           id: maintenance.id,
           startDate,
           endDate,
@@ -194,14 +207,17 @@ export class PlanningService {
 
       if (maintenance.plannedAt) {
         const maintenanceEnd = new Date(maintenance.plannedAt);
-        maintenanceEnd.setHours(maintenanceEnd.getHours() + maintenanceDurationHours); // Durée par défaut 4h
-        const isOverlap = maintenance.plannedAt <= endDate && maintenanceEnd >= startDate;
+        maintenanceEnd.setHours(
+          maintenanceEnd.getHours() + maintenanceDurationHours,
+        ); // Durée par défaut 4h
+        const isOverlap =
+          maintenance.plannedAt <= endDate && maintenanceEnd >= startDate;
         if (!isOverlap) {
           return;
         }
 
         conflicts.push({
-          type: 'MAINTENANCE',
+          type: "MAINTENANCE",
           id: maintenance.id,
           startDate: maintenance.plannedAt,
           endDate: maintenanceEnd,
@@ -239,21 +255,24 @@ export class PlanningService {
   /**
    * Prochaine disponibilité réelle
    */
-  async getNextAvailability(vehicleId: string, fromDate: Date): Promise<Date | null> {
+  async getNextAvailability(
+    vehicleId: string,
+    fromDate: Date,
+  ): Promise<Date | null> {
     // Récupérer tous les événements bloquants après fromDate
     const bookings = await this.prisma.booking.findMany({
       where: {
         vehicleId,
         deletedAt: null,
         status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'],
+          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
         },
         endDate: {
           gte: fromDate,
         },
       },
       orderBy: {
-        endDate: 'asc',
+        endDate: "asc",
       },
     });
 
@@ -262,7 +281,7 @@ export class PlanningService {
         vehicleId,
         deletedAt: null,
         status: {
-          in: ['PLANNED', 'IN_PROGRESS'],
+          in: ["PLANNED", "IN_PROGRESS"],
         },
         OR: [
           {
@@ -271,12 +290,12 @@ export class PlanningService {
             },
           },
           {
-            status: 'IN_PROGRESS',
+            status: "IN_PROGRESS",
           },
         ],
       },
       orderBy: {
-        plannedAt: 'asc',
+        plannedAt: "asc",
       },
     });
 
@@ -288,7 +307,7 @@ export class PlanningService {
         },
       },
       orderBy: {
-        endDate: 'asc',
+        endDate: "asc",
       },
     });
 
@@ -317,7 +336,11 @@ export class PlanningService {
     for (const endDate of allBlockingEnds) {
       if (endDate > currentDate) {
         // Vérifier qu'il n'y a pas de nouveau blocage qui commence juste après
-        const hasImmediateConflict = await this.hasConflict(vehicleId, endDate, new Date(endDate.getTime() + 1000));
+        const hasImmediateConflict = await this.hasConflict(
+          vehicleId,
+          endDate,
+          new Date(endDate.getTime() + 1000),
+        );
         if (!hasImmediateConflict) {
           return endDate;
         }
@@ -333,7 +356,11 @@ export class PlanningService {
   /**
    * Vérifier s'il y a un conflit à une date donnée
    */
-  private async hasConflict(vehicleId: string, startDate: Date, endDate: Date): Promise<boolean> {
+  private async hasConflict(
+    vehicleId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<boolean> {
     const conflicts = await this.detectConflicts(vehicleId, startDate, endDate);
     return conflicts.length > 0;
   }
@@ -356,17 +383,27 @@ export class PlanningService {
     });
 
     const preparationTimeMinutes = agency?.preparationTimeMinutes || 60; // Default 1h
-    const finalPreparationTime = isLate ? preparationTimeMinutes * 2 : preparationTimeMinutes; // Double si retard
+    const finalPreparationTime = isLate
+      ? preparationTimeMinutes * 2
+      : preparationTimeMinutes; // Double si retard
 
     const startDate = new Date(returnDate);
     const endDate = new Date(returnDate);
     endDate.setMinutes(endDate.getMinutes() + finalPreparationTime);
 
     // Vérifier qu'il n'y a pas de conflit
-    const conflicts = await this.detectConflicts(vehicleId, startDate, endDate, bookingId);
+    const conflicts = await this.detectConflicts(
+      vehicleId,
+      startDate,
+      endDate,
+      bookingId,
+    );
     if (conflicts.length > 0) {
       // Ajuster la date de début pour éviter les conflits
-      const nextAvailable = await this.getNextAvailability(vehicleId, returnDate);
+      const nextAvailable = await this.getNextAvailability(
+        vehicleId,
+        returnDate,
+      );
       if (nextAvailable) {
         startDate.setTime(nextAvailable.getTime());
         endDate.setTime(nextAvailable.getTime());
@@ -380,8 +417,8 @@ export class PlanningService {
         vehicleId,
         bookingId,
         type: PlanningEventType.PREPARATION_TIME,
-        title: `Temps de préparation${isLate ? ' (retard)' : ''}`,
-        description: `Temps de préparation automatique après retour${isLate ? ' - Retard détecté' : ''}`,
+        title: `Temps de préparation${isLate ? " (retard)" : ""}`,
+        description: `Temps de préparation automatique après retour${isLate ? " - Retard détecté" : ""}`,
         startDate,
         endDate,
         isPreparationTime: true,

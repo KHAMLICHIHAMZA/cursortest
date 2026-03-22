@@ -3,13 +3,14 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { ModuleCode } from '@prisma/client';
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { ModuleCode, SubscriptionStatus } from "@prisma/client";
+import { CreateModuleDependencyDto } from "./dto/create-module-dependency.dto";
 
 /**
  * Service de gestion des modules SaaS
- * 
+ *
  * Gère :
  * - Activation/désactivation des modules au niveau Company
  * - Activation/désactivation des modules au niveau Agency
@@ -24,9 +25,15 @@ export class ModuleService {
    * Activer un module au niveau Company (modules payés)
    * SUPER_ADMIN uniquement
    */
-  async activateCompanyModule(companyId: string, moduleCode: ModuleCode, user: any) {
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut activer les modules de société');
+  async activateCompanyModule(
+    companyId: string,
+    moduleCode: ModuleCode,
+    user: any,
+  ) {
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut activer les modules de société",
+      );
     }
 
     // Vérifier que la Company existe
@@ -35,27 +42,33 @@ export class ModuleService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
     }
 
-    // Vérifier les dépendances
-    await this.checkModuleDependencies(moduleCode, companyId);
+    // Vérifier qu'un abonnement actif existe avant activation de modules payants.
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { companyId },
+      select: { status: true },
+    });
+    if (!subscription || subscription.status !== SubscriptionStatus.ACTIVE) {
+      throw new BadRequestException(
+        "Impossible d'activer des modules sans abonnement actif. Choisissez d'abord un pack.",
+      );
+    }
 
-    // Activer ou créer le CompanyModule
-    return this.prisma.companyModule.upsert({
+    // Activer le module demandé + ses dépendances manquantes.
+    await this.activateCompanyModuleWithDependencies(
+      companyId,
+      moduleCode,
+      new Set<ModuleCode>(),
+    );
+
+    return this.prisma.companyModule.findUnique({
       where: {
         companyId_moduleCode: {
           companyId,
           moduleCode,
         },
-      },
-      create: {
-        companyId,
-        moduleCode,
-        isActive: true,
-      },
-      update: {
-        isActive: true,
       },
     });
   }
@@ -64,9 +77,15 @@ export class ModuleService {
    * Désactiver un module au niveau Company
    * SUPER_ADMIN uniquement
    */
-  async deactivateCompanyModule(companyId: string, moduleCode: ModuleCode, user: any) {
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut désactiver les modules de société');
+  async deactivateCompanyModule(
+    companyId: string,
+    moduleCode: ModuleCode,
+    user: any,
+  ) {
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut désactiver les modules de société",
+      );
     }
 
     const companyModule = await this.prisma.companyModule.findUnique({
@@ -79,7 +98,7 @@ export class ModuleService {
     });
 
     if (!companyModule) {
-      throw new NotFoundException('Module de société introuvable');
+      throw new NotFoundException("Module de société introuvable");
     }
 
     // Vérifier qu'aucun autre module ne dépend de celui-ci
@@ -101,10 +120,14 @@ export class ModuleService {
   /**
    * Activer un module au niveau Agency (modules actifs)
    * COMPANY_ADMIN uniquement
-   * 
+   *
    * Règle : Ne peut activer que si le module est payé au niveau Company
    */
-  async activateAgencyModule(agencyId: string, moduleCode: ModuleCode, user: any) {
+  async activateAgencyModule(
+    agencyId: string,
+    moduleCode: ModuleCode,
+    user: any,
+  ) {
     // Vérifier que l'agence existe et appartient à la Company de l'utilisateur
     const agency = await this.prisma.agency.findUnique({
       where: { id: agencyId },
@@ -112,11 +135,11 @@ export class ModuleService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agence introuvable');
+      throw new NotFoundException("Agence introuvable");
     }
 
-    if (user.role !== 'SUPER_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('L\'agence n\'appartient pas à votre société');
+    if (user.role !== "SUPER_ADMIN" && agency.companyId !== user.companyId) {
+      throw new ForbiddenException("L'agence n'appartient pas à votre société");
     }
 
     // Vérifier que le module est payé au niveau Company
@@ -161,18 +184,22 @@ export class ModuleService {
    * Désactiver un module au niveau Agency
    * COMPANY_ADMIN uniquement
    */
-  async deactivateAgencyModule(agencyId: string, moduleCode: ModuleCode, user: any) {
+  async deactivateAgencyModule(
+    agencyId: string,
+    moduleCode: ModuleCode,
+    user: any,
+  ) {
     // Vérifier que l'agence existe et appartient à la Company de l'utilisateur
     const agency = await this.prisma.agency.findUnique({
       where: { id: agencyId },
     });
 
     if (!agency) {
-      throw new NotFoundException('Agence introuvable');
+      throw new NotFoundException("Agence introuvable");
     }
 
-    if (user.role !== 'SUPER_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('L\'agence n\'appartient pas à votre société');
+    if (user.role !== "SUPER_ADMIN" && agency.companyId !== user.companyId) {
+      throw new ForbiddenException("L'agence n'appartient pas à votre société");
     }
 
     const agencyModule = await this.prisma.agencyModule.findUnique({
@@ -185,7 +212,7 @@ export class ModuleService {
     });
 
     if (!agencyModule) {
-      throw new NotFoundException('Module d\'agence introuvable');
+      throw new NotFoundException("Module d'agence introuvable");
     }
 
     // Vérifier les dépendances inverses
@@ -209,13 +236,15 @@ export class ModuleService {
    */
   async getCompanyModules(companyId: string, user: any) {
     // Vérifier les permissions
-    if (user.role !== 'SUPER_ADMIN' && user.companyId !== companyId) {
-      throw new ForbiddenException('Accès refusé : vous ne pouvez consulter que les modules de votre propre société');
+    if (user.role !== "SUPER_ADMIN" && user.companyId !== companyId) {
+      throw new ForbiddenException(
+        "Accès refusé : vous ne pouvez consulter que les modules de votre propre société",
+      );
     }
 
     return this.prisma.companyModule.findMany({
       where: { companyId },
-      orderBy: { moduleCode: 'asc' },
+      orderBy: { moduleCode: "asc" },
     });
   }
 
@@ -228,12 +257,14 @@ export class ModuleService {
     });
 
     if (!agency) {
-      throw new NotFoundException('Agence introuvable');
+      throw new NotFoundException("Agence introuvable");
     }
 
     // Vérifier les permissions
-    if (user.role !== 'SUPER_ADMIN' && agency.companyId !== user.companyId) {
-      throw new ForbiddenException('Accès refusé : cette agence n\'appartient pas à votre société');
+    if (user.role !== "SUPER_ADMIN" && agency.companyId !== user.companyId) {
+      throw new ForbiddenException(
+        "Accès refusé : cette agence n'appartient pas à votre société",
+      );
     }
 
     // Récupérer les modules Company (payés)
@@ -260,7 +291,7 @@ export class ModuleService {
       .map((cm) => ({
         moduleCode: cm.moduleCode,
         isActive: true,
-        source: 'company' as const,
+        source: "company" as const,
       }));
 
     return activeModules;
@@ -270,13 +301,63 @@ export class ModuleService {
    * Récupérer les dépendances entre modules
    */
   async getModuleDependencies(user: any) {
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut consulter les dépendances des modules');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut consulter les dépendances des modules",
+      );
     }
 
     return this.prisma.moduleDependency.findMany({
-      orderBy: { moduleCode: 'asc' },
+      orderBy: { moduleCode: "asc" },
     });
+  }
+
+  async createModuleDependency(dto: CreateModuleDependencyDto, user: any) {
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut gerer les dependances des modules",
+      );
+    }
+    if (dto.moduleCode === dto.dependsOnCode) {
+      throw new BadRequestException(
+        "Un module ne peut pas dependre de lui-meme",
+      );
+    }
+
+    const existing = await this.prisma.moduleDependency.findUnique({
+      where: {
+        moduleCode_dependsOnCode: {
+          moduleCode: dto.moduleCode,
+          dependsOnCode: dto.dependsOnCode,
+        },
+      },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.moduleDependency.create({
+      data: {
+        moduleCode: dto.moduleCode,
+        dependsOnCode: dto.dependsOnCode,
+      },
+    });
+  }
+
+  async deleteModuleDependency(
+    moduleCode: ModuleCode,
+    dependsOnCode: ModuleCode,
+    user: any,
+  ) {
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut gerer les dependances des modules",
+      );
+    }
+    await this.prisma.moduleDependency.deleteMany({
+      where: { moduleCode, dependsOnCode },
+    });
+    return { deleted: true };
   }
 
   /**
@@ -357,7 +438,7 @@ export class ModuleService {
 
     if (dependentModules.length > 0) {
       throw new BadRequestException(
-        `Impossible de désactiver le module ${moduleCode}. Les modules suivants en dépendent : ${dependentModules.map((m) => m.moduleCode).join(', ')}`,
+        `Impossible de désactiver le module ${moduleCode}. Les modules suivants en dépendent : ${dependentModules.map((m) => m.moduleCode).join(", ")}`,
       );
     }
 
@@ -375,11 +456,47 @@ export class ModuleService {
 
       if (dependentAgencyModules.length > 0) {
         throw new BadRequestException(
-          `Impossible de désactiver le module ${moduleCode} pour cette agence. Les modules suivants en dépendent : ${dependentAgencyModules.map((m) => m.moduleCode).join(', ')}`,
+          `Impossible de désactiver le module ${moduleCode} pour cette agence. Les modules suivants en dépendent : ${dependentAgencyModules.map((m) => m.moduleCode).join(", ")}`,
         );
       }
     }
   }
+
+  private async activateCompanyModuleWithDependencies(
+    companyId: string,
+    moduleCode: ModuleCode,
+    visited: Set<ModuleCode>,
+  ) {
+    if (visited.has(moduleCode)) return;
+    visited.add(moduleCode);
+
+    const dependencies = await this.prisma.moduleDependency.findMany({
+      where: { moduleCode },
+    });
+
+    for (const dep of dependencies) {
+      await this.activateCompanyModuleWithDependencies(
+        companyId,
+        dep.dependsOnCode,
+        visited,
+      );
+    }
+
+    await this.prisma.companyModule.upsert({
+      where: {
+        companyId_moduleCode: {
+          companyId,
+          moduleCode,
+        },
+      },
+      create: {
+        companyId,
+        moduleCode,
+        isActive: true,
+      },
+      update: {
+        isActive: true,
+      },
+    });
+  }
 }
-
-

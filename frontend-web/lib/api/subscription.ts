@@ -18,13 +18,17 @@ export interface Subscription {
     name: string;
     price: number;
   };
+  subscriptionModules?: Array<{
+    id: string;
+    moduleCode: string;
+  }>;
 }
 
 export const subscriptionApi = {
   getByCompany: async (companyId: string): Promise<Subscription | null> => {
     try {
-      const { data } = await apiClient.get<Subscription[]>('/subscriptions');
-      return data.find((s) => s.companyId === companyId) || null;
+      const { data } = await apiClient.get<Subscription | null>(`/subscriptions/company/${companyId}`);
+      return data;
     } catch {
       return null;
     }

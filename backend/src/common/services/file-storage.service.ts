@@ -1,28 +1,35 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { existsSync, mkdirSync, unlinkSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { existsSync, mkdirSync, unlinkSync, readdirSync, statSync } from "fs";
+import { join } from "path";
 
 /**
  * Abstract file storage service
- * 
+ *
  * Currently implements local filesystem storage.
  * Designed to be easily replaceable with S3 or other cloud storage providers.
- * 
+ *
  * File lifecycle management:
  * - Files are stored in organized directories by type
  * - Orphan file detection available for cleanup
  * - Backup strategy: Use database backups + file system backups
- * 
+ *
  * Future scalability:
  * - Replace with S3StorageService implementing same interface
  * - Use dependency injection to swap implementations
  */
 export interface IFileStorageService {
-  saveFile(file: Express.Multer.File, directory: string, filename?: string): Promise<string>;
+  saveFile(
+    file: Express.Multer.File,
+    directory: string,
+    filename?: string,
+  ): Promise<string>;
   deleteFile(filePath: string): Promise<void>;
   getFileUrl(filePath: string): string;
-  listOrphanFiles(directory: string, referencedPaths: string[]): Promise<string[]>;
+  listOrphanFiles(
+    directory: string,
+    referencedPaths: string[],
+  ): Promise<string[]>;
 }
 
 @Injectable()
@@ -34,13 +41,13 @@ export class FileStorageService implements IFileStorageService {
     // Base path for file storage
     // Can be overridden with UPLOAD_PATH environment variable
     this.basePath =
-      this.configService.get<string>('UPLOAD_PATH') ||
-      join(process.cwd(), 'uploads');
+      this.configService.get<string>("UPLOAD_PATH") ||
+      join(process.cwd(), "uploads");
   }
 
   /**
    * Save a file to storage
-   * 
+   *
    * @param file - Multer file object
    * @param directory - Subdirectory (e.g., 'vehicles', 'licenses')
    * @param filename - Optional custom filename
@@ -52,13 +59,14 @@ export class FileStorageService implements IFileStorageService {
     filename?: string,
   ): Promise<string> {
     const dirPath = join(this.basePath, directory);
-    
+
     // Ensure directory exists
     if (!existsSync(dirPath)) {
       mkdirSync(dirPath, { recursive: true });
     }
 
-    const finalFilename = filename || file.filename || `${Date.now()}-${file.originalname}`;
+    const finalFilename =
+      filename || file.filename || `${Date.now()}-${file.originalname}`;
     const filePath = join(dirPath, finalFilename);
 
     // In a real implementation, you would write the file here
@@ -73,7 +81,7 @@ export class FileStorageService implements IFileStorageService {
    */
   async deleteFile(filePath: string): Promise<void> {
     try {
-      const fullPath = join(this.basePath, filePath.replace(/^\//, ''));
+      const fullPath = join(this.basePath, filePath.replace(/^\//, ""));
       if (existsSync(fullPath)) {
         unlinkSync(fullPath);
         this.logger.debug(`Deleted file: ${filePath}`);
@@ -90,17 +98,20 @@ export class FileStorageService implements IFileStorageService {
   getFileUrl(filePath: string): string {
     // For local storage, return relative path
     // For S3, this would return the S3 URL
-    return filePath.startsWith('/') ? filePath : `/${filePath}`;
+    return filePath.startsWith("/") ? filePath : `/${filePath}`;
   }
 
   /**
    * Detect orphan files (files not referenced in database)
-   * 
+   *
    * @param directory - Directory to scan
    * @param referencedPaths - Array of file paths that are referenced in database
    * @returns Array of orphan file paths
    */
-  async listOrphanFiles(directory: string, referencedPaths: string[]): Promise<string[]> {
+  async listOrphanFiles(
+    directory: string,
+    referencedPaths: string[],
+  ): Promise<string[]> {
     const dirPath = join(this.basePath, directory);
     const orphanFiles: string[] = [];
 
@@ -111,7 +122,7 @@ export class FileStorageService implements IFileStorageService {
     try {
       const files = readdirSync(dirPath);
       const referencedSet = new Set(
-        referencedPaths.map((p) => p.replace(/^\//, '').split('/').pop() || ''),
+        referencedPaths.map((p) => p.replace(/^\//, "").split("/").pop() || ""),
       );
 
       for (const file of files) {
@@ -123,12 +134,12 @@ export class FileStorageService implements IFileStorageService {
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to scan directory for orphan files: ${directory}`, error);
+      this.logger.error(
+        `Failed to scan directory for orphan files: ${directory}`,
+        error,
+      );
     }
 
     return orphanFiles;
   }
 }
-
-
-

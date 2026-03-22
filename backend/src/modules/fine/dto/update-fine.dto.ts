@@ -1,7 +1,13 @@
-import { IsString, IsNumber, IsOptional, IsIn } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNumber, IsOptional, IsIn } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 
-const FINE_STATUSES = ['RECUE', 'CLIENT_IDENTIFIE', 'TRANSMISE', 'CONTESTEE', 'CLOTUREE'] as const;
+const FINE_STATUSES = [
+  "RECUE",
+  "CLIENT_IDENTIFIE",
+  "TRANSMISE",
+  "CONTESTEE",
+  "CLOTUREE",
+] as const;
 
 export class UpdateFineDto {
   @ApiPropertyOptional()
@@ -29,17 +35,14 @@ export class UpdateFineDto {
   @IsString()
   attachmentUrl?: string;
 
-  @ApiPropertyOptional({ description: 'Fine status', enum: FINE_STATUSES })
+  @ApiPropertyOptional({ description: "Fine status", enum: FINE_STATUSES })
   @IsOptional()
   @IsString()
   @IsIn(FINE_STATUSES)
   status?: string;
 
-  @ApiPropertyOptional({ description: 'Date of infraction (ISO string)' })
+  @ApiPropertyOptional({ description: "Date of infraction (ISO string)" })
   @IsOptional()
   @IsString()
   infractionDate?: string;
 }
-
-
-

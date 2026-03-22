@@ -60,9 +60,53 @@ export interface CreateBookingDto {
   depositDecisionSource?: 'COMPANY' | 'AGENCY';
 }
 
+export interface PaginatedBookingsResponse {
+  items: Booking[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface BookingSummary {
+  total: number;
+  active: number;
+  completed: number;
+  late: number;
+  cancelled: number;
+  estimatedRevenue: number;
+  topAgencies?: Array<{
+    agencyId: string;
+    agencyName: string;
+    bookings: number;
+  }>;
+}
+
 export const bookingApi = {
   getAll: async (filters?: any): Promise<Booking[]> => {
     const response = await apiClient.get('/bookings', { params: filters });
+    return response.data;
+  },
+
+  getLight: async (params?: {
+    page?: number;
+    pageSize?: number;
+    agencyId?: string;
+    vehicleId?: string;
+    clientId?: string;
+    status?: string;
+    bookingNumber?: string;
+  }): Promise<PaginatedBookingsResponse> => {
+    const response = await apiClient.get('/bookings/light', { params });
+    return response.data;
+  },
+
+  getSummary: async (params?: {
+    agencyId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<BookingSummary> => {
+    const response = await apiClient.get('/bookings/summary', { params });
     return response.data;
   },
 
@@ -94,6 +138,12 @@ export const bookingApi = {
   // Clôture financière
   financialClosure: async (id: string): Promise<Booking> => {
     const response = await apiClient.post(`/bookings/${id}/financial-closure`);
+    return response.data;
+  },
+
+  // Génération manuelle de facture (rattrapage)
+  generateInvoice: async (id: string): Promise<any> => {
+    const response = await apiClient.post(`/invoices/booking/${id}/generate`);
     return response.data;
   },
 };

@@ -7,14 +7,15 @@ import { useQuery as useAuthQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
 import { userApi, User } from '@/lib/api/user';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageFilters } from '@/components/ui/page-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Users, Plus, Edit, Trash2, Search, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Key } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -74,12 +75,21 @@ export default function CompanyUsersPage() {
     },
   });
 
-  const filteredUsers = companyUsers?.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredUsers = companyUsers?.filter((user) => {
+    const name = (user.name || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const role = (user.role || '').toLowerCase();
+    return (
+      name.includes(normalizedSearch) ||
+      email.includes(normalizedSearch) ||
+      role.includes(normalizedSearch)
+    );
+  });
+
+  const totalUsers = companyUsers?.length || 0;
+  const activeUsers = companyUsers?.filter((item) => item.isActive).length || 0;
+  const visibleUsers = filteredUsers?.length || 0;
 
   const getRoleStatus = (role: string): 'active' | 'pending' | 'completed' | 'inactive' => {
     switch (role) {
@@ -95,37 +105,42 @@ export default function CompanyUsersPage() {
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-text mb-2">Utilisateurs</h1>
-              <p className="text-text-muted">Gérer les utilisateurs de votre entreprise</p>
-            </div>
-            <Link href="/company/users/new">
-              <Button variant="primary">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvel utilisateur
-              </Button>
-            </Link>
+        <div className="max-w-7xl mx-auto pt-2">
+          <PageHeader
+            title="Utilisateurs"
+            description="Gérer les utilisateurs de votre entreprise"
+            actionHref="/company/users/new"
+            actionLabel="Nouvel utilisateur"
+            actionIcon={<Plus className="w-4 h-4 mr-2" />}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <Card className="p-4 border-l-4 border-l-primary/40">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Total utilisateurs</p>
+              <p className="mt-1 text-3xl font-bold text-text">{totalUsers}</p>
+            </Card>
+            <Card className="p-4 border-l-4 border-l-green-500/40">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Actifs</p>
+              <p className="mt-1 text-3xl font-bold text-text">{activeUsers}</p>
+            </Card>
+            <Card className="p-4 border-l-4 border-l-indigo-500/35">
+              <p className="text-xs uppercase tracking-wide text-text-muted">Résultats affichés</p>
+              <p className="mt-1 text-3xl font-bold text-text">{visibleUsers}</p>
+            </Card>
           </div>
 
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="search"
-                placeholder="Rechercher un utilisateur..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 max-w-md"
-              />
-            </div>
-          </div>
+          <PageFilters
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Rechercher un utilisateur..."
+            showReset={!!searchTerm}
+            onReset={() => setSearchTerm('')}
+          />
 
           {isLoading ? (
             <LoadingState message="Chargement des utilisateurs..." />
           ) : filteredUsers && filteredUsers.length > 0 ? (
-            <Card padding="none">
+            <Card variant="elevated" padding="none" className="overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -166,10 +181,12 @@ export default function CompanyUsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 p-0"
                             onClick={() => {
                               setUserToReset(userItem);
                               setResetConfirmOpen(true);
                             }}
+                            aria-label="Réinitialiser le mot de passe"
                             title="Réinitialiser le mot de passe"
                           >
                             <Key className="w-4 h-4" />
@@ -177,7 +194,13 @@ export default function CompanyUsersPage() {
                           )}
                           {!(user?.role === 'COMPANY_ADMIN' && userItem.role === 'COMPANY_ADMIN' && userItem.id !== user?.id) && (
                           <Link href={`/company/users/${userItem.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-9 w-9 p-0"
+                              aria-label="Modifier l'utilisateur"
+                              title="Modifier l'utilisateur"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
                           </Link>
@@ -185,7 +208,13 @@ export default function CompanyUsersPage() {
                           {user?.role === 'SUPER_ADMIN' && (
                             userItem.id === user?.id ? (
                               <span title="Vous ne pouvez pas supprimer votre propre compte">
-                                <Button variant="ghost" size="sm" disabled className="opacity-50 cursor-not-allowed">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled
+                                  className="h-9 w-9 p-0 opacity-50 cursor-not-allowed"
+                                  aria-label="Supprimer l'utilisateur"
+                                >
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </Button>
                               </span>
@@ -193,6 +222,9 @@ export default function CompanyUsersPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-9 w-9 p-0"
+                                aria-label="Supprimer l'utilisateur"
+                                title="Supprimer l'utilisateur"
                                 onClick={() => {
                                   setUserToDelete(userItem);
                                   setDeleteDialogOpen(true);

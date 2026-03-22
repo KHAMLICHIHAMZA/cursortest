@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { OutboxEventStatus } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { OutboxEventStatus } from "@prisma/client";
 
 export type OutboxEnqueueInput = {
   aggregateType: string;
@@ -37,8 +37,8 @@ export class OutboxService {
       // Return existing event ID for idempotence
       if (
         input.deduplicationKey &&
-        error?.code === 'P2002' &&
-        error?.meta?.target?.includes('deduplicationKey')
+        error?.code === "P2002" &&
+        error?.meta?.target?.includes("deduplicationKey")
       ) {
         const existing = await this.prisma.outboxEvent.findFirst({
           where: { deduplicationKey: input.deduplicationKey },
@@ -94,4 +94,3 @@ export class OutboxService {
     });
   }
 }
-

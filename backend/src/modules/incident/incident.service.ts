@@ -1,11 +1,21 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { AuditService } from '../audit/audit.service';
-import { BusinessEventLogService } from '../business-event-log/business-event-log.service';
-import { IncidentType, IncidentStatus, AuditAction, BusinessEventType } from '@prisma/client';
-import { CreateIncidentDto } from './dto/create-incident.dto';
-import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { AuditService } from "../audit/audit.service";
+import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
+import {
+  IncidentType,
+  IncidentStatus,
+  AuditAction,
+  BusinessEventType,
+} from "@prisma/client";
+import { CreateIncidentDto } from "./dto/create-incident.dto";
+import { UpdateIncidentStatusDto } from "./dto/update-incident-status.dto";
 
 @Injectable()
 export class IncidentService {
@@ -21,11 +31,14 @@ export class IncidentService {
    * Si dommage avec montant élevé → statut DISPUTED automatique
    */
   async create(createIncidentDto: CreateIncidentDto, userId: string) {
-    const { agencyId, bookingId, type, title, description, amount } = createIncidentDto;
+    const { agencyId, bookingId, type, title, description, amount } =
+      createIncidentDto;
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, { id: userId });
+    const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, {
+      id: userId,
+    });
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     // Récupérer le booking si fourni pour vérifier la caution
@@ -40,7 +53,9 @@ export class IncidentService {
       });
 
       if (!booking || booking.agencyId !== agencyId) {
-        throw new BadRequestException('Réservation introuvable ou n\'appartient pas à cette agence');
+        throw new BadRequestException(
+          "Réservation introuvable ou n'appartient pas à cette agence",
+        );
       }
     }
 
@@ -59,9 +74,10 @@ export class IncidentService {
         await this.prisma.booking.update({
           where: { id: bookingId! },
           data: {
-            depositStatusFinal: 'DISPUTED',
+            depositStatusFinal: "DISPUTED",
             financialClosureBlocked: true,
-            financialClosureBlockedReason: 'Dommage en litige nécessitant expertise externe',
+            financialClosureBlockedReason:
+              "Dommage en litige nécessitant expertise externe",
           },
         });
 
@@ -70,7 +86,7 @@ export class IncidentService {
           userId,
           agencyId,
           action: AuditAction.BOOKING_STATUS_CHANGE,
-          entityType: 'Booking',
+          entityType: "Booking",
           entityId: bookingId!,
           description: `Incident DISPUTED créé: dommage de ${amount} MAD (seuil: ${damageThreshold} MAD). Clôture financière bloquée.`,
         });
@@ -103,7 +119,7 @@ export class IncidentService {
     this.businessEventLogService
       .logEvent(
         agencyId,
-        'Incident',
+        "Incident",
         incident.id,
         BusinessEventType.FINE_CREATED, // Utiliser FINE_CREATED pour l'instant (à ajouter INCIDENT_CREATED si nécessaire)
         null,
@@ -120,7 +136,11 @@ export class IncidentService {
   /**
    * Récupérer tous les incidents d'une agence
    */
-  async findAll(agencyId: string, bookingId?: string, user?: any): Promise<any[]> {
+  async findAll(
+    agencyId: string,
+    bookingId?: string,
+    user?: any,
+  ): Promise<any[]> {
     const where: any = { agencyId };
     if (bookingId) {
       where.bookingId = bookingId;
@@ -138,7 +158,7 @@ export class IncidentService {
         vehicle: true,
         client: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return incidents;
@@ -163,14 +183,19 @@ export class IncidentService {
     });
 
     if (!incident) {
-      throw new NotFoundException('Incident introuvable. Vérifiez l\'identifiant de l\'incident.');
+      throw new NotFoundException(
+        "Incident introuvable. Vérifiez l'identifiant de l'incident.",
+      );
     }
 
     // Vérifier les permissions avec PermissionService
     // Note: findOne reçoit user, pas userId, donc on utilise user directement
-    const hasAccess = await this.permissionService.checkAgencyAccess(incident.agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      incident.agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cet incident');
+      throw new ForbiddenException("Accès refusé à cet incident");
     }
 
     return incident;
@@ -180,7 +205,11 @@ export class IncidentService {
    * Mettre à jour le statut d'un incident
    * Si passage à DISPUTED → bloquer clôture financière
    */
-  async updateStatus(id: string, updateDto: UpdateIncidentStatusDto, userId: string) {
+  async updateStatus(
+    id: string,
+    updateDto: UpdateIncidentStatusDto,
+    userId: string,
+  ) {
     const { status: newStatus, justification } = updateDto;
     const incident = await this.prisma.incident.findUnique({
       where: { id },
@@ -190,12 +219,17 @@ export class IncidentService {
     });
 
     if (!incident) {
-      throw new NotFoundException('Incident introuvable. Vérifiez l\'identifiant de l\'incident.');
+      throw new NotFoundException(
+        "Incident introuvable. Vérifiez l'identifiant de l'incident.",
+      );
     }
 
-    const hasAccess = await this.permissionService.checkAgencyAccess(incident.agencyId, { id: userId });
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      incident.agencyId,
+      { id: userId },
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     // Si passage à DISPUTED → bloquer clôture financière
@@ -203,9 +237,10 @@ export class IncidentService {
       await this.prisma.booking.update({
         where: { id: incident.bookingId },
         data: {
-          depositStatusFinal: 'DISPUTED',
+          depositStatusFinal: "DISPUTED",
           financialClosureBlocked: true,
-          financialClosureBlockedReason: justification || 'Incident en litige nécessitant expertise externe',
+          financialClosureBlockedReason:
+            justification || "Incident en litige nécessitant expertise externe",
         },
       });
 
@@ -213,14 +248,18 @@ export class IncidentService {
         userId,
         agencyId: incident.agencyId,
         action: AuditAction.BOOKING_STATUS_CHANGE,
-        entityType: 'Booking',
+        entityType: "Booking",
         entityId: incident.bookingId,
-        description: `Incident ${incident.id} mis en statut DISPUTED. Clôture financière bloquée.${justification ? ` Justification: ${justification}` : ''}`,
+        description: `Incident ${incident.id} mis en statut DISPUTED. Clôture financière bloquée.${justification ? ` Justification: ${justification}` : ""}`,
       });
     }
 
     // Si résolution du DISPUTED → débloquer clôture financière
-    if (incident.status === IncidentStatus.DISPUTED && newStatus !== IncidentStatus.DISPUTED && incident.bookingId) {
+    if (
+      incident.status === IncidentStatus.DISPUTED &&
+      newStatus !== IncidentStatus.DISPUTED &&
+      incident.bookingId
+    ) {
       await this.prisma.booking.update({
         where: { id: incident.bookingId },
         data: {
@@ -242,4 +281,3 @@ export class IncidentService {
     return updatedIncident;
   }
 }
-

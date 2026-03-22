@@ -17,10 +17,18 @@ Application web Next.js pour la gestion de location automobile.
 
 3. **Démarrer le serveur de développement**
    ```bash
-   npm run dev
+   npm run dev:safe
    ```
 
-L'application démarre sur `http://localhost:3001`
+L'application démarre sur `http://localhost:3100`
+
+## Stabilite dev (important)
+
+- Utilisez `npm run dev:safe` (et non `npm run dev`) pour eviter les erreurs webpack type `Cannot find module './xxx.js'`.
+- Ce script:
+  - ferme les anciens `next dev` du frontend,
+  - nettoie le cache build local,
+  - redemarre une seule instance propre.
 
 ## 📁 Structure
 
@@ -81,7 +89,8 @@ L'authentification utilise JWT stocké dans des cookies HTTP-only.
 ## 🛠️ Scripts
 
 ```bash
-npm run dev      # Développement
+npm run dev:safe # Développement stable (recommandé)
+npm run dev      # Développement brut
 npm run build    # Build production
 npm run start    # Démarrer en production
 npm run lint     # Linter

@@ -1,6 +1,12 @@
-import { IsString, IsOptional, IsEmail, IsDateString, IsBoolean } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsDateString,
+  IsBoolean,
+} from "class-validator";
+import { Transform } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateClientDto {
   @ApiProperty()
@@ -14,10 +20,10 @@ export class CreateClientDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => {
-    if (value === '' || value === null || value === undefined) return undefined;
+    if (value === "" || value === null || value === undefined) return undefined;
     return value;
   })
-  @IsEmail({}, { message: 'Email invalide' })
+  @IsEmail({}, { message: "Email invalide" })
   email?: string;
 
   @ApiPropertyOptional()
@@ -31,7 +37,7 @@ export class CreateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   dateOfBirth?: string;
 
@@ -65,8 +71,16 @@ export class CreateClientDto {
   @IsString()
   countryOfOrigin?: string;
 
-  @ApiProperty({ description: 'Date d\'expiration du permis de conduite (obligatoire)' })
-  @IsDateString({}, { message: 'La date d\'expiration du permis doit être une date valide au format ISO (YYYY-MM-DD)' })
+  @ApiProperty({
+    description: "Date d'expiration du permis de conduite (obligatoire)",
+  })
+  @IsDateString(
+    {},
+    {
+      message:
+        "La date d'expiration du permis doit être une date valide au format ISO (YYYY-MM-DD)",
+    },
+  )
   licenseExpiryDate: string;
 
   @ApiPropertyOptional()
@@ -74,7 +88,10 @@ export class CreateClientDto {
   @IsBoolean()
   isForeignLicense?: boolean;
 
-  @ApiPropertyOptional({ description: 'Type de pièce d\'identité (CIN, CARTE_SEJOUR, TITRE_SEJOUR, PERMIS_RESIDENCE, AUTRE)' })
+  @ApiPropertyOptional({
+    description:
+      "Type de pièce d'identité (CIN, CARTE_SEJOUR, TITRE_SEJOUR, PERMIS_RESIDENCE, AUTRE)",
+  })
   @IsOptional()
   @IsString()
   idCardType?: string;
@@ -86,7 +103,7 @@ export class CreateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   idCardExpiryDate?: string;
 
@@ -97,7 +114,7 @@ export class CreateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === "" ? undefined : value))
   @IsDateString()
   passportExpiryDate?: string;
 
@@ -106,5 +123,3 @@ export class CreateClientDto {
   @IsString()
   note?: string;
 }
-
-

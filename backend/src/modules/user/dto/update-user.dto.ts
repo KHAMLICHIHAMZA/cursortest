@@ -1,6 +1,12 @@
-import { IsString, IsOptional, IsBoolean, IsArray, IsEnum } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole } from './create-user.dto';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsEnum,
+} from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { UserRole } from "./create-user.dto";
 
 export class UpdateUserDto {
   @ApiPropertyOptional()
@@ -24,6 +30,3 @@ export class UpdateUserDto {
   @IsString({ each: true })
   agencyIds?: string[];
 }
-
-
-

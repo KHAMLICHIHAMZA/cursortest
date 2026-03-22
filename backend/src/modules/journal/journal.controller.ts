@@ -9,22 +9,32 @@ import {
   Query,
   UseGuards,
   ForbiddenException,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JournalService, CreateManualNoteDto, UpdateManualNoteDto } from './journal.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionGuard, Permissions } from '../../common/guards/permission.guard';
-import { ReadOnlyGuard } from '../../common/guards/read-only.guard';
-import { RequireActiveCompanyGuard } from '../../common/guards/require-active-company.guard';
-import { RequireActiveAgencyGuard } from '../../common/guards/require-active-agency.guard';
-import { RequireModuleGuard, RequireModule } from '../../common/guards/require-module.guard';
-import { RequirePermission } from '../../common/decorators/permission.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ModuleCode, UserAgencyPermission, Role } from '@prisma/client';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import {
+  JournalService,
+  CreateManualNoteDto,
+  UpdateManualNoteDto,
+} from "./journal.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import {
+  PermissionGuard,
+  Permissions,
+} from "../../common/guards/permission.guard";
+import { ReadOnlyGuard } from "../../common/guards/read-only.guard";
+import { RequireActiveCompanyGuard } from "../../common/guards/require-active-company.guard";
+import { RequireActiveAgencyGuard } from "../../common/guards/require-active-agency.guard";
+import {
+  RequireModuleGuard,
+  RequireModule,
+} from "../../common/guards/require-module.guard";
+import { RequirePermission } from "../../common/decorators/permission.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { ModuleCode, UserAgencyPermission, Role } from "@prisma/client";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 
-@ApiTags('Journal')
-@Controller('journal')
+@ApiTags("Journal")
+@Controller("journal")
 @UseGuards(
   JwtAuthGuard,
   ReadOnlyGuard,
@@ -33,34 +43,34 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
   RequireActiveAgencyGuard,
   PermissionGuard,
 )
-@RequireModule(ModuleCode.BOOKINGS)
+@RequireModule(ModuleCode.JOURNAL)
 @ApiBearerAuth()
 export class JournalController {
   constructor(private readonly journalService: JournalService) {}
 
   @Get()
-  @Permissions('journal:read')
-  @ApiOperation({ summary: 'Get journal entries with filters' })
+  @Permissions("journal:read")
+  @ApiOperation({ summary: "Get journal entries with filters" })
   async findAll(
-    @Query('agencyId') agencyId: string,
-    @Query('type') type: string,
-    @Query('bookingId') bookingId: string,
-    @Query('bookingNumber') bookingNumber: string,
-    @Query('vehicleId') vehicleId: string,
-    @Query('userId') userId: string,
-    @Query('dateFrom') dateFrom: string,
-    @Query('dateTo') dateTo: string,
-    @Query('isManualNote') isManualNote: string,
+    @Query("agencyId") agencyId: string,
+    @Query("type") type: string,
+    @Query("bookingId") bookingId: string,
+    @Query("bookingNumber") bookingNumber: string,
+    @Query("vehicleId") vehicleId: string,
+    @Query("userId") userId: string,
+    @Query("dateFrom") dateFrom: string,
+    @Query("dateTo") dateTo: string,
+    @Query("isManualNote") isManualNote: string,
     @CurrentUser() user: any,
   ) {
     // Validate agencyId against user's allowed agencies
     if (
       agencyId &&
-      user.role !== 'SUPER_ADMIN' &&
-      user.role !== 'COMPANY_ADMIN' &&
+      user.role !== "SUPER_ADMIN" &&
+      user.role !== "COMPANY_ADMIN" &&
       !user.agencyIds?.includes(agencyId)
     ) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette agence');
+      throw new ForbiddenException("Vous n'avez pas accès à cette agence");
     }
     return this.journalService.findAll({
       agencyId: agencyId || user.agencyIds?.[0],
@@ -72,45 +82,50 @@ export class JournalController {
       userId,
       dateFrom: dateFrom ? new Date(dateFrom) : undefined,
       dateTo: dateTo ? new Date(dateTo) : undefined,
-      isManualNote: isManualNote === 'true' ? true : isManualNote === 'false' ? false : undefined,
+      isManualNote:
+        isManualNote === "true"
+          ? true
+          : isManualNote === "false"
+            ? false
+            : undefined,
     });
   }
 
-  @Get(':id')
-  @Permissions('journal:read')
-  @ApiOperation({ summary: 'Get a journal entry by ID' })
-  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+  @Get(":id")
+  @Permissions("journal:read")
+  @ApiOperation({ summary: "Get a journal entry by ID" })
+  async findOne(@Param("id") id: string, @CurrentUser() user: any) {
     return this.journalService.findOne(id, user);
   }
 
-  @Post('notes')
+  @Post("notes")
   @Roles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.AGENCY_MANAGER)
   @RequirePermission(UserAgencyPermission.WRITE)
-  @Permissions('journal:create')
-  @ApiOperation({ summary: 'Create a manual note (managers only)' })
+  @Permissions("journal:create")
+  @ApiOperation({ summary: "Create a manual note (managers only)" })
   async createNote(@Body() dto: CreateManualNoteDto, @CurrentUser() user: any) {
     return this.journalService.createManualNote(dto, user);
   }
 
-  @Patch('notes/:id')
+  @Patch("notes/:id")
   @Roles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.AGENCY_MANAGER)
   @RequirePermission(UserAgencyPermission.WRITE)
-  @Permissions('journal:update')
-  @ApiOperation({ summary: 'Update a manual note (managers only)' })
+  @Permissions("journal:update")
+  @ApiOperation({ summary: "Update a manual note (managers only)" })
   async updateNote(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: UpdateManualNoteDto,
     @CurrentUser() user: any,
   ) {
     return this.journalService.updateManualNote(id, dto, user);
   }
 
-  @Delete('notes/:id')
+  @Delete("notes/:id")
   @Roles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.AGENCY_MANAGER)
   @RequirePermission(UserAgencyPermission.FULL)
-  @Permissions('journal:delete')
-  @ApiOperation({ summary: 'Delete a manual note (managers only)' })
-  async deleteNote(@Param('id') id: string, @CurrentUser() user: any) {
+  @Permissions("journal:delete")
+  @ApiOperation({ summary: "Delete a manual note (managers only)" })
+  async deleteNote(@Param("id") id: string, @CurrentUser() user: any) {
     return this.journalService.deleteManualNote(id, user);
   }
 }

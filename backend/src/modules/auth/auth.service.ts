@@ -1,16 +1,21 @@
-import { Injectable, UnauthorizedException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '@prisma/client';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { sendPasswordResetEmail } from '../../services/email.service';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { AuditAction } from "@prisma/client";
+import { LoginDto } from "./dto/login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { sendPasswordResetEmail } from "../../services/email.service";
 
 @Injectable()
 export class AuthService {
@@ -37,30 +42,33 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Email introuvable');
+      throw new UnauthorizedException("Email introuvable");
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Compte inactif');
+      throw new UnauthorizedException("Compte inactif");
     }
 
     // Vérifier que la company est active (vérifier isActive ET status SaaS)
     if (user.companyId && user.company) {
+      if (user.company.deletedAt) {
+        throw new UnauthorizedException("Société supprimée");
+      }
       if (!user.company.isActive) {
-        throw new UnauthorizedException('Société inactive');
+        throw new UnauthorizedException("Société inactive");
       }
       // Vérifier aussi le statut SaaS (si défini)
-      if (user.company.status && user.company.status !== 'ACTIVE') {
-        throw new UnauthorizedException('Société suspendue ou supprimée');
+      if (user.company.status && user.company.status !== "ACTIVE") {
+        throw new UnauthorizedException("Société suspendue ou supprimée");
       }
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new UnauthorizedException('Mot de passe incorrect');
+      throw new UnauthorizedException("Mot de passe incorrect");
     }
 
-    const agencyIds = user.userAgencies.map(ua => ua.agencyId);
+    const agencyIds = user.userAgencies.map((ua) => ua.agencyId);
 
     const payload = {
       sub: user.id,
@@ -79,8 +87,9 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payloadWithJti);
     let refreshToken = this.jwtService.sign(payloadWithJti, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
+      secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
+      expiresIn:
+        this.configService.get<string>("JWT_REFRESH_EXPIRES_IN") || "7d",
     });
 
     // Stocker le refresh token avec retry en cas de collision
@@ -100,11 +109,13 @@ export class AuthService {
         });
         break; // Succès, sortir de la boucle
       } catch (error: any) {
-        if (error.code === 'P2002' && error.meta?.target?.includes('token')) {
+        if (error.code === "P2002" && error.meta?.target?.includes("token")) {
           // Collision détectée, générer un nouveau token
           retries++;
           if (retries >= maxRetries) {
-            throw new UnauthorizedException('Échec de la génération d\'un token de rafraîchissement unique');
+            throw new UnauthorizedException(
+              "Échec de la génération d'un token de rafraîchissement unique",
+            );
           }
           // Générer un nouveau token avec un jti différent
           const newJti = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
@@ -113,8 +124,9 @@ export class AuthService {
             jti: newJti,
           };
           refreshToken = this.jwtService.sign(newPayloadWithJti, {
-            secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-            expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
+            secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
+            expiresIn:
+              this.configService.get<string>("JWT_REFRESH_EXPIRES_IN") || "7d",
           });
         } else {
           // Autre erreur, la propager
@@ -127,51 +139,53 @@ export class AuthService {
     const agencies = user.userAgencies.map((ua) => ({
       id: ua.agency.id,
       name: ua.agency.name,
-      isActive: !ua.agency.deletedAt && ua.agency.status === 'ACTIVE',
+      isActive: !ua.agency.deletedAt && ua.agency.status === "ACTIVE",
       status: ua.agency.status,
     }));
 
     // Récupérer les permissions (basées sur le rôle et les permissions d'agence)
     const permissions: Array<{ resource: string; action: string }> = [];
-    
+
     // Permissions basiques selon le rôle
-    if (user.role === 'AGENCY_MANAGER') {
+    if (user.role === "AGENCY_MANAGER") {
       permissions.push(
-        { resource: 'bookings', action: 'create' },
-        { resource: 'bookings', action: 'read' },
-        { resource: 'bookings', action: 'update' },
-        { resource: 'bookings', action: 'delete' },
+        { resource: "bookings", action: "create" },
+        { resource: "bookings", action: "read" },
+        { resource: "bookings", action: "update" },
+        { resource: "bookings", action: "delete" },
       );
-    } else if (user.role === 'AGENT') {
+    } else if (user.role === "AGENT") {
       permissions.push(
-        { resource: 'bookings', action: 'read' },
-        { resource: 'bookings', action: 'update' },
+        { resource: "bookings", action: "read" },
+        { resource: "bookings", action: "update" },
       );
     }
 
     // Ajouter les permissions spécifiques des agences
     for (const ua of user.userAgencies) {
-      if (ua.permission === 'FULL') {
+      if (ua.permission === "FULL") {
         permissions.push(
-          { resource: 'bookings', action: 'create' },
-          { resource: 'bookings', action: 'read' },
-          { resource: 'bookings', action: 'update' },
-          { resource: 'bookings', action: 'delete' },
+          { resource: "bookings", action: "create" },
+          { resource: "bookings", action: "read" },
+          { resource: "bookings", action: "update" },
+          { resource: "bookings", action: "delete" },
         );
-      } else if (ua.permission === 'WRITE') {
+      } else if (ua.permission === "WRITE") {
         permissions.push(
-          { resource: 'bookings', action: 'create' },
-          { resource: 'bookings', action: 'read' },
-          { resource: 'bookings', action: 'update' },
+          { resource: "bookings", action: "create" },
+          { resource: "bookings", action: "read" },
+          { resource: "bookings", action: "update" },
         );
-      } else if (ua.permission === 'READ') {
-        permissions.push({ resource: 'bookings', action: 'read' });
+      } else if (ua.permission === "READ") {
+        permissions.push({ resource: "bookings", action: "read" });
       }
     }
 
     // Dédupliquer les permissions
     const uniquePermissions = Array.from(
-      new Map(permissions.map((p) => [`${p.resource}:${p.action}`, p])).values(),
+      new Map(
+        permissions.map((p) => [`${p.resource}:${p.action}`, p]),
+      ).values(),
     );
 
     // Récupérer les modules actifs de la company
@@ -204,8 +218,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.name.split(' ')[0] || '',
-        lastName: user.name.split(' ').slice(1).join(' ') || '',
+        firstName: user.name.split(" ")[0] || "",
+        lastName: user.name.split(" ").slice(1).join(" ") || "",
         role: user.role,
         companyId: user.companyId,
         company: user.company
@@ -225,34 +239,33 @@ export class AuthService {
   }
 
   private generateResetToken(): string {
-    return randomBytes(32).toString('hex');
+    return randomBytes(32).toString("hex");
   }
 
   private getResetBaseUrl(client?: string): string {
-    if (client === 'admin') {
+    if (client === "admin") {
       return (
-        this.configService.get<string>('FRONTEND_ADMIN_URL') ||
-        this.configService.get<string>('FRONTEND_URL') ||
-        'http://localhost:5173'
+        this.configService.get<string>("FRONTEND_ADMIN_URL") ||
+        this.configService.get<string>("FRONTEND_URL") ||
+        "http://localhost:5173"
       );
     }
-    if (client === 'agency') {
+    if (client === "agency") {
       return (
-        this.configService.get<string>('FRONTEND_AGENCY_URL') ||
-        this.configService.get<string>('FRONTEND_URL') ||
-        'http://localhost:8080'
+        this.configService.get<string>("FRONTEND_AGENCY_URL") ||
+        this.configService.get<string>("FRONTEND_URL") ||
+        "http://localhost:8080"
       );
     }
-    if (client === 'web') {
+    if (client === "web") {
       return (
-        this.configService.get<string>('FRONTEND_WEB_URL') ||
-        this.configService.get<string>('FRONTEND_URL') ||
-        'http://localhost:3001'
+        this.configService.get<string>("FRONTEND_WEB_URL") ||
+        this.configService.get<string>("FRONTEND_URL") ||
+        "http://localhost:3001"
       );
     }
     return (
-      this.configService.get<string>('FRONTEND_URL') ||
-      'http://localhost:3001'
+      this.configService.get<string>("FRONTEND_URL") || "http://localhost:3001"
     );
   }
 
@@ -265,12 +278,15 @@ export class AuthService {
     });
 
     if (!user || !user.isActive) {
-      return { message: 'Si un compte existe, un email a été envoyé' };
+      return { message: "Si un compte existe, un email a été envoyé" };
     }
 
     if (user.companyId && user.company) {
-      if (!user.company.isActive || (user.company.status && user.company.status !== 'ACTIVE')) {
-        return { message: 'Si un compte existe, un email a été envoyé' };
+      if (
+        !user.company.isActive ||
+        (user.company.status && user.company.status !== "ACTIVE")
+      ) {
+        return { message: "Si un compte existe, un email a été envoyé" };
       }
     }
 
@@ -287,11 +303,14 @@ export class AuthService {
     });
 
     const resetBaseUrl = this.getResetBaseUrl(client);
-    sendPasswordResetEmail(user.email, user.name, resetToken, resetBaseUrl).catch((err) =>
-      console.error('Error sending password reset email:', err),
-    );
+    sendPasswordResetEmail(
+      user.email,
+      user.name,
+      resetToken,
+      resetBaseUrl,
+    ).catch((err) => console.error("Error sending password reset email:", err));
 
-    return { message: 'Email de réinitialisation envoyé' };
+    return { message: "Email de réinitialisation envoyé" };
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
@@ -303,15 +322,25 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedException('Token de rafraîchissement invalide ou expiré. Veuillez vous reconnecter.');
+    if (
+      !storedToken ||
+      storedToken.revoked ||
+      storedToken.expiresAt < new Date()
+    ) {
+      throw new UnauthorizedException(
+        "Token de rafraîchissement invalide ou expiré. Veuillez vous reconnecter.",
+      );
     }
 
     // Block refresh for impersonation tokens (short-lived by design)
     try {
-      const decoded = this.jwtService.decode(refreshToken) as { impersonatedBy?: string } | null;
+      const decoded = this.jwtService.decode(refreshToken) as {
+        impersonatedBy?: string;
+      } | null;
       if (decoded?.impersonatedBy) {
-        throw new UnauthorizedException('Les sessions d\'impersonation ne peuvent pas être prolongées. Veuillez vous reconnecter.');
+        throw new UnauthorizedException(
+          "Les sessions d'impersonation ne peuvent pas être prolongées. Veuillez vous reconnecter.",
+        );
       }
     } catch (e) {
       if (e instanceof UnauthorizedException) throw e;
@@ -337,19 +366,27 @@ export class AuthService {
         where: { id: storedToken.id },
         data: { revoked: true, revokedAt: new Date() },
       });
-      throw new UnauthorizedException('L\'utilisateur est inactif');
+      throw new UnauthorizedException("L'utilisateur est inactif");
     }
 
     // Vérifier que la company est active
-    if (user.companyId && user.company && !user.company.isActive) {
+    if (
+      user.companyId &&
+      user.company &&
+      (user.company.deletedAt ||
+        !user.company.isActive ||
+        (user.company.status && user.company.status !== "ACTIVE"))
+    ) {
       await this.prisma.refreshToken.update({
         where: { id: storedToken.id },
         data: { revoked: true, revokedAt: new Date() },
       });
-      throw new UnauthorizedException('La société est inactive. Contactez votre administrateur.');
+      throw new UnauthorizedException(
+        "La société est inactive ou supprimée. Contactez votre administrateur.",
+      );
     }
 
-    const agencyIds = user.userAgencies.map(ua => ua.agencyId);
+    const agencyIds = user.userAgencies.map((ua) => ua.agencyId);
 
     const payload = {
       sub: user.id,
@@ -371,8 +408,9 @@ export class AuthService {
         jti, // JWT ID unique
       };
       return this.jwtService.sign(payloadWithJti, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
+        secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
+        expiresIn:
+          this.configService.get<string>("JWT_REFRESH_EXPIRES_IN") || "7d",
       });
     };
 
@@ -406,11 +444,13 @@ export class AuthService {
         ]);
         break; // Succès, sortir de la boucle
       } catch (error: any) {
-        if (error.code === 'P2002' && error.meta?.target?.includes('token')) {
+        if (error.code === "P2002" && error.meta?.target?.includes("token")) {
           // Collision détectée, générer un nouveau token
           retries++;
           if (retries >= maxRetries) {
-            throw new UnauthorizedException('Échec de la génération d\'un token de rafraîchissement unique');
+            throw new UnauthorizedException(
+              "Échec de la génération d'un token de rafraîchissement unique",
+            );
           }
           newRefreshToken = generateRefreshToken();
         } else {
@@ -454,7 +494,9 @@ export class AuthService {
     });
 
     if (!resetToken) {
-      throw new UnauthorizedException('Token de réinitialisation invalide ou expiré');
+      throw new UnauthorizedException(
+        "Token de réinitialisation invalide ou expiré",
+      );
     }
 
     // Hash the new password
@@ -475,13 +517,13 @@ export class AuthService {
     await this.auditService.log({
       userId: resetToken.userId,
       action: AuditAction.UPDATE,
-      entityType: 'User',
+      entityType: "User",
       entityId: resetToken.userId,
-      description: 'User reset password',
+      description: "User reset password",
       metadata: { userId: resetToken.userId },
     });
 
-    return { message: 'Mot de passe réinitialisé avec succès' };
+    return { message: "Mot de passe réinitialisé avec succès" };
   }
 
   async validateUser(userId: string) {
@@ -514,8 +556,10 @@ export class AuthService {
       where: { id: adminUserId },
     });
 
-    if (!admin || admin.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul un Super Admin peut utiliser cette fonctionnalité');
+    if (!admin || admin.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul un Super Admin peut utiliser cette fonctionnalité",
+      );
     }
 
     // Récupérer l'utilisateur cible
@@ -532,10 +576,10 @@ export class AuthService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('Utilisateur introuvable');
+      throw new NotFoundException("Utilisateur introuvable");
     }
 
-    const agencyIds = targetUser.userAgencies.map(ua => ua.agencyId);
+    const agencyIds = targetUser.userAgencies.map((ua) => ua.agencyId);
 
     // Générer un token avec les infos de l'utilisateur cible + flag impersonation
     const jti = `imp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
@@ -551,8 +595,8 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: '2h', // Durée courte pour l'impersonation
+      secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
+      expiresIn: "2h", // Durée courte pour l'impersonation
     });
 
     // Stocker le refresh token
@@ -571,7 +615,7 @@ export class AuthService {
     await this.auditService.log({
       userId: adminUserId,
       action: AuditAction.UPDATE,
-      entityType: 'User',
+      entityType: "User",
       entityId: targetUser.id,
       description: `Super Admin impersonated user ${targetUser.email}`,
       metadata: {
@@ -586,7 +630,7 @@ export class AuthService {
     const agencies = targetUser.userAgencies.map((ua) => ({
       id: ua.agency.id,
       name: ua.agency.name,
-      isActive: !ua.agency.deletedAt && ua.agency.status === 'ACTIVE',
+      isActive: !ua.agency.deletedAt && ua.agency.status === "ACTIVE",
       status: ua.agency.status,
     }));
 
@@ -598,8 +642,8 @@ export class AuthService {
       user: {
         id: targetUser.id,
         email: targetUser.email,
-        firstName: targetUser.name.split(' ')[0] || '',
-        lastName: targetUser.name.split(' ').slice(1).join(' ') || '',
+        firstName: targetUser.name.split(" ")[0] || "",
+        lastName: targetUser.name.split(" ").slice(1).join(" ") || "",
         role: targetUser.role,
         companyId: targetUser.companyId,
         company: targetUser.company
@@ -616,4 +660,3 @@ export class AuthService {
     };
   }
 }
-

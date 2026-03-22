@@ -1,10 +1,12 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { getApiErrorMessage } from '../utils/api-error';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,8 +18,6 @@ apiClient.interceptors.request.use(
     const token = Cookies.get('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn('No access token found in cookies for request:', config.url);
     }
     return config;
   },
@@ -32,8 +32,8 @@ apiClient.interceptors.response.use(
   async (error) => {
     // Skip message parsing for blob responses (PDF downloads etc.)
     const isBlob = error?.config?.responseType === 'blob';
-    if (!isBlob && error?.response?.data?.message && Array.isArray(error.response.data.message)) {
-      error.response.data.message = error.response.data.message.join(' • ');
+    if (!isBlob && error?.response?.data) {
+      error.response.data.message = getApiErrorMessage(error, 'Erreur serveur');
     }
     const originalRequest = error.config;
 
@@ -47,19 +47,15 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
-      console.log('401 error detected, attempting token refresh...');
-      
       try {
         const refreshToken = Cookies.get('refreshToken');
         if (!refreshToken) {
-          console.error('No refresh token found');
           Cookies.remove('accessToken');
           Cookies.remove('refreshToken');
           window.location.href = '/login';
           return Promise.reject(error);
         }
 
-        console.log('Refreshing token...');
         const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
         });
@@ -71,11 +67,9 @@ apiClient.interceptors.response.use(
           secure: process.env.NODE_ENV === 'production',
         });
 
-        console.log('Token refreshed successfully');
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
         // Refresh échoué, rediriger vers login
         Cookies.remove('accessToken');
         Cookies.remove('refreshToken');

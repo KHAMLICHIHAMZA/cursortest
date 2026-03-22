@@ -1,15 +1,15 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PermissionService } from '../../common/services/permission.service';
-import { BookingStatus } from '@prisma/client';
+import { Injectable, ForbiddenException } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { PermissionService } from "../../common/services/permission.service";
+import { BookingStatus } from "@prisma/client";
 
 /**
  * Analytics Service
- * 
+ *
  * Provides business KPIs and analytics for agencies.
- * 
+ *
  * Access: Only AGENCY_MANAGER role
- * 
+ *
  * KPIs computed:
  * - Vehicle occupancy rate
  * - Total revenue
@@ -26,19 +26,17 @@ export class AnalyticsService {
 
   /**
    * Get global KPIs for super admin (all companies and agencies)
-   * 
+   *
    * @param user - Current user (must be SUPER_ADMIN)
    * @param startDate - Optional start date for period
    * @param endDate - Optional end date for period
    */
-  async getGlobalKPIs(
-    user: any,
-    startDate?: Date,
-    endDate?: Date,
-  ) {
+  async getGlobalKPIs(user: any, startDate?: Date, endDate?: Date) {
     // Check permissions - only SUPER_ADMIN can access global analytics
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('L\'accès aux analyses globales est restreint à SUPER_ADMIN');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "L'accès aux analyses globales est restreint à SUPER_ADMIN",
+      );
     }
 
     const dateFilter: any = {};
@@ -89,13 +87,19 @@ export class AnalyticsService {
     const totalVehicles = vehicles.length;
     const totalUsers = users.length;
     const totalBookings = bookings.length;
-    const completedBookings = bookings.filter((b) => b.status === BookingStatus.RETURNED);
+    const completedBookings = bookings.filter(
+      (b) => b.status === BookingStatus.RETURNED,
+    );
 
     // Total revenue (from completed bookings)
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+    const totalRevenue = completedBookings.reduce(
+      (sum, b) => sum + b.totalPrice,
+      0,
+    );
 
     // Revenue per vehicle
-    const revenuePerVehicle = totalVehicles > 0 ? totalRevenue / totalVehicles : 0;
+    const revenuePerVehicle =
+      totalVehicles > 0 ? totalRevenue / totalVehicles : 0;
 
     // Average booking duration
     const avgDuration = this.calculateAverageBookingDuration(completedBookings);
@@ -168,7 +172,7 @@ export class AnalyticsService {
 
   /**
    * Get all KPIs for an agency
-   * 
+   *
    * @param agencyId - Agency ID
    * @param user - Current user (for permission check)
    * @param startDate - Optional start date for period
@@ -181,14 +185,23 @@ export class AnalyticsService {
     endDate?: Date,
   ) {
     // Check permissions - only AGENCY_MANAGER can access analytics
-    if (user.role !== 'AGENCY_MANAGER' && user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
-      throw new ForbiddenException('L\'accès aux analyses est restreint aux gestionnaires');
+    if (
+      user.role !== "AGENCY_MANAGER" &&
+      user.role !== "SUPER_ADMIN" &&
+      user.role !== "COMPANY_ADMIN"
+    ) {
+      throw new ForbiddenException(
+        "L'accès aux analyses est restreint aux gestionnaires",
+      );
     }
 
     // Verify agency access
-    const hasAccess = await this.permissionService.checkAgencyAccess(agencyId, user);
+    const hasAccess = await this.permissionService.checkAgencyAccess(
+      agencyId,
+      user,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException('Accès refusé à cette agence');
+      throw new ForbiddenException("Accès refusé à cette agence");
     }
 
     const dateFilter: any = {};
@@ -221,22 +234,35 @@ export class AnalyticsService {
     // Calculate KPIs
     const totalVehicles = vehicles.length;
     const totalBookings = bookings.length;
-    const completedBookings = bookings.filter((b) => b.status === BookingStatus.RETURNED);
+    const completedBookings = bookings.filter(
+      (b) => b.status === BookingStatus.RETURNED,
+    );
 
     // Vehicle occupancy rate
-    const occupancyRate = await this.calculateOccupancyRate(agencyId, startDate, endDate);
+    const occupancyRate = await this.calculateOccupancyRate(
+      agencyId,
+      startDate,
+      endDate,
+    );
 
     // Total revenue (from completed bookings)
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+    const totalRevenue = completedBookings.reduce(
+      (sum, b) => sum + b.totalPrice,
+      0,
+    );
 
     // Revenue per vehicle
-    const revenuePerVehicle = totalVehicles > 0 ? totalRevenue / totalVehicles : 0;
+    const revenuePerVehicle =
+      totalVehicles > 0 ? totalRevenue / totalVehicles : 0;
 
     // Average booking duration
     const avgDuration = this.calculateAverageBookingDuration(completedBookings);
 
     // Most rented vehicles
-    const mostRentedVehicles = this.getMostRentedVehicles(completedBookings, vehicles);
+    const mostRentedVehicles = this.getMostRentedVehicles(
+      completedBookings,
+      vehicles,
+    );
 
     return {
       agencyId,
@@ -259,7 +285,7 @@ export class AnalyticsService {
 
   /**
    * Calculate vehicle occupancy rate
-   * 
+   *
    * Occupancy rate = (Total days vehicles were rented) / (Total available days)
    */
   private async calculateOccupancyRate(
@@ -267,7 +293,8 @@ export class AnalyticsService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<number> {
-    const periodStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: last 30 days
+    const periodStart =
+      startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: last 30 days
     const periodEnd = endDate || new Date();
 
     const vehicles = await this.prisma.vehicle.findMany({
@@ -286,7 +313,11 @@ export class AnalyticsService {
         agencyId,
         deletedAt: null,
         status: {
-          in: [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.RETURNED],
+          in: [
+            BookingStatus.CONFIRMED,
+            BookingStatus.IN_PROGRESS,
+            BookingStatus.RETURNED,
+          ],
         },
         OR: [
           {
@@ -297,13 +328,18 @@ export class AnalyticsService {
       },
     });
 
-    const totalDays = vehicles.length * ((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
+    const totalDays =
+      vehicles.length *
+      ((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
     let rentedDays = 0;
 
     for (const booking of bookings) {
-      const bookingStart = booking.startDate > periodStart ? booking.startDate : periodStart;
-      const bookingEnd = booking.endDate < periodEnd ? booking.endDate : periodEnd;
-      const days = (bookingEnd.getTime() - bookingStart.getTime()) / (1000 * 60 * 60 * 24);
+      const bookingStart =
+        booking.startDate > periodStart ? booking.startDate : periodStart;
+      const bookingEnd =
+        booking.endDate < periodEnd ? booking.endDate : periodEnd;
+      const days =
+        (bookingEnd.getTime() - bookingStart.getTime()) / (1000 * 60 * 60 * 24);
       rentedDays += Math.max(0, days);
     }
 
@@ -319,7 +355,9 @@ export class AnalyticsService {
     }
 
     const totalDays = bookings.reduce((sum, booking) => {
-      const days = (booking.endDate.getTime() - booking.startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const days =
+        (booking.endDate.getTime() - booking.startDate.getTime()) /
+        (1000 * 60 * 60 * 24);
       return sum + days;
     }, 0);
 
@@ -358,4 +396,3 @@ export class AnalyticsService {
     });
   }
 }
-

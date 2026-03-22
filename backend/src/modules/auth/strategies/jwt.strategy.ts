@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../../common/prisma/prisma.service';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -13,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET'),
+      secretOrKey: configService.get<string>("JWT_SECRET"),
     });
   }
 
@@ -31,19 +31,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Session invalide ou compte désactivé. Veuillez vous reconnecter.');
+      throw new UnauthorizedException(
+        "Session invalide ou compte désactivé. Veuillez vous reconnecter.",
+      );
     }
 
-    // Note: Les règles métier SaaS (company suspended/inactive, etc.) sont gérées
-    // par des guards dédiés (RequireActiveCompanyGuard) pour retourner 403 (pas 401).
+    // Block deleted company sessions immediately (even for existing tokens).
+    // Suspension/inactive checks remain in dedicated business guards to preserve 403 semantics.
+    if (user.companyId && user.company?.deletedAt) {
+      throw new UnauthorizedException(
+        "Session invalide: la société est supprimée.",
+      );
+    }
 
     return {
       userId: user.id,
       email: user.email,
       role: user.role,
       companyId: user.companyId,
-      agencyIds: user.userAgencies.map(ua => ua.agencyId),
-      userAgencies: user.userAgencies.map(ua => ({
+      agencyIds: user.userAgencies.map((ua) => ua.agencyId),
+      userAgencies: user.userAgencies.map((ua) => ({
         agencyId: ua.agencyId,
         permission: ua.permission,
       })),
@@ -51,8 +58,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
-
-
-
-
-

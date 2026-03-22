@@ -1,40 +1,29 @@
 'use client';
 
-import React from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/theme-context';
-import { cn } from '@/lib/utils/cn';
 
-interface ThemeToggleProps {
-  className?: string;
-  showLabel?: boolean;
-}
-
-export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) {
+export function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggleTheme } = useTheme();
-  const isDark = theme === 'dark';
+  const actionLabel = theme === 'dark' ? 'Passer en clair' : 'Passer en sombre';
 
   return (
-    <button
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
       onClick={toggleTheme}
-      className={cn(
-        'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-        'text-foreground-muted hover:text-foreground hover:bg-surface-2',
-        className,
-      )}
-      aria-label={isDark ? 'Passer en clair' : 'Passer en sombre'}
+      aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}
+      title={actionLabel}
+      className={`border border-border ${className || ''}`}
     >
-      {isDark ? (
-        <>
-          <Sun className="h-4 w-4" />
-          {showLabel && <span>Passer en clair</span>}
-        </>
+      {theme === 'dark' ? (
+        <Sun className="w-4 h-4" />
       ) : (
-        <>
-          <Moon className="h-4 w-4" />
-          {showLabel && <span>Passer en sombre</span>}
-        </>
+        <Moon className="w-4 h-4" />
       )}
-    </button>
+      <span className="hidden md:inline ml-2 text-xs">{actionLabel}</span>
+    </Button>
   );
 }

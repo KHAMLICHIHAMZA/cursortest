@@ -11,8 +11,6 @@ module.exports = function(api) {
           extensions: ['.ios.js', '.android.js', '.web.js', '.js', '.ts', '.tsx', '.json'],
           alias: {
             '@': './src',
-            // Stub pour WebView sur web
-            'react-native-webview': './src/utils/webview-stub.web.js',
           },
         },
       ],

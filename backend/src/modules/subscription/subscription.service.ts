@@ -3,16 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateSubscriptionDto } from './dto/create-subscription.dto';
-import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
-import { SubscriptionStatus, BillingPeriod, CompanyStatus } from '@prisma/client';
-import { AuditService } from '../../common/services/audit.service';
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { CreateSubscriptionDto } from "./dto/create-subscription.dto";
+import { UpdateSubscriptionDto } from "./dto/update-subscription.dto";
+import {
+  SubscriptionStatus,
+  BillingPeriod,
+  CompanyStatus,
+} from "@prisma/client";
+import { AuditService } from "../../common/services/audit.service";
 
 /**
  * Service de gestion des abonnements SaaS
- * 
+ *
  * Gère :
  * - CRUD des abonnements
  * - Changement de statut (ACTIVE, SUSPENDED, EXPIRED, CANCELLED)
@@ -31,7 +35,8 @@ export class SubscriptionService {
    * Une Company ne peut avoir qu'un seul abonnement actif
    */
   async create(createSubscriptionDto: CreateSubscriptionDto, user: any) {
-    const { companyId, planId, billingPeriod, startDate, amount } = createSubscriptionDto;
+    const { companyId, planId, billingPeriod, startDate, amount } =
+      createSubscriptionDto;
 
     // Vérifier que la Company existe
     const company = await this.prisma.company.findUnique({
@@ -39,7 +44,12 @@ export class SubscriptionService {
     });
 
     if (!company) {
-      throw new NotFoundException('Société introuvable');
+      throw new NotFoundException("Société introuvable");
+    }
+    if (this.isCompanyDeletedOrInactive(company)) {
+      throw new BadRequestException(
+        "Impossible de créer/activer un abonnement pour une société supprimée ou inactive.",
+      );
     }
 
     const existingSubscription = await this.prisma.subscription.findUnique({
@@ -48,7 +58,7 @@ export class SubscriptionService {
 
     if (existingSubscription) {
       if (existingSubscription.status === SubscriptionStatus.ACTIVE) {
-        throw new BadRequestException('La société a déjà un abonnement actif');
+        throw new BadRequestException("La société a déjà un abonnement actif");
       }
       throw new BadRequestException(
         `La société a déjà un abonnement (${existingSubscription.status}). Utilisez Renouveler pour un abonnement expiré ou annulé.`,
@@ -64,7 +74,9 @@ export class SubscriptionService {
     });
 
     if (!plan || !plan.isActive) {
-      throw new NotFoundException('Plan tarifaire introuvable ou inactif. Veuillez sélectionner un plan valide.');
+      throw new NotFoundException(
+        "Plan tarifaire introuvable ou inactif. Veuillez sélectionner un plan valide.",
+      );
     }
 
     // Calculer la date de fin selon la périodicité
@@ -113,7 +125,7 @@ export class SubscriptionService {
    * Récupérer tous les abonnements (filtrés par rôle)
    */
   async findAll(user: any) {
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       return this.prisma.subscription.findMany({
         include: {
           company: {
@@ -137,11 +149,11 @@ export class SubscriptionService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
     }
 
-    if (user.role === 'COMPANY_ADMIN' && user.companyId) {
+    if (user.role === "COMPANY_ADMIN" && user.companyId) {
       return this.prisma.subscription.findMany({
         where: { companyId: user.companyId },
         include: {
@@ -161,11 +173,115 @@ export class SubscriptionService {
           },
           subscriptionModules: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
     }
 
-    throw new ForbiddenException('Permissions insuffisantes pour consulter les abonnements. Seuls SUPER_ADMIN et COMPANY_ADMIN y ont accès.');
+    throw new ForbiddenException(
+      "Permissions insuffisantes pour consulter les abonnements. Seuls SUPER_ADMIN et COMPANY_ADMIN y ont accès.",
+    );
+  }
+
+  async findByCompany(companyId: string, user: any) {
+    if (user.role !== "SUPER_ADMIN" && user.companyId !== companyId) {
+      throw new ForbiddenException(
+        "Accès refusé : vous ne pouvez consulter que les abonnements de votre société",
+      );
+    }
+
+    return this.prisma.subscription.findUnique({
+      where: { companyId },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+          },
+        },
+        subscriptionModules: true,
+      },
+    });
+  }
+
+  async findAllLight(user: any, page = 1, pageSize = 25) {
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize)
+      ? Math.min(Math.max(1, Math.floor(pageSize)), 100)
+      : 25;
+    const skip = (safePage - 1) * safePageSize;
+
+    const includeShape = {
+      company: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      plan: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      },
+    } as const;
+
+    if (user.role === "SUPER_ADMIN") {
+      const [items, total] = await Promise.all([
+        this.prisma.subscription.findMany({
+          include: includeShape,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.subscription.count(),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages,
+      };
+    }
+
+    if (user.role === "COMPANY_ADMIN" && user.companyId) {
+      const where = { companyId: user.companyId };
+      const [items, total] = await Promise.all([
+        this.prisma.subscription.findMany({
+          where,
+          include: includeShape,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: safePageSize,
+        }),
+        this.prisma.subscription.count({ where }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+      return {
+        items,
+        total,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages,
+      };
+    }
+
+    throw new ForbiddenException(
+      "Permissions insuffisantes pour consulter les abonnements. Seuls SUPER_ADMIN et COMPANY_ADMIN y ont accès.",
+    );
   }
 
   /**
@@ -191,19 +307,26 @@ export class SubscriptionService {
         },
         subscriptionModules: true,
         paymentsSaas: {
-          orderBy: { dueDate: 'desc' },
+          orderBy: { dueDate: "desc" },
           take: 10, // Derniers 10 paiements
         },
       },
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
+      throw new NotFoundException(
+        "Abonnement introuvable. Vérifiez l'identifiant de l'abonnement.",
+      );
     }
 
     // Vérifier les permissions
-    if (user.role !== 'SUPER_ADMIN' && subscription.companyId !== user.companyId) {
-      throw new ForbiddenException('Accès refusé : cet abonnement appartient à une autre société');
+    if (
+      user.role !== "SUPER_ADMIN" &&
+      subscription.companyId !== user.companyId
+    ) {
+      throw new ForbiddenException(
+        "Accès refusé : cet abonnement appartient à une autre société",
+      );
     }
 
     return subscription;
@@ -212,18 +335,37 @@ export class SubscriptionService {
   /**
    * Mettre à jour un abonnement
    */
-  async update(id: string, updateSubscriptionDto: UpdateSubscriptionDto, user: any) {
+  async update(
+    id: string,
+    updateSubscriptionDto: UpdateSubscriptionDto,
+    user: any,
+  ) {
     const subscription = await this.prisma.subscription.findUnique({
       where: { id },
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
+      throw new NotFoundException(
+        "Abonnement introuvable. Vérifiez l'identifiant de l'abonnement.",
+      );
     }
 
     // Vérifier les permissions (SUPER_ADMIN uniquement)
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut mettre à jour les abonnements');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut mettre à jour les abonnements",
+      );
+    }
+
+    if (updateSubscriptionDto.status === SubscriptionStatus.ACTIVE) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: subscription.companyId },
+      });
+      if (!company || this.isCompanyDeletedOrInactive(company)) {
+        throw new BadRequestException(
+          "Impossible d’activer un abonnement pour une société supprimée ou inactive.",
+        );
+      }
     }
 
     // Note: Subscription model does not have updatedByUserId field,
@@ -261,11 +403,15 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
+      throw new NotFoundException(
+        "Abonnement introuvable. Vérifiez l'identifiant de l'abonnement.",
+      );
     }
 
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut suspendre les abonnements');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut suspendre les abonnements",
+      );
     }
 
     // Mettre à jour l'abonnement
@@ -299,26 +445,38 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
+      throw new NotFoundException(
+        "Abonnement introuvable. Vérifiez l'identifiant de l'abonnement.",
+      );
     }
 
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut restaurer les abonnements');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut restaurer les abonnements",
+      );
     }
 
     if (subscription.status !== SubscriptionStatus.SUSPENDED) {
-      throw new BadRequestException('Cet abonnement n\'est pas suspendu. Seuls les abonnements suspendus peuvent être restaurés.');
+      throw new BadRequestException(
+        "Cet abonnement n'est pas suspendu. Seuls les abonnements suspendus peuvent être restaurés.",
+      );
+    }
+    if (this.isCompanyDeletedOrInactive(subscription.company)) {
+      throw new BadRequestException(
+        "Impossible de restaurer un abonnement d’une société supprimée ou inactive.",
+      );
     }
 
     // Vérifier que la suspension date de moins de 90 jours
     if (subscription.company.suspendedAt) {
       const daysSinceSuspension = Math.floor(
-        (new Date().getTime() - subscription.company.suspendedAt.getTime()) / (1000 * 60 * 60 * 24),
+        (new Date().getTime() - subscription.company.suspendedAt.getTime()) /
+          (1000 * 60 * 60 * 24),
       );
 
       if (daysSinceSuspension > 90) {
         throw new BadRequestException(
-          'L\'abonnement ne peut pas être restauré. La période de suspension a dépassé 90 jours.',
+          "L'abonnement ne peut pas être restauré. La période de suspension a dépassé 90 jours.",
         );
       }
     }
@@ -350,19 +508,35 @@ export class SubscriptionService {
   async renew(id: string, user: any) {
     const subscription = await this.prisma.subscription.findUnique({
       where: { id },
-      include: { plan: true },
+      include: { plan: true, company: true },
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
+      throw new NotFoundException(
+        "Abonnement introuvable. Vérifiez l'identifiant de l'abonnement.",
+      );
     }
 
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut renouveler les abonnements');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut renouveler les abonnements",
+      );
+    }
+    if (this.isCompanyDeletedOrInactive(subscription.company)) {
+      throw new BadRequestException(
+        "Impossible de renouveler un abonnement d’une société supprimée ou inactive.",
+      );
     }
 
-    const newStartDate = new Date();
-    const newEndDate = this.calculateEndDate(newStartDate, subscription.billingPeriod);
+    // Renewal extends from current end date when still active,
+    // otherwise it restarts from now if already expired.
+    const now = new Date();
+    const newStartDate =
+      subscription.endDate > now ? subscription.endDate : now;
+    const newEndDate = this.calculateEndDate(
+      newStartDate,
+      subscription.billingPeriod,
+    );
 
     return this.prisma.subscription.update({
       where: { id },
@@ -400,11 +574,15 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable. Vérifiez l\'identifiant de l\'abonnement.');
+      throw new NotFoundException(
+        "Abonnement introuvable. Vérifiez l'identifiant de l'abonnement.",
+      );
     }
 
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Seul SUPER_ADMIN peut annuler les abonnements');
+    if (user.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException(
+        "Seul SUPER_ADMIN peut annuler les abonnements",
+      );
     }
 
     return this.prisma.subscription.update({
@@ -435,7 +613,10 @@ export class SubscriptionService {
   /**
    * Calculer la date de fin selon la périodicité
    */
-  private calculateEndDate(startDate: Date, billingPeriod: BillingPeriod): Date {
+  private calculateEndDate(
+    startDate: Date,
+    billingPeriod: BillingPeriod,
+  ): Date {
     const endDate = new Date(startDate);
 
     switch (billingPeriod) {
@@ -488,7 +669,7 @@ export class SubscriptionService {
           data: {
             status: CompanyStatus.SUSPENDED,
             suspendedAt: now,
-            suspendedReason: 'Abonnement expiré',
+            suspendedReason: "Abonnement expiré",
           },
         });
       }
@@ -496,5 +677,16 @@ export class SubscriptionService {
 
     return expiredSubscriptions.length;
   }
-}
 
+  private isCompanyDeletedOrInactive(company: {
+    deletedAt?: Date | null;
+    status?: CompanyStatus | null;
+    isActive?: boolean | null;
+  }): boolean {
+    return (
+      !!company.deletedAt ||
+      company.status === CompanyStatus.DELETED ||
+      company.isActive === false
+    );
+  }
+}

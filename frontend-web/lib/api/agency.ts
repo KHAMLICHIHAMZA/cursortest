@@ -1,6 +1,21 @@
 import { apiClient } from './client';
 
 export interface Agency {
+  addressDetails?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  openingHours?: Record<
+    string,
+    {
+      isOpen: boolean;
+      openTime?: string;
+      closeTime?: string;
+    }
+  >;
   id: string;
   name: string;
   phone?: string;
@@ -24,6 +39,21 @@ export interface Agency {
 }
 
 export interface CreateAgencyDto {
+  addressDetails?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  openingHours?: Record<
+    string,
+    {
+      isOpen: boolean;
+      openTime?: string;
+      closeTime?: string;
+    }
+  >;
   name: string;
   phone?: string;
   address?: string;
@@ -31,9 +61,25 @@ export interface CreateAgencyDto {
   status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
   timezone?: string;
   capacity?: number;
+  preparationTimeMinutes?: number;
 }
 
 export interface UpdateAgencyDto {
+  addressDetails?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  openingHours?: Record<
+    string,
+    {
+      isOpen: boolean;
+      openTime?: string;
+      closeTime?: string;
+    }
+  >;
   name?: string;
   phone?: string;
   address?: string;
@@ -43,9 +89,36 @@ export interface UpdateAgencyDto {
   preparationTimeMinutes?: number;
 }
 
+export interface AgencyLookup {
+  id: string;
+  name: string;
+}
+
+export interface PaginatedAgenciesResponse {
+  items: Agency[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export const agencyApi = {
   getAll: async (): Promise<Agency[]> => {
     const { data } = await apiClient.get<Agency[]>('/agencies');
+    return data;
+  },
+
+  getLookup: async (companyId?: string): Promise<AgencyLookup[]> => {
+    const { data } = await apiClient.get<AgencyLookup[]>('/agencies/lookup', {
+      params: { companyId: companyId || undefined },
+    });
+    return data;
+  },
+
+  getLight: async (page = 1, pageSize = 25, q?: string): Promise<PaginatedAgenciesResponse> => {
+    const { data } = await apiClient.get<PaginatedAgenciesResponse>('/agencies/light', {
+      params: { page, pageSize, q: q || undefined },
+    });
     return data;
   },
 

@@ -4,19 +4,19 @@ import {
   ExecutionContext,
   ForbiddenException,
   SetMetadata,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { PrismaService } from '../prisma/prisma.service';
-import { ModuleCode } from '@prisma/client';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { PrismaService } from "../prisma/prisma.service";
+import { ModuleCode } from "@prisma/client";
 
 /**
  * Metadata key pour les modules requis
  */
-export const REQUIRED_MODULE_KEY = 'requiredModule';
+export const REQUIRED_MODULE_KEY = "requiredModule";
 
 /**
  * Decorator pour spécifier le module requis sur un endpoint
- * 
+ *
  * @example
  * @RequireModule(ModuleCode.BOOKINGS)
  * @Get()
@@ -27,17 +27,17 @@ export const RequireModule = (moduleCode: ModuleCode) =>
 
 /**
  * Guard qui vérifie que le module est activé pour la Company/Agency
- * 
+ *
  * Logique :
  * - CompanyModule = modules payés (hérités par toutes les agences)
  * - AgencyModule = modules actifs (peut désactiver un module Company, mais pas activer un module non payé)
- * 
+ *
  * Vérification :
  * 1. Le module doit être payé au niveau Company (CompanyModule.isActive = true)
  * 2. Le module doit être actif au niveau Agency (AgencyModule.isActive = true, ou pas de record = hérite de Company)
- * 
+ *
  * SUPER_ADMIN : Bypass (pas de vérification)
- * 
+ *
  * @example
  * @UseGuards(JwtAuthGuard, RequireModuleGuard)
  * @RequireModule(ModuleCode.BOOKINGS)
@@ -66,20 +66,30 @@ export class RequireModuleGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Utilisateur non authentifié');
+      throw new ForbiddenException("Utilisateur non authentifié");
     }
 
     // SUPER_ADMIN bypass
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === "SUPER_ADMIN") {
       return true;
     }
 
     // Si pas de companyId, pas de vérification possible
     if (!user.companyId) {
-      throw new ForbiddenException('L\'utilisateur n\'est pas associé à une société');
+      throw new ForbiddenException(
+        "L'utilisateur n'est pas associé à une société",
+      );
     }
 
     // Vérifier que le module est payé au niveau Company
+    const fallbackByModule: Partial<Record<ModuleCode, ModuleCode>> = {
+      GPS: ModuleCode.VEHICLES,
+      CONTRACTS: ModuleCode.BOOKINGS,
+      JOURNAL: ModuleCode.BOOKINGS,
+      CHARGES: ModuleCode.VEHICLES,
+      NOTIFICATIONS: ModuleCode.BOOKINGS,
+    };
+
     const companyModule = await this.prisma.companyModule.findUnique({
       where: {
         companyId_moduleCode: {
@@ -88,8 +98,23 @@ export class RequireModuleGuard implements CanActivate {
         },
       },
     });
+    const fallbackModuleCode = fallbackByModule[requiredModule];
+    const fallbackCompanyModule =
+      !companyModule && fallbackModuleCode
+        ? await this.prisma.companyModule.findUnique({
+            where: {
+              companyId_moduleCode: {
+                companyId: user.companyId,
+                moduleCode: fallbackModuleCode,
+              },
+            },
+          })
+        : null;
 
-    if (!companyModule || !companyModule.isActive) {
+    if (
+      (!companyModule || !companyModule.isActive) &&
+      (!fallbackCompanyModule || !fallbackCompanyModule.isActive)
+    ) {
       throw new ForbiddenException(
         `Le module ${requiredModule} n'est pas inclus dans votre abonnement. Veuillez contacter le support.`,
       );
@@ -118,7 +143,9 @@ export class RequireModuleGuard implements CanActivate {
       });
 
       if (!agency || agency.companyId !== user.companyId) {
-        throw new ForbiddenException('Agence introuvable ou n\'appartient pas à votre société');
+        throw new ForbiddenException(
+          "Agence introuvable ou n'appartient pas à votre société",
+        );
       }
 
       // Vérifier le module au niveau Agency
@@ -130,9 +157,23 @@ export class RequireModuleGuard implements CanActivate {
           },
         },
       });
+      const fallbackAgencyModule =
+        !agencyModule && fallbackModuleCode
+          ? await this.prisma.agencyModule.findUnique({
+              where: {
+                agencyId_moduleCode: {
+                  agencyId: agencyId,
+                  moduleCode: fallbackModuleCode,
+                },
+              },
+            })
+          : null;
 
       // Si un record existe et est désactivé, bloquer
-      if (agencyModule && !agencyModule.isActive) {
+      if (
+        (agencyModule && !agencyModule.isActive) ||
+        (fallbackAgencyModule && !fallbackAgencyModule.isActive)
+      ) {
         throw new ForbiddenException(
           `Le module ${requiredModule} est désactivé pour cette agence. Veuillez contacter l'administrateur.`,
         );
@@ -143,4 +184,3 @@ export class RequireModuleGuard implements CanActivate {
     return true;
   }
 }
-

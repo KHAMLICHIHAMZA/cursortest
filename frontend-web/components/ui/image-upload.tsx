@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './button';
 import { Card } from './card';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { X, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { toast } from './toast';
+import Image from 'next/image';
 
 interface ImageUploadProps {
   value?: string;
@@ -27,13 +28,6 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
   }, [value]);
 
   const validateImageFile = (file: File): { valid: boolean; error?: string } => {
-    console.log('Validating image file:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      sizeMB: (file.size / (1024 * 1024)).toFixed(2),
-    });
-
     // Vérifier le type MIME
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
@@ -75,12 +69,9 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
   };
 
   const handleFileSelect = (file: File) => {
-    console.log('File selected:', file.name, file.type, file.size);
-
     // Valider le fichier
     const validation = validateImageFile(file);
     if (!validation.valid) {
-      console.error('Image validation failed:', validation.error);
       toast.error(validation.error || 'Fichier invalide');
       // Réinitialiser l'input
       if (fileInputRef.current) {
@@ -89,11 +80,8 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
       return;
     }
 
-    console.log('Image validation passed, creating preview...');
-
     const reader = new FileReader();
     reader.onerror = () => {
-      console.error('Error reading file');
       toast.error('Erreur lors de la lecture du fichier');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -102,11 +90,9 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
     reader.onloadend = () => {
       try {
         const previewUrl = reader.result as string;
-        console.log('Preview created successfully, size:', previewUrl.length);
         setPreview(previewUrl);
         onChange(file, previewUrl);
       } catch (error) {
-        console.error('Error creating preview:', error);
         toast.error('Erreur lors de la création de la prévisualisation');
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -161,9 +147,12 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
       {preview ? (
         <Card className="relative p-4">
           <div className="relative inline-block">
-            <img
+            <Image
               src={preview}
               alt="Prévisualisation"
+              width={640}
+              height={384}
+              unoptimized
               className="w-full h-48 object-cover rounded-lg"
             />
             {!disabled && (

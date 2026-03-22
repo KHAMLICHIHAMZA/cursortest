@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable, Logger } from "@nestjs/common";
+import * as nodemailer from "nodemailer";
 
 interface EmailConfig {
   to: string;
@@ -20,15 +20,15 @@ export class EmailNotificationService {
     this.isConfigured = !!(smtpUser && smtpPass);
 
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: parseInt(process.env.SMTP_PORT || "587"),
       secure: false,
-      auth: { user: smtpUser || '', pass: smtpPass || '' },
+      auth: { user: smtpUser || "", pass: smtpPass || "" },
     });
   }
 
   private get from(): string {
-    return process.env.SMTP_FROM || 'noreply@malocauto.com';
+    return process.env.SMTP_FROM || "noreply@malocauto.com";
   }
 
   /**
@@ -48,7 +48,7 @@ export class EmailNotificationService {
           <h2 style="color: #3E7BFA; margin-top: 0;">Facture MalocAuto</h2>
           <p>Bonjour ${params.clientName},</p>
           <p>Votre facture <strong>N° ${params.invoiceNumber}</strong> est disponible.</p>
-          ${params.bookingNumber ? `<p>Reservation: <strong>${params.bookingNumber}</strong></p>` : ''}
+          ${params.bookingNumber ? `<p>Reservation: <strong>${params.bookingNumber}</strong></p>` : ""}
           <div style="background: #f0f4ff; border-radius: 6px; padding: 15px; margin: 20px 0;">
             <p style="margin: 0; font-size: 18px; font-weight: bold; color: #3E7BFA;">
               Montant: ${params.amount.toFixed(2)} MAD
@@ -60,17 +60,24 @@ export class EmailNotificationService {
       </div>
     `;
 
-    const attachments = params.pdfBuffer ? [{
-      filename: `facture-${params.invoiceNumber}.pdf`,
-      content: params.pdfBuffer,
-      contentType: 'application/pdf',
-    }] : [];
+    const attachments = params.pdfBuffer
+      ? [
+          {
+            filename: `facture-${params.invoiceNumber}.pdf`,
+            content: params.pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ]
+      : [];
 
-    return this.send({
-      to: params.clientEmail,
-      subject: `Facture ${params.invoiceNumber} - MalocAuto`,
-      html,
-    }, attachments);
+    return this.send(
+      {
+        to: params.clientEmail,
+        subject: `Facture ${params.invoiceNumber} - MalocAuto`,
+        html,
+      },
+      attachments,
+    );
   }
 
   /**
@@ -91,7 +98,7 @@ export class EmailNotificationService {
           <h2 style="color: #3E7BFA; margin-top: 0;">Contrat de Location</h2>
           <p>Bonjour ${params.clientName},</p>
           <p>Votre contrat de location est disponible.</p>
-          ${params.bookingNumber ? `<p>Reservation: <strong>${params.bookingNumber}</strong></p>` : ''}
+          ${params.bookingNumber ? `<p>Reservation: <strong>${params.bookingNumber}</strong></p>` : ""}
           <div style="background: #f0f4ff; border-radius: 6px; padding: 15px; margin: 20px 0;">
             <p style="margin: 5px 0;"><strong>Vehicule:</strong> ${params.vehicleInfo}</p>
             <p style="margin: 5px 0;"><strong>Du:</strong> ${params.startDate}</p>
@@ -103,17 +110,24 @@ export class EmailNotificationService {
       </div>
     `;
 
-    const attachments = params.pdfBuffer ? [{
-      filename: `contrat-${params.bookingNumber || 'location'}.pdf`,
-      content: params.pdfBuffer,
-      contentType: 'application/pdf',
-    }] : [];
+    const attachments = params.pdfBuffer
+      ? [
+          {
+            filename: `contrat-${params.bookingNumber || "location"}.pdf`,
+            content: params.pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ]
+      : [];
 
-    return this.send({
-      to: params.clientEmail,
-      subject: `Contrat de location ${params.bookingNumber || ''} - MalocAuto`,
-      html,
-    }, attachments);
+    return this.send(
+      {
+        to: params.clientEmail,
+        subject: `Contrat de location ${params.bookingNumber || ""} - MalocAuto`,
+        html,
+      },
+      attachments,
+    );
   }
 
   /**
@@ -135,7 +149,7 @@ export class EmailNotificationService {
           <p>Bonjour ${params.agentName},</p>
           <p>Un vehicule n'a pas ete restitue a temps:</p>
           <div style="background: #fff5f5; border-radius: 6px; padding: 15px; margin: 20px 0; border-left: 4px solid #e53e3e;">
-            ${params.bookingNumber ? `<p style="margin: 5px 0;"><strong>Reservation:</strong> ${params.bookingNumber}</p>` : ''}
+            ${params.bookingNumber ? `<p style="margin: 5px 0;"><strong>Reservation:</strong> ${params.bookingNumber}</p>` : ""}
             <p style="margin: 5px 0;"><strong>Client:</strong> ${params.clientName}</p>
             <p style="margin: 5px 0;"><strong>Vehicule:</strong> ${params.vehicleInfo}</p>
             <p style="margin: 5px 0;"><strong>Retour prevu:</strong> ${params.expectedReturnDate}</p>
@@ -172,7 +186,7 @@ export class EmailNotificationService {
           <p>Bonjour ${params.agentName},</p>
           <p>Un check-in est prevu aujourd'hui:</p>
           <div style="background: #f0f4ff; border-radius: 6px; padding: 15px; margin: 20px 0;">
-            ${params.bookingNumber ? `<p style="margin: 5px 0;"><strong>Reservation:</strong> ${params.bookingNumber}</p>` : ''}
+            ${params.bookingNumber ? `<p style="margin: 5px 0;"><strong>Reservation:</strong> ${params.bookingNumber}</p>` : ""}
             <p style="margin: 5px 0;"><strong>Client:</strong> ${params.clientName}</p>
             <p style="margin: 5px 0;"><strong>Vehicule:</strong> ${params.vehicleInfo}</p>
             <p style="margin: 5px 0;"><strong>Date:</strong> ${params.startDate}</p>
@@ -189,9 +203,14 @@ export class EmailNotificationService {
     });
   }
 
-  private async send(config: EmailConfig, attachments: any[] = []): Promise<boolean> {
+  private async send(
+    config: EmailConfig,
+    attachments: any[] = [],
+  ): Promise<boolean> {
     if (!this.isConfigured) {
-      this.logger.warn(`Email skipped (SMTP not configured): ${config.subject}`);
+      this.logger.warn(
+        `Email skipped (SMTP not configured): ${config.subject}`,
+      );
       return false;
     }
 
@@ -203,12 +222,12 @@ export class EmailNotificationService {
         html: config.html,
         attachments,
       });
-      const redactedTo = config.to.replace(/(^.).*(@.*$)/, '$1***$2');
+      const redactedTo = config.to.replace(/(^.).*(@.*$)/, "$1***$2");
       this.logger.log(`Email sent: ${config.subject} -> ${redactedTo}`);
       return true;
     } catch (error) {
       this.logger.error(`Email send failed: ${config.subject}`, error);
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         throw error;
       }
       return false;

@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { AuditAction } from '@prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditAction } from "@prisma/client";
 
 export interface AuditLogData {
   userId?: string;
@@ -17,7 +17,7 @@ export interface AuditLogData {
 
 /**
  * AuditService - Traçabilité complète des actions
- * 
+ *
  * Toutes les actions critiques sont enregistrées :
  * - Création, modification, suppression
  * - Connexions, déconnexions
@@ -52,7 +52,7 @@ export class AuditService {
       });
     } catch (error) {
       // Ne pas faire échouer l'opération principale si l'audit échoue
-      this.logger.error('Audit log error:', error);
+      this.logger.error("Audit log error:", error);
     }
   }
 
@@ -175,7 +175,7 @@ export class AuditService {
       companyId,
       agencyId,
       action: AuditAction.PAYMENT,
-      entityType: 'Payment',
+      entityType: "Payment",
       entityId: paymentId,
       description: `Payment of ${amount}€ via ${method}`,
       metadata: {
@@ -199,7 +199,7 @@ export class AuditService {
       userId,
       agencyId,
       action: AuditAction.BOOKING_STATUS_CHANGE,
-      entityType: 'Booking',
+      entityType: "Booking",
       entityId: bookingId,
       description: `Booking status changed from ${oldStatus} to ${newStatus}`,
       metadata: {
@@ -252,10 +252,9 @@ export class AuditService {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
       take: filters.limit || 100,
     });
   }
 }
-

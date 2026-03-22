@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../common/prisma/prisma.service";
 
 /**
  * ChatbotService - Chatbot IA pour clients
- * 
+ *
  * Règles :
  * - Discret (icône flottante)
  * - FAQ
@@ -21,8 +21,10 @@ export class ChatbotService {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.openaiApiKey = this.configService.get<string>('OPENAI_API_KEY') || '';
-    this.openaiApiUrl = this.configService.get<string>('OPENAI_API_URL') || 'https://api.openai.com/v1/chat/completions';
+    this.openaiApiKey = this.configService.get<string>("OPENAI_API_KEY") || "";
+    this.openaiApiUrl =
+      this.configService.get<string>("OPENAI_API_URL") ||
+      "https://api.openai.com/v1/chat/completions";
   }
 
   /**
@@ -39,14 +41,15 @@ export class ChatbotService {
   ): Promise<{
     answer: string;
     needsEscalation: boolean;
-    escalationType?: 'whatsapp' | 'phone' | 'email';
+    escalationType?: "whatsapp" | "phone" | "email";
     escalationContact?: string;
   }> {
     if (!this.openaiApiKey) {
       return {
-        answer: 'Service temporairement indisponible. Veuillez nous contacter directement.',
+        answer:
+          "Service temporairement indisponible. Veuillez nous contacter directement.",
         needsEscalation: true,
-        escalationType: 'email',
+        escalationType: "email",
       };
     }
 
@@ -63,7 +66,7 @@ Tu dois :
 Si la question nécessite une action (réservation, modification, annulation), propose l'escalade.`;
 
       // Récupérer le contexte si disponible
-      let contextInfo = '';
+      let contextInfo = "";
       if (context?.bookingId) {
         const booking = await this.prisma.booking.findUnique({
           where: { id: context.bookingId },
@@ -79,16 +82,19 @@ Si la question nécessite une action (réservation, modification, annulation), p
       }
 
       const response = await fetch(this.openaiApiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${this.openaiApiKey}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.openaiApiKey}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: 'gpt-4',
+          model: "gpt-4",
           messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `${contextInfo}\n\nQuestion: ${question}` },
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: `${contextInfo}\n\nQuestion: ${question}`,
+            },
           ],
           temperature: 0.7,
           max_tokens: 300,
@@ -100,15 +106,15 @@ Si la question nécessite une action (réservation, modification, annulation), p
 
       // Détecter si escalade nécessaire
       const needsEscalation =
-        answer.toLowerCase().includes('contactez') ||
-        answer.toLowerCase().includes('appelez') ||
-        answer.toLowerCase().includes('écrivez') ||
-        question.toLowerCase().includes('réserver') ||
-        question.toLowerCase().includes('annuler') ||
-        question.toLowerCase().includes('modifier');
+        answer.toLowerCase().includes("contactez") ||
+        answer.toLowerCase().includes("appelez") ||
+        answer.toLowerCase().includes("écrivez") ||
+        question.toLowerCase().includes("réserver") ||
+        question.toLowerCase().includes("annuler") ||
+        question.toLowerCase().includes("modifier");
 
       // Récupérer les contacts d'escalade si nécessaire
-      let escalationType: 'whatsapp' | 'phone' | 'email' | undefined;
+      let escalationType: "whatsapp" | "phone" | "email" | undefined;
       let escalationContact: string | undefined;
 
       if (needsEscalation && context?.agencyId) {
@@ -117,8 +123,8 @@ Si la question nécessite une action (réservation, modification, annulation), p
         });
 
         if (agency) {
-          escalationType = agency.phone ? 'phone' : 'email';
-          escalationContact = agency.phone || '';
+          escalationType = agency.phone ? "phone" : "email";
+          escalationContact = agency.phone || "";
         }
       }
 
@@ -129,11 +135,12 @@ Si la question nécessite une action (réservation, modification, annulation), p
         escalationContact,
       };
     } catch (error) {
-      console.error('Chatbot error:', error);
+      console.error("Chatbot error:", error);
       return {
-        answer: 'Désolé, je n\'ai pas pu traiter votre question. Veuillez nous contacter directement.',
+        answer:
+          "Désolé, je n'ai pas pu traiter votre question. Veuillez nous contacter directement.",
         needsEscalation: true,
-        escalationType: 'email',
+        escalationType: "email",
       };
     }
   }
@@ -144,22 +151,25 @@ Si la question nécessite une action (réservation, modification, annulation), p
   async getFAQ(): Promise<Array<{ question: string; answer: string }>> {
     return [
       {
-        question: 'Comment réserver un véhicule ?',
-        answer: 'Vous pouvez réserver un véhicule directement sur notre site en sélectionnant vos dates et le véhicule de votre choix. Pour toute assistance, n\'hésitez pas à nous contacter.',
+        question: "Comment réserver un véhicule ?",
+        answer:
+          "Vous pouvez réserver un véhicule directement sur notre site en sélectionnant vos dates et le véhicule de votre choix. Pour toute assistance, n'hésitez pas à nous contacter.",
       },
       {
-        question: 'Quels documents sont nécessaires ?',
-        answer: 'Vous devez présenter votre permis de conduire valide et une pièce d\'identité. Pour certaines locations, une caution peut être demandée.',
+        question: "Quels documents sont nécessaires ?",
+        answer:
+          "Vous devez présenter votre permis de conduire valide et une pièce d'identité. Pour certaines locations, une caution peut être demandée.",
       },
       {
-        question: 'Puis-je annuler ma réservation ?',
-        answer: 'Oui, vous pouvez annuler votre réservation. Les conditions d\'annulation dépendent de votre contrat. Contactez-nous pour plus d\'informations.',
+        question: "Puis-je annuler ma réservation ?",
+        answer:
+          "Oui, vous pouvez annuler votre réservation. Les conditions d'annulation dépendent de votre contrat. Contactez-nous pour plus d'informations.",
       },
       {
-        question: 'Quels sont les moyens de paiement acceptés ?',
-        answer: 'Nous acceptons les paiements en ligne par carte bancaire, ainsi que les paiements en espèces directement en agence.',
+        question: "Quels sont les moyens de paiement acceptés ?",
+        answer:
+          "Nous acceptons les paiements en ligne par carte bancaire, ainsi que les paiements en espèces directement en agence.",
       },
     ];
   }
 }
-

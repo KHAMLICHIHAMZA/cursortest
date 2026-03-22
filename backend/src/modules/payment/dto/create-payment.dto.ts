@@ -1,5 +1,5 @@
-import { IsString, IsNumber, IsBoolean, IsOptional } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNumber, IsBoolean, IsOptional } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreatePaymentDto {
   @ApiProperty()
@@ -20,8 +20,3 @@ export class CreatePaymentDto {
   @IsNumber()
   depositAmount?: number;
 }
-
-
-
-
-

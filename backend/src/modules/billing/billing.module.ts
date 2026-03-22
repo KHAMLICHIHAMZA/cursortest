@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { BillingService } from './billing.service';
-import { BillingController } from './billing.controller';
-import { PrismaModule } from '../../common/prisma/prisma.module';
-import { NotificationModule } from '../notification/notification.module';
+import { Module } from "@nestjs/common";
+import { BillingService } from "./billing.service";
+import { BillingController } from "./billing.controller";
+import { PrismaModule } from "../../common/prisma/prisma.module";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
   imports: [PrismaModule, NotificationModule],
@@ -11,5 +11,3 @@ import { NotificationModule } from '../notification/notification.module';
   exports: [BillingService],
 })
 export class BillingModule {}
-
-

@@ -1,6 +1,12 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsDateString } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { MaintenanceStatus } from '@prisma/client';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsDateString,
+} from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { MaintenanceStatus } from "@prisma/client";
 
 export class UpdateMaintenanceDto {
   @ApiPropertyOptional()
@@ -28,6 +34,3 @@ export class UpdateMaintenanceDto {
   @IsString()
   documentUrl?: string;
 }
-
-
-

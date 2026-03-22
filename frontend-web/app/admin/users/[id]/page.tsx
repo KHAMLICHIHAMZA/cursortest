@@ -8,7 +8,7 @@ import { agencyApi } from '@/lib/api/agency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { FormCard } from '@/components/ui/form-card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -28,8 +28,9 @@ export default function EditUserPage() {
   });
 
   const { data: agencies } = useQuery({
-    queryKey: ['agencies'],
-    queryFn: () => agencyApi.getAll(),
+    queryKey: ['agencies', 'lookup', user?.companyId],
+    queryFn: () => agencyApi.getLookup(user?.companyId),
+    enabled: !!user?.companyId,
   });
 
   const [formData, setFormData] = useState<UpdateUserDto>({
@@ -105,87 +106,103 @@ export default function EditUserPage() {
     );
   }
 
-  const availableAgencies = agencies?.filter((a) => a.companyId === user.companyId) || [];
+  const availableAgencies = agencies || [];
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Modifier l'utilisateur"
-          description="Mettez à jour les informations de l'utilisateur"
-          backHref="/admin/users"
-          onSubmit={handleSubmit}
-          isLoading={updateMutation.isPending}
-          submitLabel="Mettre à jour"
-        >
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
-              Nom complet *
-            </label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </div>
+        <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-6 px-2 sm:px-0">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Email: <span className="font-medium text-text">{user.email}</span>
+            </p>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Modifier l&apos;utilisateur</CardTitle>
+              <p className="text-sm text-text-muted mt-1">Mettez à jour les informations de l&apos;utilisateur.</p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
+                      Nom complet *
+                    </label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
 
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-text mb-2">
-              Rôle *
-            </label>
-            <Select
-              id="role"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-              required
-            >
-              <option value="AGENT">Agent</option>
-              <option value="AGENCY_MANAGER">Gestionnaire d'agence</option>
-              <option value="COMPANY_ADMIN">Administrateur d'entreprise</option>
-              {user.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super Administrateur</option>}
-            </Select>
-          </div>
+                  <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-text mb-2">
+                      Rôle *
+                    </label>
+                    <Select
+                      id="role"
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                      required
+                    >
+                      <option value="AGENT">Agent</option>
+                      <option value="AGENCY_MANAGER">Gestionnaire d'agence</option>
+                      <option value="COMPANY_ADMIN">Administrateur d'entreprise</option>
+                      {user.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super Administrateur</option>}
+                    </Select>
+                  </div>
+                </div>
 
-          {availableAgencies.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-text mb-2">
-                Agences (multi-sélection)
-              </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-border rounded-lg p-4 bg-background">
-                {availableAgencies.map((agency) => (
-                  <label key={agency.id} className="flex items-center gap-2 cursor-pointer">
+                {availableAgencies.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-2">
+                      Agences (multi-sélection)
+                    </label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto border border-border rounded-lg p-4 bg-background">
+                      {availableAgencies.map((agency) => (
+                        <label key={agency.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.agencyIds?.includes(agency.id)}
+                            onChange={() => toggleAgency(agency.id)}
+                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                          />
+                          <span className="text-text">{agency.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={formData.agencyIds?.includes(agency.id)}
-                      onChange={() => toggleAgency(agency.id)}
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                       className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                     />
-                    <span className="text-text">{agency.name}</span>
+                    <span className="text-sm font-medium text-text">Utilisateur actif</span>
                   </label>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
 
-          <div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <span className="text-sm font-medium text-text">Utilisateur actif</span>
-            </label>
-          </div>
+                {errors.submit && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
+                    {errors.submit}
+                  </div>
+                )}
 
-          {errors.submit && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-500 text-sm">
-              {errors.submit}
-            </div>
-          )}
-        </FormCard>
+                <div className="pt-2 flex justify-end border-t border-border">
+                  <Button type="submit" variant="primary" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? 'Mise à jour...' : 'Mettre à jour'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

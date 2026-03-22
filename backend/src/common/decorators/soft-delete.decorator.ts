@@ -5,11 +5,6 @@
 export const SoftDelete = () => {
   return (target: any) => {
     // Metadata pour indiquer que le modèle supporte soft delete
-    Reflect.defineMetadata('softDelete', true, target);
+    Reflect.defineMetadata("softDelete", true, target);
   };
 };
-
-
-
-
-

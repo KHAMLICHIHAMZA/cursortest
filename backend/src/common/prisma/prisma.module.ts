@@ -1,9 +1,9 @@
-import { Global, Module } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
-import { PrismaSoftDeleteService } from './prisma-soft-delete.service';
-import { PermissionService } from '../services/permission.service';
-import { PaginationService } from '../services/pagination.service';
-import { AuditService } from '../services/audit.service';
+import { Global, Module } from "@nestjs/common";
+import { PrismaService } from "./prisma.service";
+import { PrismaSoftDeleteService } from "./prisma-soft-delete.service";
+import { PermissionService } from "../services/permission.service";
+import { PaginationService } from "../services/pagination.service";
+import { AuditService } from "../services/audit.service";
 
 @Global()
 @Module({
@@ -23,6 +23,3 @@ import { AuditService } from '../services/audit.service';
   ],
 })
 export class PrismaModule {}
-
-
-

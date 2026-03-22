@@ -1,0 +1,17 @@
+LOGIN OK: agent1@autolocation.fr
+OK: /agency -> http://localhost:3100/login?redirect=%2Fagency
+OK: /agency/bookings -> http://localhost:3100/login?redirect=%2Fagency%2Fbookings
+OK: /agency/clients -> http://localhost:3100/login?redirect=%2Fagency%2Fclients
+OK: /agency/vehicles -> http://localhost:3100/login?redirect=%2Fagency%2Fvehicles
+OK: /agency/maintenance -> http://localhost:3100/login?redirect=%2Fagency%2Fmaintenance
+OK: /agency/planning -> http://localhost:3100/login?redirect=%2Fagency%2Fplanning
+OK: /agency/fines -> http://localhost:3100/login?redirect=%2Fagency%2Ffines
+OK: /agency/invoices -> http://localhost:3100/login?redirect=%2Fagency%2Finvoices
+OK: /agency/contracts -> http://localhost:3100/login?redirect=%2Fagency%2Fcontracts
+OK: /agency/charges -> http://localhost:3100/login?redirect=%2Fagency%2Fcharges
+OK: /agency/kpi -> http://localhost:3100/login?redirect=%2Fagency%2Fkpi
+OK: /agency/gps -> http://localhost:3100/login?redirect=%2Fagency%2Fgps
+OK: /agency/gps-kpi -> http://localhost:3100/login?redirect=%2Fagency%2Fgps-kpi
+OK: /agency/journal -> http://localhost:3100/login?redirect=%2Fagency%2Fjournal
+OK: /agency/notifications -> http://localhost:3100/login?redirect=%2Fagency%2Fnotifications
+OK: /agency/profile -> http://localhost:3100/login?redirect=%2Fagency%2Fprofile

@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { AnalyticsService } from './analytics.service';
-import { AnalyticsController } from './analytics.controller';
-import { PrismaModule } from '../../common/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { AnalyticsService } from "./analytics.service";
+import { AnalyticsController } from "./analytics.controller";
+import { PrismaModule } from "../../common/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule], // PermissionService is already exported from PrismaModule
@@ -10,4 +10,3 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
   exports: [AnalyticsService],
 })
 export class AnalyticsModule {}
-

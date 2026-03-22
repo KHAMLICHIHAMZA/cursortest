@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingApi } from '@/lib/api/booking';
@@ -12,6 +12,7 @@ import { clientApi } from '@/lib/api/client-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -23,8 +24,42 @@ import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-no
 import Cookies from 'js-cookie';
 import { useState, useEffect, useMemo } from 'react';
 
+type AgencyOpeningHours = Record<
+  string,
+  { isOpen?: boolean; openTime?: string; closeTime?: string }
+>;
+
+function getOpeningHoursWarning(dateValue: string, openingHours?: AgencyOpeningHours): string | null {
+  if (!dateValue || !openingHours) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const dayByIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayKey = dayByIndex[date.getDay()];
+  const dayHours = openingHours[dayKey];
+  if (!dayHours || dayHours.isOpen === false) {
+    return "L'agence est fermée sur ce créneau.";
+  }
+  if (!dayHours.openTime || !dayHours.closeTime) {
+    return "Horaires d'agence non configurés pour ce jour.";
+  }
+
+  const current = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  if (current < dayHours.openTime || current > dayHours.closeTime) {
+    return `Hors horaires d'ouverture (${dayHours.openTime} - ${dayHours.closeTime}).`;
+  }
+  return null;
+}
+
 export default function NewBookingPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const invalidateBookingRelatedQueries = () =>
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((key) => typeof key === 'string' && key.toLowerCase().includes('booking')),
+    });
   
   const {
     register,
@@ -44,6 +79,7 @@ export default function NewBookingPage() {
       status: 'DRAFT',
       depositRequired: false,
       depositAmount: undefined,
+      depositDecisionSource: 'AGENCY',
     },
   });
 
@@ -74,6 +110,7 @@ export default function NewBookingPage() {
 
   // Auto-calcul du prix total = tarif journalier × nombre de jours
   const vehicleId = watch('vehicleId');
+  const clientId = watch('clientId');
   const startDate = watch('startDate');
   const endDate = watch('endDate');
 
@@ -81,6 +118,54 @@ export default function NewBookingPage() {
     () => vehicles?.find((v) => v.id === vehicleId),
     [vehicles, vehicleId]
   );
+  const selectedAgency = useMemo(
+    () => agencies?.find((agency) => agency.id === agencyId),
+    [agencies, agencyId]
+  );
+  const selectedClient = useMemo(
+    () => clients?.find((c) => c.id === clientId),
+    [clients, clientId]
+  );
+  const licenseValidityAlert = useMemo(() => {
+    if (!selectedClient?.licenseExpiryDate) {
+      return null;
+    }
+    const expiryDate = new Date(selectedClient.licenseExpiryDate);
+    if (Number.isNaN(expiryDate.getTime())) {
+      return null;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (expiryDate < today) {
+      return `Permis expiré le ${expiryDate.toLocaleDateString('fr-FR')}. La réservation risque d'être refusée.`;
+    }
+
+    if (endDate) {
+      const bookingEnd = new Date(endDate);
+      if (!Number.isNaN(bookingEnd.getTime()) && expiryDate <= bookingEnd) {
+        return `Permis valide jusqu'au ${expiryDate.toLocaleDateString('fr-FR')} seulement. Il doit couvrir toute la période de réservation.`;
+      }
+    }
+
+    return null;
+  }, [selectedClient, endDate]);
+  const startHoursWarning = useMemo(
+    () => getOpeningHoursWarning(startDate, selectedAgency?.openingHours as AgencyOpeningHours | undefined),
+    [startDate, selectedAgency]
+  );
+  const endHoursWarning = useMemo(
+    () => getOpeningHoursWarning(endDate, selectedAgency?.openingHours as AgencyOpeningHours | undefined),
+    [endDate, selectedAgency]
+  );
+  const isInvalidDateRange = useMemo(() => {
+    if (!startDate || !endDate) return false;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    return end.getTime() <= start.getTime();
+  }, [startDate, endDate]);
 
   useEffect(() => {
     if (!selectedVehicle?.dailyRate || !startDate || !endDate) return;
@@ -101,6 +186,7 @@ export default function NewBookingPage() {
     if (selectedVehicle && selectedVehicle.depositAmount != null && selectedVehicle.depositAmount > 0) {
       setValue('depositRequired', true);
       setValue('depositAmount', selectedVehicle.depositAmount);
+      setValue('depositDecisionSource', 'AGENCY');
     }
   }, [selectedVehicle, setValue]);
 
@@ -117,11 +203,13 @@ export default function NewBookingPage() {
         // Champs caution (R3)
         depositRequired: data.depositRequired || false,
         depositAmount: data.depositAmount,
+        depositDecisionSource: data.depositDecisionSource,
       };
       return bookingApi.create(bookingData);
     },
     onSuccess: () => {
       toast.success('Réservation créée avec succès');
+      invalidateBookingRelatedQueries();
       router.push('/agency/bookings');
     },
     onError: (error: any) => {
@@ -137,20 +225,31 @@ export default function NewBookingPage() {
   });
 
   const onSubmit = (data: CreateBookingFormData) => {
+    if (isInvalidDateRange) {
+      toast.error('Réservation bloquée: la date de fin doit être après la date de début.');
+      return;
+    }
     createMutation.mutate(data);
   };
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
-        <FormCard
-          title="Nouvelle réservation"
-          description="Créez une nouvelle réservation de location"
-          backHref="/agency/bookings"
-          onSubmit={handleSubmit(onSubmit)}
-          isLoading={isSubmitting || createMutation.isPending}
-          submitLabel="Créer la réservation"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Conseil: sélectionnez d&apos;abord l&apos;agence puis le véhicule pour calculer automatiquement le montant total.
+            </p>
+          </Card>
+          <FormCard
+            title="Nouvelle réservation"
+            description="Créez une nouvelle réservation de location"
+            backHref="/agency/bookings"
+            onSubmit={handleSubmit(onSubmit)}
+            isLoading={isSubmitting || createMutation.isPending}
+            isSubmitDisabled={isInvalidDateRange}
+            submitLabel="Créer la réservation"
+          >
             <div>
               <label htmlFor="agencyId" className="block text-sm font-medium text-text mb-2">
                 Agence *
@@ -205,6 +304,11 @@ export default function NewBookingPage() {
                 ))}
               </Select>
               {errors.clientId && <p className="text-red-500 text-sm mt-1">{errors.clientId.message}</p>}
+              {licenseValidityAlert && (
+                <p className="text-orange-500 text-sm mt-2">
+                  {licenseValidityAlert}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -218,6 +322,9 @@ export default function NewBookingPage() {
                   {...register('startDate')}
                 />
                 {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate.message}</p>}
+                {startHoursWarning && (
+                  <p className="text-orange-500 text-sm mt-1">Blocage: {startHoursWarning}</p>
+                )}
               </div>
 
               <div>
@@ -230,6 +337,12 @@ export default function NewBookingPage() {
                   {...register('endDate')}
                 />
                 {errors.endDate && <p className="text-red-500 text-sm mt-1">{errors.endDate.message}</p>}
+                {isInvalidDateRange && (
+                  <p className="text-red-500 text-sm mt-1">Blocage: la date de fin doit être après la date de début.</p>
+                )}
+                {endHoursWarning && (
+                  <p className="text-orange-500 text-sm mt-1">Attention: {endHoursWarning}</p>
+                )}
               </div>
             </div>
 
@@ -313,11 +426,22 @@ export default function NewBookingPage() {
                     {errors.depositAmount && <p className="text-red-500 text-sm mt-1">{errors.depositAmount.message}</p>}
                   </div>
 
+                  <div className="mb-4">
+                    <label htmlFor="depositDecisionSource" className="block text-sm font-medium text-text mb-2">
+                      Source de décision de la caution *
+                    </label>
+                    <Select id="depositDecisionSource" {...register('depositDecisionSource')}>
+                      <option value="AGENCY">Agence</option>
+                      <option value="COMPANY">Entreprise</option>
+                    </Select>
+                  </div>
+
                 </>
               )}
             </div>
 
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

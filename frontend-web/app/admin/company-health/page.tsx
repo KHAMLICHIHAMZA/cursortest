@@ -4,6 +4,8 @@ import { Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
+import { companyApi, CompanyLookup } from '@/lib/api/company';
+import { subscriptionApi, Subscription as ApiSubscription } from '@/lib/api/subscription';
 import { AlertCircle, Clock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,16 +21,6 @@ interface Company {
   currency?: string;
   suspendedAt?: string;
   suspendedReason?: string;
-}
-
-interface Subscription {
-  id: string;
-  status: string;
-  billingPeriod: string;
-  amount: number;
-  endDate: string;
-  plan?: { name: string };
-  companyId: string;
 }
 
 interface Invoice {
@@ -53,22 +45,19 @@ function CompanyHealthContent() {
   const initialCompanyId = searchParams.get('companyId') || '';
   const [selectedCompanyId, setSelectedCompanyId] = useState(initialCompanyId);
 
-  const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ['companies'],
-    queryFn: async () => {
-      const res = await apiClient.get('/companies');
-      return res.data;
-    },
+  const { data: companyOptions = [] } = useQuery<CompanyLookup[]>({
+    queryKey: ['companies', 'lookup'],
+    queryFn: () => companyApi.getLookup(),
   });
 
-  const isValidCompanyId = companies.some((c) => c.id === selectedCompanyId);
+  const isValidCompanyId = companyOptions.some((c) => c.id === selectedCompanyId);
 
   const { data: company, isLoading: companyLoading } = useQuery<Company | null>({
-    queryKey: ['company', selectedCompanyId],
+    queryKey: ['company-summary', selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return null;
       try {
-        const res = await apiClient.get(`/companies/${selectedCompanyId}`);
+        const res = await apiClient.get(`/companies/${selectedCompanyId}/summary`);
         return res.data;
       } catch (error: unknown) {
         if ((error as { response?: { status?: number } }).response?.status === 404) {
@@ -80,26 +69,24 @@ function CompanyHealthContent() {
     enabled: !!selectedCompanyId && isValidCompanyId,
   });
 
-  const { data: subscriptions = [] } = useQuery<Subscription[]>({
-    queryKey: ['subscriptions'],
+  const { data: subscription } = useQuery<ApiSubscription | null>({
+    queryKey: ['subscription', 'company', selectedCompanyId],
+    queryFn: () => subscriptionApi.getByCompany(selectedCompanyId),
+    enabled: !!selectedCompanyId && isValidCompanyId,
+  });
+
+  const { data: billingHealth } = useQuery<{ overduePendingCount: number; recentInvoices: Invoice[] }>({
+    queryKey: ['billing-health', selectedCompanyId],
     queryFn: async () => {
-      const res = await apiClient.get('/subscriptions');
+      const res = await apiClient.get(`/billing/company/${selectedCompanyId}/health`, {
+        params: { limit: 10 },
+      });
       return res.data;
     },
     enabled: !!selectedCompanyId && isValidCompanyId,
   });
-
-  const subscription = subscriptions.find((s) => s.companyId === selectedCompanyId);
-
-  const { data: invoices = [] } = useQuery<Invoice[]>({
-    queryKey: ['invoices', selectedCompanyId],
-    queryFn: async () => {
-      if (!selectedCompanyId) return [];
-      const res = await apiClient.get(`/billing/company/${selectedCompanyId}/invoices`);
-      return res.data;
-    },
-    enabled: !!selectedCompanyId && isValidCompanyId,
-  });
+  const invoices = billingHealth?.recentInvoices || [];
+  const overduePendingCount = billingHealth?.overduePendingCount || 0;
 
   const getStatusKey = (status: string): 'success' | 'pending' | 'error' | 'cancelled' => {
     switch (status) {
@@ -164,7 +151,7 @@ function CompanyHealthContent() {
             className="w-full px-3 py-2 border rounded-lg bg-background"
           >
             <option value="">-- Sélectionner --</option>
-            {companies.map((c) => (
+            {companyOptions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -216,7 +203,7 @@ function CompanyHealthContent() {
           onChange={(e) => setSelectedCompanyId(e.target.value)}
           className="px-3 py-2 border rounded-lg bg-background"
         >
-          {companies.map((c) => (
+          {companyOptions.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -261,7 +248,7 @@ function CompanyHealthContent() {
           </div>
         )}
 
-        {invoices.some((inv) => inv.status === 'PENDING' && new Date(inv.dueDate) < new Date()) && (
+        {overduePendingCount > 0 && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
             <div className="flex-1">
@@ -269,7 +256,7 @@ function CompanyHealthContent() {
                 Factures en retard
               </h3>
               <p className="text-sm text-red-600 dark:text-red-400">
-                {invoices.filter((inv) => inv.status === 'PENDING' && new Date(inv.dueDate) < new Date()).length} facture(s) en retard de paiement
+                {overduePendingCount} facture(s) en retard de paiement
               </p>
             </div>
           </div>

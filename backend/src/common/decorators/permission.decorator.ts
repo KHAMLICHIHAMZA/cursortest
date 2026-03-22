@@ -1,11 +1,11 @@
-import { SetMetadata } from '@nestjs/common';
-import { UserAgencyPermission } from '@prisma/client';
+import { SetMetadata } from "@nestjs/common";
+import { UserAgencyPermission } from "@prisma/client";
 
-export const PERMISSION_KEY = 'permission';
+export const PERMISSION_KEY = "permission";
 
 /**
  * Decorator pour spécifier la permission requise sur un endpoint
- * 
+ *
  * @example
  * @Permission(UserAgencyPermission.WRITE)
  * @Post()
@@ -18,4 +18,3 @@ export const Permission = (permission: UserAgencyPermission) =>
  * Alias pour Permission (compatibilité)
  */
 export const RequirePermission = Permission;
-

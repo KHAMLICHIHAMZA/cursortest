@@ -1,85 +1,125 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Query, Body, UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { ChargeService, CreateChargeDto } from './charge.service';
-import { Role } from '@prisma/client';
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  Body,
+  UseGuards,
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { ChargeService, CreateChargeDto } from "./charge.service";
+import { Role, ModuleCode } from "@prisma/client";
+import {
+  RequireModuleGuard,
+  RequireModule,
+} from "../../common/guards/require-module.guard";
 
-@ApiTags('Charges & KPI')
-@Controller('charges')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiTags("Charges & KPI")
+@Controller("charges")
+@UseGuards(JwtAuthGuard, RequireModuleGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.AGENCY_MANAGER) // Spec: Manager/Gérant uniquement
+@RequireModule(ModuleCode.CHARGES)
 @ApiBearerAuth()
 export class ChargeController {
   constructor(private readonly chargeService: ChargeService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a charge' })
+  @ApiOperation({ summary: "Create a charge" })
   async create(@Body() dto: CreateChargeDto, @CurrentUser() user: any) {
     return this.chargeService.create(user, dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'List charges' })
+  @ApiOperation({ summary: "List charges" })
   async findAll(
     @CurrentUser() user: any,
-    @Query('agencyId') agencyId?: string,
-    @Query('vehicleId') vehicleId?: string,
-    @Query('category') category?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query("agencyId") agencyId?: string,
+    @Query("vehicleId") vehicleId?: string,
+    @Query("scope") scope?: "VEHICLE" | "AGENCY" | "COMPANY",
+    @Query("costCenter") costCenter?: string,
+    @Query("category") category?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
   ) {
-    return this.chargeService.findAll(user, { agencyId, vehicleId, category, startDate, endDate });
+    return this.chargeService.findAll(user, {
+      agencyId,
+      vehicleId,
+      scope,
+      costCenter,
+      category,
+      startDate,
+      endDate,
+    });
   }
 
-  @Get('kpi')
-  @ApiOperation({ summary: 'Get KPI (revenue, margin, occupancy rate)' })
+  @Get("kpi")
+  @ApiOperation({ summary: "Get KPI (revenue, margin, occupancy rate)" })
   async getKpi(
     @CurrentUser() user: any,
-    @Query('agencyId') agencyId?: string,
-    @Query('vehicleId') vehicleId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query("agencyId") agencyId?: string,
+    @Query("vehicleId") vehicleId?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
   ) {
     const now = new Date();
-    const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const start =
+      startDate ||
+      new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const end = endDate || now.toISOString().slice(0, 10);
-    return this.chargeService.computeKpi(user, { agencyId, vehicleId, startDate: start, endDate: end });
+    return this.chargeService.computeKpi(user, {
+      agencyId,
+      vehicleId,
+      startDate: start,
+      endDate: end,
+    });
   }
 
-  @Get('kpi/vehicles')
-  @ApiOperation({ summary: 'Vehicle profitability ranking' })
+  @Get("kpi/vehicles")
+  @ApiOperation({ summary: "Vehicle profitability ranking" })
   async vehicleProfitability(
     @CurrentUser() user: any,
-    @Query('agencyId') agencyId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query("agencyId") agencyId?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
   ) {
     const now = new Date();
-    const start = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const start =
+      startDate ||
+      new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const end = endDate || now.toISOString().slice(0, 10);
-    return this.chargeService.vehicleProfitability(user, { agencyId, startDate: start, endDate: end });
+    return this.chargeService.vehicleProfitability(user, {
+      agencyId,
+      startDate: start,
+      endDate: end,
+    });
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a charge' })
-  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+  @Get(":id")
+  @ApiOperation({ summary: "Get a charge" })
+  async findOne(@Param("id") id: string, @CurrentUser() user: any) {
     return this.chargeService.findOne(id, user);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a charge' })
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateChargeDto>, @CurrentUser() user: any) {
+  @Patch(":id")
+  @ApiOperation({ summary: "Update a charge" })
+  async update(
+    @Param("id") id: string,
+    @Body() dto: Partial<CreateChargeDto>,
+    @CurrentUser() user: any,
+  ) {
     return this.chargeService.update(id, user, dto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a charge' })
-  async remove(@Param('id') id: string, @CurrentUser() user: any) {
+  @Delete(":id")
+  @ApiOperation({ summary: "Delete a charge" })
+  async remove(@Param("id") id: string, @CurrentUser() user: any) {
     return this.chargeService.delete(id, user);
   }
 }

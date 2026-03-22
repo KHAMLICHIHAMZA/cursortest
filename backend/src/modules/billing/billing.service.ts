@@ -4,14 +4,19 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { PaymentStatus, PaymentMethod, SubscriptionStatus, CompanyStatus } from '@prisma/client';
-import { NotificationService } from '../notification/notification.service';
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  PaymentStatus,
+  PaymentMethod,
+  SubscriptionStatus,
+  CompanyStatus,
+} from "@prisma/client";
+import { NotificationService } from "../notification/notification.service";
 
 /**
  * Service de facturation SaaS
- * 
+ *
  * Gère :
  * - Génération des factures récurrentes
  * - Enregistrement des paiements
@@ -39,7 +44,7 @@ export class BillingService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Abonnement introuvable');
+      throw new NotFoundException("Abonnement introuvable");
     }
 
     // Calculer la date d'échéance (30 jours après la date de début ou renouvellement)
@@ -98,12 +103,14 @@ export class BillingService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Paiement introuvable');
+      throw new NotFoundException("Paiement introuvable");
     }
 
     // Vérifier le montant
     if (amount < payment.amount) {
-      throw new BadRequestException('Le montant du paiement est inférieur au montant requis');
+      throw new BadRequestException(
+        "Le montant du paiement est inférieur au montant requis",
+      );
     }
 
     // Mettre à jour le paiement
@@ -154,8 +161,10 @@ export class BillingService {
    */
   async getCompanyInvoices(companyId: string, user: any) {
     // Vérifier les permissions
-    if (user.role !== 'SUPER_ADMIN' && user.companyId !== companyId) {
-      throw new ForbiddenException('Accès refusé : vous ne pouvez consulter que les factures de votre propre société');
+    if (user.role !== "SUPER_ADMIN" && user.companyId !== companyId) {
+      throw new ForbiddenException(
+        "Accès refusé : vous ne pouvez consulter que les factures de votre propre société",
+      );
     }
 
     return this.prisma.paymentSaas.findMany({
@@ -172,8 +181,53 @@ export class BillingService {
           },
         },
       },
-      orderBy: { dueDate: 'desc' },
+      orderBy: { dueDate: "desc" },
     });
+  }
+
+  async getCompanyBillingHealth(companyId: string, user: any, limit = 10) {
+    if (user.role !== "SUPER_ADMIN" && user.companyId !== companyId) {
+      throw new ForbiddenException(
+        "Accès refusé : vous ne pouvez consulter que les factures de votre propre société",
+      );
+    }
+
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(Math.max(limit, 1), 50)
+      : 10;
+    const now = new Date();
+
+    const [overduePendingCount, recentInvoices] = await Promise.all([
+      this.prisma.paymentSaas.count({
+        where: {
+          companyId,
+          status: PaymentStatus.PENDING,
+          dueDate: { lt: now },
+        },
+      }),
+      this.prisma.paymentSaas.findMany({
+        where: { companyId },
+        include: {
+          subscription: {
+            include: {
+              plan: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { dueDate: "desc" },
+        take: safeLimit,
+      }),
+    ]);
+
+    return {
+      overduePendingCount,
+      recentInvoices,
+    };
   }
 
   /**
@@ -205,7 +259,7 @@ export class BillingService {
           },
         },
       },
-      orderBy: { dueDate: 'asc' },
+      orderBy: { dueDate: "asc" },
     });
   }
 
@@ -214,7 +268,9 @@ export class BillingService {
    */
   private generateInvoiceNumber(companyId: string): string {
     const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
     return `INV-${companyId.slice(0, 4).toUpperCase()}-${timestamp}-${random}`;
   }
 
@@ -236,7 +292,7 @@ export class BillingService {
       const companyAdmin = await this.prisma.user.findFirst({
         where: {
           companyId,
-          role: 'COMPANY_ADMIN',
+          role: "COMPANY_ADMIN",
         },
       });
 
@@ -246,16 +302,15 @@ export class BillingService {
 
       // Envoyer l'email
       await this.notificationService.sendNotification({
-        channels: ['EMAIL'],
+        channels: ["EMAIL"],
         recipient: companyAdmin.email,
-        subject: `Facture ${payment.invoiceNumber} - Échéance ${payment.dueDate.toLocaleDateString('fr-FR')}`,
-        content: `Votre facture de ${payment.amount} MAD est due le ${payment.dueDate.toLocaleDateString('fr-FR')}.`,
-        type: 'SYSTEM',
+        subject: `Facture ${payment.invoiceNumber} - Échéance ${payment.dueDate.toLocaleDateString("fr-FR")}`,
+        content: `Votre facture de ${payment.amount} MAD est due le ${payment.dueDate.toLocaleDateString("fr-FR")}.`,
+        type: "SYSTEM",
       });
     } catch (error) {
-      this.logger.error('Error sending payment notification:', error);
+      this.logger.error("Error sending payment notification:", error);
       // Ne pas bloquer si la notification échoue
     }
   }
 }
-

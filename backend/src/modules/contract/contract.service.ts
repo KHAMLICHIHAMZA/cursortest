@@ -3,20 +3,20 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-} from '@nestjs/common';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { OutboxService } from '../../common/services/outbox.service';
-import { AuditService } from '../audit/audit.service';
-import { AuditAction, Role } from '@prisma/client';
-import { CreateContractDto, SignContractDto } from './dto/create-contract.dto';
+} from "@nestjs/common";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { OutboxService } from "../../common/services/outbox.service";
+import { AuditService } from "../audit/audit.service";
+import { AuditAction, Role } from "@prisma/client";
+import { CreateContractDto, SignContractDto } from "./dto/create-contract.dto";
 
 // Contract Status enum (mirroring Prisma)
 const ContractStatus = {
-  DRAFT: 'DRAFT',
-  PENDING_SIGNATURE: 'PENDING_SIGNATURE',
-  SIGNED: 'SIGNED',
-  EXPIRED: 'EXPIRED',
-  CANCELLED: 'CANCELLED',
+  DRAFT: "DRAFT",
+  PENDING_SIGNATURE: "PENDING_SIGNATURE",
+  SIGNED: "SIGNED",
+  EXPIRED: "EXPIRED",
+  CANCELLED: "CANCELLED",
 } as const;
 
 type ContractStatusType = (typeof ContractStatus)[keyof typeof ContractStatus];
@@ -82,10 +82,7 @@ export class ContractService {
    * V2: Create a contract in DRAFT status for a booking
    * Called automatically when a booking is created
    */
-  async createContract(
-    dto: CreateContractDto,
-    userId: string,
-  ): Promise<any> {
+  async createContract(dto: CreateContractDto, userId: string): Promise<any> {
     const booking = await this.prisma.booking.findUnique({
       where: { id: dto.bookingId },
       include: {
@@ -98,20 +95,20 @@ export class ContractService {
     });
 
     if (!booking) {
-      throw new NotFoundException('Réservation introuvable');
+      throw new NotFoundException("Réservation introuvable");
     }
 
     // Check if contract already exists for this booking
     const existingContract = await (this.prisma as any).contract.findFirst({
       where: {
         bookingId: dto.bookingId,
-        status: { notIn: ['CANCELLED', 'EXPIRED'] },
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
       },
     });
 
     if (existingContract) {
       throw new BadRequestException(
-        'Un contrat existe déjà pour cette réservation',
+        "Un contrat existe déjà pour cette réservation",
       );
     }
 
@@ -131,9 +128,9 @@ export class ContractService {
 
     // Emit domain event
     await this.outboxService.enqueue({
-      aggregateType: 'Contract',
+      aggregateType: "Contract",
       aggregateId: contract.id,
-      eventType: 'ContractCreated',
+      eventType: "ContractCreated",
       payload: {
         contractId: contract.id,
         bookingId: dto.bookingId,
@@ -149,7 +146,7 @@ export class ContractService {
       companyId: booking.companyId,
       agencyId: booking.agencyId,
       action: AuditAction.CREATE,
-      entityType: 'Contract',
+      entityType: "Contract",
       entityId: contract.id,
       description: `Contrat créé pour la réservation ${booking.bookingNumber}`,
       metadata: {
@@ -173,24 +170,24 @@ export class ContractService {
     return {
       version: 1,
       createdAt: new Date().toISOString(),
-      timezone: 'Africa/Casablanca',
+      timezone: "Africa/Casablanca",
       company: {
-        id: company?.id || '',
-        name: company?.name || '',
-        raisonSociale: company?.raisonSociale || '',
+        id: company?.id || "",
+        name: company?.name || "",
+        raisonSociale: company?.raisonSociale || "",
         identifiantLegal: company?.identifiantLegal || null,
-        formeJuridique: company?.formeJuridique || 'AUTRE',
+        formeJuridique: company?.formeJuridique || "AUTRE",
         address: company?.address || null,
       },
       agency: {
-        id: agency?.id || '',
-        name: agency?.name || '',
+        id: agency?.id || "",
+        name: agency?.name || "",
         address: agency?.address || null,
         phone: agency?.phone || null,
       },
       client: {
-        id: client?.id || '',
-        name: client?.name || '',
+        id: client?.id || "",
+        name: client?.name || "",
         email: client?.email || null,
         phone: client?.phone || null,
         idCardNumber: client?.idCardNumber || null,
@@ -199,20 +196,25 @@ export class ContractService {
         licenseExpiryDate: client?.licenseExpiryDate?.toISOString() || null,
       },
       vehicle: {
-        id: vehicle?.id || '',
-        brand: vehicle?.brand || '',
-        model: vehicle?.model || '',
-        registrationNumber: vehicle?.registrationNumber || '',
+        id: vehicle?.id || "",
+        brand: vehicle?.brand || "",
+        model: vehicle?.model || "",
+        registrationNumber: vehicle?.registrationNumber || "",
         mileage: vehicle?.mileage || 0,
       },
       booking: {
         id: booking.id,
-        bookingNumber: booking.bookingNumber || '',
-        startDate: booking.startDate?.toISOString() || '',
-        endDate: booking.endDate?.toISOString() || '',
-        totalPrice: typeof booking.totalPrice === 'number' ? booking.totalPrice : Number(booking.totalPrice) || 0,
+        bookingNumber: booking.bookingNumber || "",
+        startDate: booking.startDate?.toISOString() || "",
+        endDate: booking.endDate?.toISOString() || "",
+        totalPrice:
+          typeof booking.totalPrice === "number"
+            ? booking.totalPrice
+            : Number(booking.totalPrice) || 0,
         depositRequired: booking.depositRequired || false,
-        depositAmount: booking.depositAmount ? Number(booking.depositAmount) : null,
+        depositAmount: booking.depositAmount
+          ? Number(booking.depositAmount)
+          : null,
       },
     };
   }
@@ -234,12 +236,12 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contrat introuvable');
+      throw new NotFoundException("Contrat introuvable");
     }
 
     // Cannot sign if already fully signed
     if (contract.status === ContractStatus.SIGNED) {
-      throw new BadRequestException('Le contrat est déjà signé');
+      throw new BadRequestException("Le contrat est déjà signé");
     }
 
     // Cannot sign cancelled/expired contracts
@@ -247,20 +249,20 @@ export class ContractService {
       contract.status === ContractStatus.CANCELLED ||
       contract.status === ContractStatus.EXPIRED
     ) {
-      throw new BadRequestException('Le contrat ne peut plus être signé');
+      throw new BadRequestException("Le contrat ne peut plus être signé");
     }
 
     const updateData: any = {};
     const now = new Date();
 
-    if (dto.signerType === 'client') {
+    if (dto.signerType === "client") {
       if (contract.clientSignedAt) {
-        throw new BadRequestException('Le client a déjà signé ce contrat');
+        throw new BadRequestException("Le client a déjà signé ce contrat");
       }
       updateData.clientSignedAt = now;
       updateData.clientSignature = dto.signatureData;
       updateData.clientSignedDevice = dto.deviceInfo || null;
-    } else if (dto.signerType === 'agent') {
+    } else if (dto.signerType === "agent") {
       if (contract.agentSignedAt) {
         throw new BadRequestException("L'agent a déjà signé ce contrat");
       }
@@ -272,8 +274,8 @@ export class ContractService {
 
     // Check if both signatures are now complete
     const willBeFullySigned = !!(
-      (dto.signerType === 'client' && contract.agentSignedAt) ||
-      (dto.signerType === 'agent' && contract.clientSignedAt)
+      (dto.signerType === "client" && contract.agentSignedAt) ||
+      (dto.signerType === "agent" && contract.clientSignedAt)
     );
 
     if (willBeFullySigned) {
@@ -289,9 +291,9 @@ export class ContractService {
 
     // Emit domain event
     await this.outboxService.enqueue({
-      aggregateType: 'Contract',
+      aggregateType: "Contract",
       aggregateId: contractId,
-      eventType: 'ContractSigned',
+      eventType: "ContractSigned",
       payload: {
         contractId,
         signerType: dto.signerType,
@@ -307,9 +309,9 @@ export class ContractService {
       companyId: contract.companyId,
       agencyId: contract.agencyId,
       action: AuditAction.UPDATE,
-      entityType: 'Contract',
+      entityType: "Contract",
       entityId: contractId,
-      description: `Contrat signé par ${dto.signerType}${willBeFullySigned ? ' (contrat complet)' : ''}`,
+      description: `Contrat signé par ${dto.signerType}${willBeFullySigned ? " (contrat complet)" : ""}`,
       metadata: {
         signerType: dto.signerType,
         deviceInfo: dto.deviceInfo,
@@ -342,7 +344,7 @@ export class ContractService {
     });
 
     if (!originalContract) {
-      throw new NotFoundException('Contrat introuvable');
+      throw new NotFoundException("Contrat introuvable");
     }
 
     // Build new payload from current booking state
@@ -376,7 +378,7 @@ export class ContractService {
       companyId: originalContract.companyId,
       agencyId: originalContract.agencyId,
       action: AuditAction.CREATE,
-      entityType: 'Contract',
+      entityType: "Contract",
       entityId: newContract.id,
       description: `Nouvelle version du contrat créée (v${newContract.version}). Raison: ${reason}`,
       metadata: {
@@ -399,12 +401,12 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contrat introuvable');
+      throw new NotFoundException("Contrat introuvable");
     }
 
     if (contract.status !== ContractStatus.SIGNED) {
       throw new BadRequestException(
-        'Le contrat doit être signé avant de devenir effectif',
+        "Le contrat doit être signé avant de devenir effectif",
       );
     }
 
@@ -433,16 +435,20 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contrat introuvable');
+      throw new NotFoundException("Contrat introuvable");
     }
 
     // Access control: verify user can access this contract's agency/company
-    if (user && user.role !== 'SUPER_ADMIN') {
+    if (user && user.role !== "SUPER_ADMIN") {
       if (contract.companyId !== user.companyId) {
-        throw new ForbiddenException('Accès refusé à ce contrat');
+        throw new ForbiddenException("Accès refusé à ce contrat");
       }
-      if (user.role !== 'COMPANY_ADMIN' && user.agencyIds && !user.agencyIds.includes(contract.agencyId)) {
-        throw new ForbiddenException('Accès refusé à ce contrat');
+      if (
+        user.role !== "COMPANY_ADMIN" &&
+        user.agencyIds &&
+        !user.agencyIds.includes(contract.agencyId)
+      ) {
+        throw new ForbiddenException("Accès refusé à ce contrat");
       }
     }
 
@@ -456,18 +462,22 @@ export class ContractService {
     const contract = await (this.prisma as any).contract.findFirst({
       where: {
         bookingId,
-        status: { notIn: ['CANCELLED', 'EXPIRED'] },
+        status: { notIn: ["CANCELLED", "EXPIRED"] },
       },
-      orderBy: { version: 'desc' },
+      orderBy: { version: "desc" },
     });
 
     // Access control
-    if (contract && user && user.role !== 'SUPER_ADMIN') {
+    if (contract && user && user.role !== "SUPER_ADMIN") {
       if (contract.companyId !== user.companyId) {
-        throw new ForbiddenException('Accès refusé');
+        throw new ForbiddenException("Accès refusé");
       }
-      if (user.role !== 'COMPANY_ADMIN' && user.agencyIds && !user.agencyIds.includes(contract.agencyId)) {
-        throw new ForbiddenException('Accès refusé');
+      if (
+        user.role !== "COMPANY_ADMIN" &&
+        user.agencyIds &&
+        !user.agencyIds.includes(contract.agencyId)
+      ) {
+        throw new ForbiddenException("Accès refusé");
       }
     }
 
@@ -488,7 +498,7 @@ export class ContractService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -501,7 +511,7 @@ export class ContractService {
     });
 
     if (!contract) {
-      throw new NotFoundException('Contrat introuvable');
+      throw new NotFoundException("Contrat introuvable");
     }
 
     return contract.payload as ContractPayload;

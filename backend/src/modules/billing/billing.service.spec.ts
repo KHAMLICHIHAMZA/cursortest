@@ -1,11 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { BillingService } from './billing.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { NotificationService } from '../notification/notification.service';
-import { PaymentStatus, PaymentMethod, SubscriptionStatus, CompanyStatus } from '@prisma/client';
+import { Test, TestingModule } from "@nestjs/testing";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BillingService } from "./billing.service";
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { NotificationService } from "../notification/notification.service";
+import {
+  PaymentStatus,
+  PaymentMethod,
+  SubscriptionStatus,
+  CompanyStatus,
+} from "@prisma/client";
 
-describe('BillingService', () => {
+describe("BillingService", () => {
   let service: BillingService;
   let prismaService: PrismaService;
   let notificationService: NotificationService;
@@ -55,18 +60,20 @@ describe('BillingService', () => {
     jest.clearAllMocks();
   });
 
-  describe('generateInvoice', () => {
-    const subscriptionId = 'subscription-1';
-    const companyId = 'company-1';
+  describe("generateInvoice", () => {
+    const subscriptionId = "subscription-1";
+    const companyId = "company-1";
 
-    it('should throw NotFoundException if subscription not found', async () => {
+    it("should throw NotFoundException if subscription not found", async () => {
       mockPrismaService.subscription.findUnique.mockResolvedValue(null);
 
-      await expect(service.generateInvoice(subscriptionId)).rejects.toThrow(NotFoundException);
+      await expect(service.generateInvoice(subscriptionId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
-    it('should generate invoice successfully', async () => {
-      const startDate = new Date('2024-01-01');
+    it("should generate invoice successfully", async () => {
+      const startDate = new Date("2024-01-01");
       const mockSubscription = {
         id: subscriptionId,
         companyId,
@@ -74,18 +81,20 @@ describe('BillingService', () => {
         startDate,
         renewedAt: null,
         company: { id: companyId },
-        plan: { id: 'plan-1', name: 'Pro' },
+        plan: { id: "plan-1", name: "Pro" },
       };
 
-      mockPrismaService.subscription.findUnique.mockResolvedValue(mockSubscription);
+      mockPrismaService.subscription.findUnique.mockResolvedValue(
+        mockSubscription,
+      );
       mockPrismaService.paymentSaas.create.mockResolvedValue({
-        id: 'payment-1',
+        id: "payment-1",
         subscriptionId,
         companyId,
         amount: 1000,
         status: PaymentStatus.PENDING,
         method: PaymentMethod.BANK_TRANSFER,
-        invoiceNumber: 'INV-2024-001',
+        invoiceNumber: "INV-2024-001",
       });
 
       const result = await service.generateInvoice(subscriptionId);
@@ -95,8 +104,8 @@ describe('BillingService', () => {
       // Notification peut ne pas être appelée si les préférences sont désactivées
     });
 
-    it('should calculate due date correctly (30 days after start date)', async () => {
-      const startDate = new Date('2024-01-01');
+    it("should calculate due date correctly (30 days after start date)", async () => {
+      const startDate = new Date("2024-01-01");
       const mockSubscription = {
         id: subscriptionId,
         companyId,
@@ -104,15 +113,19 @@ describe('BillingService', () => {
         startDate,
         renewedAt: null,
         company: { id: companyId },
-        plan: { id: 'plan-1', name: 'Pro' },
+        plan: { id: "plan-1", name: "Pro" },
       };
 
-      mockPrismaService.subscription.findUnique.mockResolvedValue(mockSubscription);
-      mockPrismaService.notificationPreference.findUnique.mockResolvedValue(null); // Pas de préférences
+      mockPrismaService.subscription.findUnique.mockResolvedValue(
+        mockSubscription,
+      );
+      mockPrismaService.notificationPreference.findUnique.mockResolvedValue(
+        null,
+      ); // Pas de préférences
       mockPrismaService.paymentSaas.create.mockImplementation((args) => {
         const dueDate = args.data.dueDate;
         expect(dueDate.getDate()).toBe(31); // 30 days after Jan 1
-        return Promise.resolve({ id: 'payment-1', ...args.data });
+        return Promise.resolve({ id: "payment-1", ...args.data });
       });
 
       await service.generateInvoice(subscriptionId);
@@ -121,14 +134,14 @@ describe('BillingService', () => {
     });
   });
 
-  describe('recordPayment', () => {
-    const paymentId = 'payment-1';
-    const subscriptionId = 'subscription-1';
-    const companyId = 'company-1';
+  describe("recordPayment", () => {
+    const paymentId = "payment-1";
+    const subscriptionId = "subscription-1";
+    const companyId = "company-1";
     const amount = 1000;
-    const paidAt = new Date('2024-01-15');
+    const paidAt = new Date("2024-01-15");
 
-    it('should throw NotFoundException if payment not found', async () => {
+    it("should throw NotFoundException if payment not found", async () => {
       mockPrismaService.paymentSaas.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -136,7 +149,7 @@ describe('BillingService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if payment already paid', async () => {
+    it("should throw BadRequestException if payment already paid", async () => {
       const mockPayment = {
         id: paymentId,
         status: PaymentStatus.PAID,
@@ -164,7 +177,7 @@ describe('BillingService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should record payment and restore company if suspended', async () => {
+    it("should record payment and restore company if suspended", async () => {
       const mockPayment = {
         id: paymentId,
         status: PaymentStatus.PENDING,
@@ -209,11 +222,15 @@ describe('BillingService', () => {
       });
       expect(mockPrismaService.company.update).toHaveBeenCalledWith({
         where: { id: companyId },
-        data: { status: CompanyStatus.ACTIVE, suspendedAt: null, suspendedReason: null },
+        data: {
+          status: CompanyStatus.ACTIVE,
+          suspendedAt: null,
+          suspendedReason: null,
+        },
       });
     });
 
-    it('should record payment without restoring if company is already active', async () => {
+    it("should record payment without restoring if company is already active", async () => {
       const mockPayment = {
         id: paymentId,
         status: PaymentStatus.PENDING,
@@ -249,20 +266,20 @@ describe('BillingService', () => {
     });
   });
 
-  describe('getPendingInvoices', () => {
-    it('should return pending invoices', async () => {
+  describe("getPendingInvoices", () => {
+    it("should return pending invoices", async () => {
       const mockInvoices = [
         {
-          id: 'payment-1',
+          id: "payment-1",
           status: PaymentStatus.PENDING,
           amount: 1000,
-          dueDate: new Date('2024-02-01'),
+          dueDate: new Date("2024-02-01"),
         },
         {
-          id: 'payment-2',
+          id: "payment-2",
           status: PaymentStatus.PENDING,
           amount: 2000,
-          dueDate: new Date('2024-02-15'),
+          dueDate: new Date("2024-02-15"),
         },
       ];
 
@@ -280,9 +297,9 @@ describe('BillingService', () => {
     });
   });
 
-  describe('generateInvoiceNumber', () => {
-    it('should generate unique invoice numbers', () => {
-      const companyId = 'company-1';
+  describe("generateInvoiceNumber", () => {
+    it("should generate unique invoice numbers", () => {
+      const companyId = "company-1";
       const invoice1 = (service as any).generateInvoiceNumber(companyId);
       const invoice2 = (service as any).generateInvoiceNumber(companyId);
 
@@ -292,4 +309,3 @@ describe('BillingService', () => {
     });
   });
 });
-

@@ -2,7 +2,18 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { chargeApi, Charge, ChargeCategory, CreateChargeDto, CATEGORY_LABELS, CATEGORY_OPTIONS } from '@/lib/api/charge';
+import {
+  chargeApi,
+  Charge,
+  ChargeCategory,
+  ChargeScope,
+  CostCenter,
+  CreateChargeDto,
+  CATEGORY_LABELS,
+  CATEGORY_OPTIONS,
+  COST_CENTER_OPTIONS,
+  COST_CENTER_LABELS,
+} from '@/lib/api/charge';
 import { vehicleApi, Vehicle } from '@/lib/api/vehicle';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -15,10 +26,18 @@ import Cookies from 'js-cookie';
 const CATEGORY_COLORS: Record<string, string> = {
   BANK_INSTALLMENT: '#8B5CF6',
   INSURANCE: '#3B82F6',
+  GENERAL_INSURANCE: '#2563EB',
   VIGNETTE: '#F59E0B',
   FUEL: '#EF4444',
   PREVENTIVE_MAINTENANCE: '#10B981',
   CORRECTIVE_MAINTENANCE: '#F97316',
+  SALARY: '#0EA5E9',
+  OFFICE_RENT: '#6366F1',
+  TAX: '#14B8A6',
+  ADMIN_EXPENSE: '#475569',
+  MARKETING_EXPENSE: '#A855F7',
+  UTILITIES_EXPENSE: '#06B6D4',
+  EXTERNAL_SERVICE: '#F43F5E',
   EXCEPTIONAL: '#EC4899',
   OTHER: '#6B7280',
 };
@@ -28,6 +47,65 @@ const RECURRENCE_LABELS: Record<string, string> = {
   QUARTERLY: 'Trimestriel',
   YEARLY: 'Annuel',
 };
+
+const SCOPE_LABELS: Record<ChargeScope, string> = {
+  VEHICLE: 'Véhicule',
+  AGENCY: 'Agence',
+  COMPANY: 'Société',
+};
+
+const NON_VEHICLE_CATEGORY_OPTIONS: ChargeCategory[] = [
+  'GENERAL_INSURANCE',
+  'SALARY',
+  'OFFICE_RENT',
+  'TAX',
+  'ADMIN_EXPENSE',
+  'MARKETING_EXPENSE',
+  'UTILITIES_EXPENSE',
+  'EXTERNAL_SERVICE',
+  'EXCEPTIONAL',
+  'OTHER',
+];
+
+const VEHICLE_CATEGORY_OPTIONS: ChargeCategory[] = [
+  'BANK_INSTALLMENT',
+  'INSURANCE',
+  'VIGNETTE',
+  'FUEL',
+  'PREVENTIVE_MAINTENANCE',
+  'CORRECTIVE_MAINTENANCE',
+  'EXCEPTIONAL',
+  'OTHER',
+];
+
+const RECURRENCE_OPTIONS = [
+  { value: 'NONE', label: 'Ponctuelle' },
+  { value: 'MONTHLY', label: 'Mensuel' },
+  { value: 'QUARTERLY', label: 'Trimestriel' },
+  { value: 'YEARLY', label: 'Annuel' },
+] as const;
+
+const COST_CENTER_CATEGORY_MAP: Record<CostCenter, ChargeCategory[]> = {
+  SALAIRES: ['SALARY'],
+  LOYER_BUREAU: ['OFFICE_RENT'],
+  ADMINISTRATIF: ['ADMIN_EXPENSE'],
+  MARKETING: ['MARKETING_EXPENSE'],
+  UTILITIES: ['UTILITIES_EXPENSE'],
+  SERVICES_EXTERNES: ['EXTERNAL_SERVICE'],
+  ASSURANCES_GENERALES: ['GENERAL_INSURANCE'],
+  FISCALITE: ['TAX'],
+  AUTRE: ['EXCEPTIONAL', 'OTHER'],
+};
+
+function getAllowedCategories(scope: ChargeScope, costCenter?: CostCenter): ChargeCategory[] {
+  if (scope === 'VEHICLE') {
+    return VEHICLE_CATEGORY_OPTIONS;
+  }
+  if (!costCenter) {
+    return NON_VEHICLE_CATEGORY_OPTIONS;
+  }
+  return COST_CENTER_CATEGORY_MAP[costCenter] || NON_VEHICLE_CATEGORY_OPTIONS;
+}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('fr-FR', {
@@ -39,6 +117,14 @@ function formatDate(dateStr: string): string {
 
 function formatAmount(amount: number): string {
   return new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount);
+}
+
+function escapeCsv(value: string | number | null | undefined): string {
+  const str = value == null ? '' : String(value);
+  if (str.includes('"') || str.includes(';') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 }
 
 export default function ChargesPage() {
@@ -62,9 +148,13 @@ export default function ChargesPage() {
     enabled: isCompanyAdmin && !defaultAgencyId,
   });
 
-  const companyAgencies = agencies?.filter(
-    (a: any) => !user?.companyId || a.companyId === user.companyId,
-  ) || [];
+  const companyAgencies = useMemo(
+    () =>
+      (agencies?.filter(
+        (a: any) => !user?.companyId || a.companyId === user.companyId,
+      ) || []),
+    [agencies, user?.companyId],
+  );
 
   // Auto-select first agency for COMPANY_ADMIN with no agencyIds
   useEffect(() => {
@@ -75,6 +165,8 @@ export default function ChargesPage() {
 
   // Filters
   const [filterVehicle, setFilterVehicle] = useState('');
+  const [filterScope, setFilterScope] = useState('');
+  const [filterCostCenter, setFilterCostCenter] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterRecurrence, setFilterRecurrence] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -87,12 +179,13 @@ export default function ChargesPage() {
 
   // Form state
   const [formVehicleId, setFormVehicleId] = useState('');
+  const [formScope, setFormScope] = useState<ChargeScope>('VEHICLE');
+  const [formCostCenter, setFormCostCenter] = useState<CostCenter>('AUTRE');
   const [formCategory, setFormCategory] = useState<ChargeCategory>('BANK_INSTALLMENT');
   const [formDescription, setFormDescription] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
-  const [formRecurring, setFormRecurring] = useState(false);
-  const [formRecurrencePeriod, setFormRecurrencePeriod] = useState<'MONTHLY' | 'QUARTERLY' | 'YEARLY'>('MONTHLY');
+  const [formRecurrencePeriod, setFormRecurrencePeriod] = useState<'NONE' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'>('NONE');
 
   // Queries
   const { data: vehicles } = useQuery<Vehicle[]>({
@@ -104,10 +197,12 @@ export default function ChargesPage() {
   const filters = useMemo(() => ({
     agencyId: agencyId || undefined,
     vehicleId: filterVehicle || undefined,
+    scope: (filterScope as ChargeScope) || undefined,
+    costCenter: (filterCostCenter as CostCenter) || undefined,
     category: (filterCategory as ChargeCategory) || undefined,
     startDate: filterDateFrom || undefined,
     endDate: filterDateTo || undefined,
-  }), [agencyId, filterVehicle, filterCategory, filterDateFrom, filterDateTo]);
+  }), [agencyId, filterVehicle, filterScope, filterCostCenter, filterCategory, filterDateFrom, filterDateTo]);
 
   const { data: charges, isLoading } = useQuery<Charge[]>({
     queryKey: ['charges', filters],
@@ -115,7 +210,25 @@ export default function ChargesPage() {
     enabled: !!agencyId,
   });
 
-  const allChargesRaw = charges ?? [];
+  const allChargesRaw = useMemo(() => charges ?? [], [charges]);
+
+  const formCategoryOptions = useMemo(() => {
+    const allowed = getAllowedCategories(formScope, formCostCenter);
+    return CATEGORY_OPTIONS.filter((opt) => allowed.includes(opt.value));
+  }, [formScope, formCostCenter]);
+
+  const filterCategoryOptions = useMemo(() => {
+    if (!filterScope) return [];
+    const scopeForFilter = filterScope as ChargeScope;
+    const costCenterForFilter = scopeForFilter === 'VEHICLE'
+      ? undefined
+      : ((filterCostCenter as CostCenter) || undefined);
+    if (scopeForFilter !== 'VEHICLE' && !costCenterForFilter) {
+      return [];
+    }
+    const allowed = getAllowedCategories(scopeForFilter, costCenterForFilter);
+    return CATEGORY_OPTIONS.filter((opt) => allowed.includes(opt.value));
+  }, [filterScope, filterCostCenter]);
 
   // Apply recurrence filter client-side
   const allCharges = useMemo(() => {
@@ -162,10 +275,10 @@ export default function ChargesPage() {
     return map;
   }, [vehicles]);
 
-  const getVehicleLabel = (vehicleId: string) => {
+  const getVehicleLabel = useCallback((vehicleId: string) => {
     const v = vehicleMap.get(vehicleId);
     return v ? `${v.brand} ${v.model} - ${v.registrationNumber}` : vehicleId.slice(0, 8);
-  };
+  }, [vehicleMap]);
 
   // Mutations
   const createMutation = useMutation({
@@ -207,24 +320,26 @@ export default function ChargesPage() {
   const openNewModal = () => {
     setEditingCharge(null);
     setFormVehicleId(filterVehicle || '');
+    setFormScope('VEHICLE');
+    setFormCostCenter('AUTRE');
     setFormCategory('BANK_INSTALLMENT');
     setFormDescription('');
     setFormAmount('');
     setFormDate(new Date().toISOString().slice(0, 10));
-    setFormRecurring(false);
-    setFormRecurrencePeriod('MONTHLY');
+    setFormRecurrencePeriod('NONE');
     setShowModal(true);
   };
 
   const openEditModal = (charge: Charge) => {
     setEditingCharge(charge);
-    setFormVehicleId(charge.vehicleId);
+    setFormVehicleId(charge.vehicleId || '');
+    setFormScope((charge.scope || 'VEHICLE') as ChargeScope);
+    setFormCostCenter((charge.costCenter || 'AUTRE') as CostCenter);
     setFormCategory(charge.category);
     setFormDescription(charge.description);
     setFormAmount(String(charge.amount));
     setFormDate(new Date(charge.date).toISOString().slice(0, 10));
-    setFormRecurring(charge.recurring);
-    setFormRecurrencePeriod((charge.recurrencePeriod as any) || 'MONTHLY');
+    setFormRecurrencePeriod((charge.recurring ? (charge.recurrencePeriod as any) : 'NONE') || 'NONE');
     setShowModal(true);
   };
 
@@ -234,20 +349,26 @@ export default function ChargesPage() {
   };
 
   const handleSubmit = () => {
-    if (!formVehicleId || !formAmount || !formDate) {
+    if (!formAmount || !formDate) {
       toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    if (formScope === 'VEHICLE' && !formVehicleId) {
+      toast.error('Veuillez sélectionner un véhicule pour une charge véhicule');
       return;
     }
 
     const data: CreateChargeDto = {
       agencyId,
-      vehicleId: formVehicleId,
+      scope: formScope,
+      vehicleId: formScope === 'VEHICLE' ? formVehicleId : undefined,
+      costCenter: formScope !== 'VEHICLE' ? formCostCenter : undefined,
       category: formCategory,
       description: formDescription,
       amount: parseFloat(formAmount),
       date: formDate,
-      recurring: formRecurring,
-      recurrencePeriod: formRecurring ? formRecurrencePeriod : undefined,
+      recurring: formRecurrencePeriod !== 'NONE',
+      recurrencePeriod: formRecurrencePeriod !== 'NONE' ? (formRecurrencePeriod as 'MONTHLY' | 'QUARTERLY' | 'YEARLY') : undefined,
     };
 
     if (editingCharge) {
@@ -268,26 +389,127 @@ export default function ChargesPage() {
     }
   };
 
-  const hasFilters = filterVehicle || filterCategory || filterRecurrence || filterDateFrom || filterDateTo;
+  const hasFilters =
+    filterVehicle ||
+    filterScope ||
+    filterCostCenter ||
+    filterCategory ||
+    filterRecurrence ||
+    filterDateFrom ||
+    filterDateTo;
+
+  useEffect(() => {
+    if (filterCategory && !filterCategoryOptions.some((o) => o.value === filterCategory)) {
+      setFilterCategory('');
+    }
+  }, [filterCategory, filterCategoryOptions]);
+
+  useEffect(() => {
+    if (filterScope === 'VEHICLE' && filterCostCenter) {
+      setFilterCostCenter('');
+    }
+  }, [filterScope, filterCostCenter]);
+
+  useEffect(() => {
+    if ((filterScope === 'AGENCY' || filterScope === 'COMPANY') && filterVehicle) {
+      setFilterVehicle('');
+    }
+  }, [filterScope, filterVehicle]);
+
+  useEffect(() => {
+    if (!formCategoryOptions.some((o) => o.value === formCategory)) {
+      setFormCategory(formCategoryOptions[0]?.value || 'OTHER');
+    }
+  }, [formCategory, formCategoryOptions]);
+
+  const handleExportCsv = useCallback(() => {
+    const exportRows = allCharges.map((charge) => {
+      const vehicleLabel =
+        charge.scope === 'VEHICLE' && charge.vehicle
+          ? `${charge.vehicle.brand} ${charge.vehicle.model} - ${charge.vehicle.registrationNumber}`
+          : charge.scope === 'VEHICLE' && charge.vehicleId
+            ? getVehicleLabel(charge.vehicleId)
+            : '';
+      const amount = Number(charge.amount);
+      const parsedDate = new Date(charge.date);
+      const exportDate = Number.isNaN(parsedDate.getTime())
+        ? String(charge.date || '')
+        : parsedDate.toISOString().slice(0, 10);
+      return [
+        exportDate,
+        SCOPE_LABELS[(charge.scope || 'VEHICLE') as ChargeScope],
+        charge.costCenter ? (COST_CENTER_LABELS[charge.costCenter as CostCenter] || charge.costCenter) : '',
+        vehicleLabel,
+        CATEGORY_LABELS[charge.category] || charge.category,
+        charge.description || '',
+        Number.isFinite(amount) ? amount.toFixed(2) : '',
+        charge.recurring ? 'Oui' : 'Non',
+        charge.recurrencePeriod || '',
+      ];
+    });
+
+    if (!exportRows.length) {
+      toast.error('Aucune donnée à exporter avec les filtres actuels');
+      return;
+    }
+
+    const headers = [
+      'Date',
+      'Portée',
+      'Centre de coût',
+      'Véhicule',
+      'Catégorie',
+      'Description',
+      'Montant',
+      'Récurrence',
+      'Période récurrence',
+    ];
+
+    const csv = [headers, ...exportRows]
+      .map((row) => row.map((cell) => escapeCsv(cell)).join(';'))
+      .join('\r\n');
+    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = url;
+    const dateTag = new Date().toISOString().slice(0, 10);
+    link.download = `charges-export-${dateTag}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+      link.remove();
+    }, 0);
+    toast.success(`Export CSV généré (${exportRows.length} ligne${exportRows.length > 1 ? 's' : ''})`);
+  }, [allCharges, getVehicleLabel]);
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER']}>
       <MainLayout>
         <div className="max-w-[1600px] mx-auto space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between pt-2">
             <div>
               <h1 className="text-3xl font-bold text-text mb-1">Charges & Depenses</h1>
               <p className="text-text-muted text-sm">
                 Gerez toutes les depenses de vos vehicules : mensualites, assurance, vignette, maintenance, carburant...
               </p>
             </div>
-            <button
-              onClick={openNewModal}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-lg"
-            >
-              + Nouvelle charge
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={handleExportCsv}
+                className="w-full sm:w-auto md:shrink-0 whitespace-nowrap px-5 py-2.5 rounded-lg border border-border bg-card text-text font-medium text-sm hover:bg-background transition-colors shadow-lg"
+              >
+                Exporter
+              </button>
+              <button
+                onClick={openNewModal}
+                className="w-full sm:w-auto md:shrink-0 whitespace-nowrap px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-lg"
+              >
+                + Nouvelle charge
+              </button>
+            </div>
           </div>
 
           {/* Summary cards */}
@@ -348,6 +570,7 @@ export default function ChargesPage() {
                 <select
                   value={filterVehicle}
                   onChange={(e) => setFilterVehicle(e.target.value)}
+                  disabled={filterScope === 'AGENCY' || filterScope === 'COMPANY'}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm"
                 >
                   <option value="">Tous les vehicules</option>
@@ -358,15 +581,55 @@ export default function ChargesPage() {
                   ))}
                 </select>
               </div>
+              <div className="min-w-[160px]">
+                <label className="block text-xs font-medium text-text mb-1">Portée</label>
+                <select
+                  value={filterScope}
+                  onChange={(e) => setFilterScope(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm"
+                >
+                  <option value="">Toutes</option>
+                  <option value="VEHICLE">Véhicule</option>
+                  <option value="AGENCY">Agence</option>
+                  <option value="COMPANY">Société</option>
+                </select>
+              </div>
+              <div className="min-w-[160px]">
+                <label className="block text-xs font-medium text-text mb-1">Centre de coût</label>
+                <select
+                  value={filterCostCenter}
+                  onChange={(e) => setFilterCostCenter(e.target.value)}
+                  disabled={filterScope !== 'AGENCY' && filterScope !== 'COMPANY'}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm"
+                >
+                  <option value="">
+                    {filterScope === 'AGENCY' || filterScope === 'COMPANY'
+                      ? 'Tous'
+                      : 'Choisir d’abord une portée Agence/Société'}
+                  </option>
+                  {COST_CENTER_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="min-w-[180px]">
                 <label className="block text-xs font-medium text-text mb-1">Categorie</label>
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
+                  disabled={!filterScope || ((filterScope === 'AGENCY' || filterScope === 'COMPANY') && !filterCostCenter)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-card text-text text-sm"
                 >
-                  <option value="">Toutes</option>
-                  {CATEGORY_OPTIONS.map((opt) => (
+                  <option value="">
+                    {!filterScope
+                      ? 'Choisir d’abord une portée'
+                      : ((filterScope === 'AGENCY' || filterScope === 'COMPANY') && !filterCostCenter)
+                        ? 'Choisir d’abord un centre de coût'
+                        : 'Toutes'}
+                  </option>
+                  {filterCategoryOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
@@ -395,7 +658,15 @@ export default function ChargesPage() {
               </div>
               {hasFilters && (
                 <button
-                  onClick={() => { setFilterVehicle(''); setFilterCategory(''); setFilterRecurrence(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  onClick={() => {
+                    setFilterVehicle('');
+                    setFilterScope('');
+                    setFilterCostCenter('');
+                    setFilterCategory('');
+                    setFilterRecurrence('');
+                    setFilterDateFrom('');
+                    setFilterDateTo('');
+                  }}
                   className="px-4 py-2 text-sm text-text-muted hover:text-text border border-border rounded-lg hover:bg-background transition-colors"
                 >
                   Reinitialiser
@@ -422,6 +693,7 @@ export default function ChargesPage() {
                     <tr className="border-b border-border bg-background/50">
                       <th className="text-left py-3 px-4 font-medium text-text-muted">Date</th>
                       <th className="text-left py-3 px-4 font-medium text-text-muted">Vehicule</th>
+                      <th className="text-left py-3 px-4 font-medium text-text-muted">Portée</th>
                       <th className="text-left py-3 px-4 font-medium text-text-muted">Categorie</th>
                       <th className="text-left py-3 px-4 font-medium text-text-muted">Description</th>
                       <th className="text-right py-3 px-4 font-medium text-text-muted">Montant</th>
@@ -436,9 +708,23 @@ export default function ChargesPage() {
                         <tr key={charge.id} className="border-b border-border/50 hover:bg-background/30 transition-colors">
                           <td className="py-3 px-4 text-text">{formatDate(charge.date)}</td>
                           <td className="py-3 px-4 text-text font-medium">
-                            {charge.vehicle
+                            {charge.scope === 'VEHICLE' && charge.vehicle
                               ? `${charge.vehicle.brand} ${charge.vehicle.model} - ${charge.vehicle.registrationNumber}`
-                              : getVehicleLabel(charge.vehicleId)}
+                              : charge.scope === 'VEHICLE' && charge.vehicleId
+                                ? getVehicleLabel(charge.vehicleId)
+                                : '-'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium text-text">
+                                {SCOPE_LABELS[(charge.scope || 'VEHICLE') as ChargeScope]}
+                              </span>
+                              {charge.costCenter && (
+                                <span className="text-xs text-text-muted">
+                                  {COST_CENTER_LABELS[charge.costCenter as CostCenter] || charge.costCenter}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: `${color}20`, color }}>
@@ -534,22 +820,53 @@ export default function ChargesPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Vehicule */}
-                <div>
-                  <label className="block text-xs font-medium text-text mb-1">Vehicule *</label>
-                  <select
-                    value={formVehicleId}
-                    onChange={(e) => setFormVehicleId(e.target.value)}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
-                  >
-                    <option value="">Selectionner un vehicule</option>
-                    {vehicles?.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.brand} {v.model} - {v.registrationNumber}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-text mb-1">Portée *</label>
+                    <Select
+                      value={formScope}
+                      onChange={(e) => setFormScope(e.target.value as ChargeScope)}
+                    >
+                      <option value="VEHICLE">Véhicule</option>
+                      <option value="AGENCY">Agence</option>
+                      <option value="COMPANY">Société</option>
+                    </Select>
+                  </div>
+                  {formScope !== 'VEHICLE' && (
+                    <div>
+                      <label className="block text-xs font-medium text-text mb-1">Centre de coût</label>
+                      <Select
+                        value={formCostCenter}
+                        onChange={(e) => setFormCostCenter(e.target.value as CostCenter)}
+                      >
+                        {COST_CENTER_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
                 </div>
+
+                {/* Vehicule */}
+                {formScope === 'VEHICLE' && (
+                  <div>
+                    <label className="block text-xs font-medium text-text mb-1">Vehicule *</label>
+                    <select
+                      value={formVehicleId}
+                      onChange={(e) => setFormVehicleId(e.target.value)}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
+                    >
+                      <option value="">Selectionner un vehicule</option>
+                      {vehicles?.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.brand} {v.model} - {v.registrationNumber}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Categorie */}
                 <div>
@@ -559,7 +876,7 @@ export default function ChargesPage() {
                     onChange={(e) => setFormCategory(e.target.value as ChargeCategory)}
                     className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
                   >
-                    {CATEGORY_OPTIONS.map((opt) => (
+                    {formCategoryOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
@@ -603,28 +920,17 @@ export default function ChargesPage() {
                 </div>
 
                 {/* Recurrence */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="recurring"
-                      checked={formRecurring}
-                      onChange={(e) => setFormRecurring(e.target.checked)}
-                      className="rounded border-border"
-                    />
-                    <label htmlFor="recurring" className="text-sm text-text">Charge recurrente</label>
-                  </div>
-                  {formRecurring && (
-                    <select
-                      value={formRecurrencePeriod}
-                      onChange={(e) => setFormRecurrencePeriod(e.target.value as any)}
-                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
-                    >
-                      <option value="MONTHLY">Mensuel</option>
-                      <option value="QUARTERLY">Trimestriel</option>
-                      <option value="YEARLY">Annuel</option>
-                    </select>
-                  )}
+                <div>
+                  <label className="block text-xs font-medium text-text mb-1">Périodicité</label>
+                  <select
+                    value={formRecurrencePeriod}
+                    onChange={(e) => setFormRecurrencePeriod(e.target.value as 'NONE' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY')}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text text-sm"
+                  >
+                    {RECURRENCE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

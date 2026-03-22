@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { BusinessEventLogService } from './business-event-log.service';
-import { PrismaModule } from '../../common/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { BusinessEventLogService } from "./business-event-log.service";
+import { PrismaModule } from "../../common/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule],
@@ -8,6 +8,3 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
   exports: [BusinessEventLogService],
 })
 export class BusinessEventLogModule {}
-
-
-

@@ -1,14 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../common/prisma/prisma.service";
 
 /**
  * DamageDetectionService - Détection automatique de dommages via IA Vision
- * 
+ *
  * Supporte:
  * - OpenAI Vision API (GPT-4 Vision)
  * - Google Cloud Vision API
- * 
+ *
  * Règles :
  * - Déclenchée automatiquement à chaque check-out
  * - Non bloquante
@@ -21,28 +21,35 @@ export class DamageDetectionService {
   private readonly logger = new Logger(DamageDetectionService.name);
   private visionApiKey: string;
   private visionApiUrl: string;
-  private visionProvider: 'openai' | 'google' | 'none';
+  private visionProvider: "openai" | "google" | "none";
   private enabled: boolean;
 
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    this.visionApiKey = this.configService.get<string>('VISION_API_KEY') || '';
-    this.visionProvider = (this.configService.get<string>('VISION_PROVIDER') || 'openai') as 'openai' | 'google' | 'none';
-    
-    if (this.visionProvider === 'openai') {
-      this.visionApiUrl = this.configService.get<string>('OPENAI_API_URL') || 'https://api.openai.com/v1/chat/completions';
-    } else if (this.visionProvider === 'google') {
-      this.visionApiUrl = this.configService.get<string>('GOOGLE_VISION_API_URL') || 'https://vision.googleapis.com/v1/images:annotate';
+    this.visionApiKey = this.configService.get<string>("VISION_API_KEY") || "";
+    this.visionProvider = (this.configService.get<string>("VISION_PROVIDER") ||
+      "openai") as "openai" | "google" | "none";
+
+    if (this.visionProvider === "openai") {
+      this.visionApiUrl =
+        this.configService.get<string>("OPENAI_API_URL") ||
+        "https://api.openai.com/v1/chat/completions";
+    } else if (this.visionProvider === "google") {
+      this.visionApiUrl =
+        this.configService.get<string>("GOOGLE_VISION_API_URL") ||
+        "https://vision.googleapis.com/v1/images:annotate";
     } else {
-      this.visionApiUrl = '';
+      this.visionApiUrl = "";
     }
 
-    this.enabled = !!this.visionApiKey && this.visionProvider !== 'none';
+    this.enabled = !!this.visionApiKey && this.visionProvider !== "none";
 
     if (!this.enabled) {
-      this.logger.warn('Vision API non configurée - La détection de dommages sera désactivée');
+      this.logger.warn(
+        "Vision API non configurée - La détection de dommages sera désactivée",
+      );
     }
   }
 
@@ -56,7 +63,13 @@ export class DamageDetectionService {
   ): Promise<{
     hasDamage: boolean;
     confidence: number;
-    suspiciousZones: Array<{ x: number; y: number; width: number; height: number; description: string }>;
+    suspiciousZones: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      description: string;
+    }>;
     message: string;
   }> {
     if (!this.enabled) {
@@ -64,27 +77,37 @@ export class DamageDetectionService {
         hasDamage: false,
         confidence: 0,
         suspiciousZones: [],
-        message: 'IA non configurée - Vérification manuelle requise',
+        message: "IA non configurée - Vérification manuelle requise",
       };
     }
 
     try {
-      if (this.visionProvider === 'openai') {
-        return await this.detectDamageWithOpenAI(imageUrl, vehicleId, bookingId);
-      } else if (this.visionProvider === 'google') {
-        return await this.detectDamageWithGoogle(imageUrl, vehicleId, bookingId);
+      if (this.visionProvider === "openai") {
+        return await this.detectDamageWithOpenAI(
+          imageUrl,
+          vehicleId,
+          bookingId,
+        );
+      } else if (this.visionProvider === "google") {
+        return await this.detectDamageWithGoogle(
+          imageUrl,
+          vehicleId,
+          bookingId,
+        );
       } else {
-        throw new Error('Fournisseur de reconnaissance d\'image non configuré. Vérifiez les variables d\'environnement OPENAI_API_KEY ou GOOGLE_VISION_API_KEY.');
+        throw new Error(
+          "Fournisseur de reconnaissance d'image non configuré. Vérifiez les variables d'environnement OPENAI_API_KEY ou GOOGLE_VISION_API_KEY.",
+        );
       }
     } catch (error: any) {
-      this.logger.error('Damage detection error:', error);
-      
+      this.logger.error("Damage detection error:", error);
+
       // En cas d'erreur, retourner neutre (non bloquant)
       return {
         hasDamage: false,
         confidence: 0,
         suspiciousZones: [],
-        message: 'Erreur lors de l\'analyse - Vérification manuelle requise',
+        message: "Erreur lors de l'analyse - Vérification manuelle requise",
       };
     }
   }
@@ -99,27 +122,33 @@ export class DamageDetectionService {
   ): Promise<{
     hasDamage: boolean;
     confidence: number;
-    suspiciousZones: Array<{ x: number; y: number; width: number; height: number; description: string }>;
+    suspiciousZones: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      description: string;
+    }>;
     message: string;
   }> {
     const response = await fetch(this.visionApiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${this.visionApiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.visionApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
+        model: "gpt-4-vision-preview",
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: [
               {
-                type: 'text',
+                type: "text",
                 text: 'Analyse cette photo de véhicule et détecte s\'il y a des dommages, rayures, bosses ou autres anomalies. Réponds UNIQUEMENT en JSON valide avec cette structure: {"hasDamage": boolean, "confidence": 0-1, "suspiciousZones": [{"x": number, "y": number, "width": number, "height": number, "description": string}], "message": string}.',
               },
               {
-                type: 'image_url',
+                type: "image_url",
                 image_url: { url: imageUrl },
               },
             ],
@@ -131,20 +160,22 @@ export class DamageDetectionService {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`Erreur API OpenAI : ${errorData.error?.message || 'Erreur inconnue'}`);
+      throw new Error(
+        `Erreur API OpenAI : ${errorData.error?.message || "Erreur inconnue"}`,
+      );
     }
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content;
-    
+
     if (!content) {
-      throw new Error('Aucun contenu dans la réponse OpenAI');
+      throw new Error("Aucun contenu dans la réponse OpenAI");
     }
 
     // Parser la réponse JSON
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Aucun JSON trouvé dans la réponse de l\'API');
+      throw new Error("Aucun JSON trouvé dans la réponse de l'API");
     }
 
     const analysis = JSON.parse(jsonMatch[0]);
@@ -153,17 +184,17 @@ export class DamageDetectionService {
       hasDamage: analysis.hasDamage || false,
       confidence: Math.max(0, Math.min(1, analysis.confidence || 0)),
       suspiciousZones: analysis.suspiciousZones || [],
-      message: analysis.message || 'Analyse terminée',
+      message: analysis.message || "Analyse terminée",
     };
   }
 
   /**
    * Détection avec Google Cloud Vision API
-   * 
+   *
    * Implémentation Google Vision API avec fallback gracieux :
    * - Si credentials Google Cloud sont configurés : utilise Google Vision API
    * - Sinon : fallback sur OpenAI Vision API
-   * 
+   *
    * Pour activer Google Vision API :
    * 1. Créer un projet Google Cloud
    * 2. Activer Vision API
@@ -177,34 +208,48 @@ export class DamageDetectionService {
   ): Promise<{
     hasDamage: boolean;
     confidence: number;
-    suspiciousZones: Array<{ x: number; y: number; width: number; height: number; description: string }>;
+    suspiciousZones: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      description: string;
+    }>;
     message: string;
   }> {
-    const googleApiKey = this.configService.get<string>('GOOGLE_VISION_API_KEY');
-    const googleApiUrl = this.configService.get<string>('GOOGLE_VISION_API_URL') || 'https://vision.googleapis.com/v1/images:annotate';
-    
+    const googleApiKey = this.configService.get<string>(
+      "GOOGLE_VISION_API_KEY",
+    );
+    const googleApiUrl =
+      this.configService.get<string>("GOOGLE_VISION_API_URL") ||
+      "https://vision.googleapis.com/v1/images:annotate";
+
     // Si pas de clé API Google, utiliser OpenAI comme fallback
     if (!googleApiKey) {
-      this.logger.warn('Google Vision API key not configured, using OpenAI as fallback');
+      this.logger.warn(
+        "Google Vision API key not configured, using OpenAI as fallback",
+      );
       return this.detectDamageWithOpenAI(imageUrl, vehicleId, bookingId);
     }
-    
+
     try {
       // Télécharger l'image depuis l'URL
       const imageResponse = await fetch(imageUrl);
       if (!imageResponse.ok) {
-        throw new Error(`Échec du téléchargement de l'image : ${imageResponse.statusText}`);
+        throw new Error(
+          `Échec du téléchargement de l'image : ${imageResponse.statusText}`,
+        );
       }
-      
+
       const imageBuffer = await imageResponse.arrayBuffer();
-      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
-      
+      const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+
       // Appel Google Vision API
       const visionApiUrl = `${googleApiUrl}?key=${googleApiKey}`;
       const response = await fetch(visionApiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           requests: [
@@ -214,11 +259,11 @@ export class DamageDetectionService {
               },
               features: [
                 {
-                  type: 'OBJECT_LOCALIZATION',
+                  type: "OBJECT_LOCALIZATION",
                   maxResults: 10,
                 },
                 {
-                  type: 'LABEL_DETECTION',
+                  type: "LABEL_DETECTION",
                   maxResults: 10,
                 },
               ],
@@ -226,50 +271,79 @@ export class DamageDetectionService {
           ],
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Erreur API Google Vision : ${errorData.error?.message || response.statusText}`);
+        throw new Error(
+          `Erreur API Google Vision : ${errorData.error?.message || response.statusText}`,
+        );
       }
-      
+
       const data = await response.json();
       const responses = data.responses?.[0];
-      
+
       if (!responses) {
-        throw new Error('Aucune réponse de l\'API Google Vision');
+        throw new Error("Aucune réponse de l'API Google Vision");
       }
-      
+
       // Analyser les résultats pour détecter des dommages
       const labels = responses.labelAnnotations || [];
       const objects = responses.localizedObjectAnnotations || [];
-      
+
       // Rechercher des labels indiquant des dommages
-      const damageKeywords = ['damage', 'scratch', 'dent', 'crack', 'broken', 'wreck', 'collision'];
+      const damageKeywords = [
+        "damage",
+        "scratch",
+        "dent",
+        "crack",
+        "broken",
+        "wreck",
+        "collision",
+      ];
       const damageLabels = labels.filter((label: any) =>
-        damageKeywords.some(keyword => label.description?.toLowerCase().includes(keyword))
+        damageKeywords.some((keyword) =>
+          label.description?.toLowerCase().includes(keyword),
+        ),
       );
-      
+
       // Calculer la confiance basée sur les labels de dommage
       const hasDamage = damageLabels.length > 0 || objects.length > 0;
-      const confidence = damageLabels.length > 0 
-        ? Math.min(0.9, 0.5 + (damageLabels.length * 0.1))
-        : 0.3;
-      
+      const confidence =
+        damageLabels.length > 0
+          ? Math.min(0.9, 0.5 + damageLabels.length * 0.1)
+          : 0.3;
+
       // Extraire les zones suspectes depuis les objets détectés
-      const suspiciousZones = objects.slice(0, 5).map((obj: any, index: number) => ({
-        x: Math.round((obj.boundingPoly?.normalizedVertices?.[0]?.x || 0) * 100),
-        y: Math.round((obj.boundingPoly?.normalizedVertices?.[0]?.y || 0) * 100),
-        width: Math.round(((obj.boundingPoly?.normalizedVertices?.[2]?.x || 0) - (obj.boundingPoly?.normalizedVertices?.[0]?.x || 0)) * 100),
-        height: Math.round(((obj.boundingPoly?.normalizedVertices?.[2]?.y || 0) - (obj.boundingPoly?.normalizedVertices?.[0]?.y || 0)) * 100),
-        description: obj.name || `Zone suspecte ${index + 1}`,
-      }));
-      
+      const suspiciousZones = objects
+        .slice(0, 5)
+        .map((obj: any, index: number) => ({
+          x: Math.round(
+            (obj.boundingPoly?.normalizedVertices?.[0]?.x || 0) * 100,
+          ),
+          y: Math.round(
+            (obj.boundingPoly?.normalizedVertices?.[0]?.y || 0) * 100,
+          ),
+          width: Math.round(
+            ((obj.boundingPoly?.normalizedVertices?.[2]?.x || 0) -
+              (obj.boundingPoly?.normalizedVertices?.[0]?.x || 0)) *
+              100,
+          ),
+          height: Math.round(
+            ((obj.boundingPoly?.normalizedVertices?.[2]?.y || 0) -
+              (obj.boundingPoly?.normalizedVertices?.[0]?.y || 0)) *
+              100,
+          ),
+          description: obj.name || `Zone suspecte ${index + 1}`,
+        }));
+
       const message = hasDamage
-        ? `Dommages détectés: ${damageLabels.map((l: any) => l.description).join(', ')}`
-        : 'Aucun dommage évident détecté';
-      
-      this.logger.log(`Google Vision API analysis completed: ${hasDamage ? 'Damage detected' : 'No damage'}`);
-      
+        ? `Dommages détectés: ${damageLabels.map((l: any) => l.description).join(", ")}`
+        : "Aucun dommage évident détecté";
+
+      this.logger.log(
+        `Google Vision API analysis completed: ${hasDamage ? "Damage detected" : "No damage"}`,
+      );
+
       return {
         hasDamage,
         confidence,
@@ -278,7 +352,9 @@ export class DamageDetectionService {
       };
     } catch (error: any) {
       // En cas d'erreur, utiliser OpenAI comme fallback
-      this.logger.warn(`Google Vision API error, using OpenAI as fallback: ${error.message}`);
+      this.logger.warn(
+        `Google Vision API error, using OpenAI as fallback: ${error.message}`,
+      );
       return this.detectDamageWithOpenAI(imageUrl, vehicleId, bookingId);
     }
   }
@@ -316,7 +392,7 @@ export class DamageDetectionService {
 
     const summary = overallHasDamage
       ? `${results.filter((r) => r.hasDamage).length} image(s) présentent des anomalies suspectes`
-      : 'Aucun dommage détecté automatiquement';
+      : "Aucun dommage détecté automatiquement";
 
     return {
       overallHasDamage,

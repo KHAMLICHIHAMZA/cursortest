@@ -10,6 +10,7 @@ import { agencyApi } from '@/lib/api/agency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { FormCard } from '@/components/ui/form-card';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
@@ -153,14 +154,20 @@ export default function EditCompanyUserPage() {
   return (
     <RouteGuard allowedRoles={['COMPANY_ADMIN', 'SUPER_ADMIN']}>
       <MainLayout>
-        <FormCard
-          title="Modifier l'utilisateur"
-          description="Mettez à jour les informations de l'utilisateur"
-          backHref="/company/users"
-          onSubmit={handleSubmit}
-          isLoading={updateMutation.isPending}
-          submitLabel="Mettre à jour"
-        >
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card className="p-4">
+            <p className="text-sm text-text-muted">
+              Edition du profil: <span className="font-medium text-text">{user.email}</span>
+            </p>
+          </Card>
+          <FormCard
+            title="Modifier l'utilisateur"
+            description="Mettez à jour les informations de l'utilisateur"
+            backHref="/company/users"
+            onSubmit={handleSubmit}
+            isLoading={updateMutation.isPending}
+            submitLabel="Mettre à jour"
+          >
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
               Nom complet *
@@ -265,7 +272,8 @@ export default function EditCompanyUserPage() {
               {errors.submit}
             </div>
           )}
-        </FormCard>
+          </FormCard>
+        </div>
       </MainLayout>
     </RouteGuard>
   );

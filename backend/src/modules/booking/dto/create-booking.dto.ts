@@ -1,6 +1,17 @@
-import { IsString, IsDateString, IsNumber, IsOptional, IsEnum, IsBoolean, ValidateIf, Matches, MaxLength, MinLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BookingStatus, DepositDecisionSource } from '@prisma/client';
+import {
+  IsString,
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  ValidateIf,
+  Matches,
+  MaxLength,
+  MinLength,
+} from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { BookingStatus, DepositDecisionSource } from "@prisma/client";
 
 export class CreateBookingDto {
   @ApiProperty()
@@ -37,7 +48,7 @@ export class CreateBookingDto {
   // ============================================
   @ApiPropertyOptional({
     description:
-      'Numéro de réservation (V2). Requis si la company est en mode MANUAL. Format: alphanumérique.',
+      "Numéro de réservation (V2). Requis si la company est en mode MANUAL. Format: alphanumérique.",
     maxLength: 32,
   })
   @IsOptional()
@@ -45,33 +56,35 @@ export class CreateBookingDto {
   @MinLength(1)
   @MaxLength(32)
   @Matches(/^[A-Za-z0-9]+$/, {
-    message: 'Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces',
+    message:
+      "Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces",
   })
   bookingNumber?: string;
 
   // ============================================
   // CAUTION - Définie à la réservation
   // ============================================
-  @ApiPropertyOptional({ description: 'Caution requise pour cette réservation' })
+  @ApiPropertyOptional({
+    description: "Caution requise pour cette réservation",
+  })
   @IsOptional()
   @IsBoolean()
   depositRequired?: boolean;
 
-  @ApiPropertyOptional({ description: 'Montant de la caution (obligatoire si depositRequired = true)' })
+  @ApiPropertyOptional({
+    description:
+      "Montant de la caution (obligatoire si depositRequired = true)",
+  })
   @ValidateIf((o) => o.depositRequired === true)
   @IsNumber()
   depositAmount?: number;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     enum: DepositDecisionSource,
-    description: 'Source de décision de la caution (COMPANY ou AGENCY) - obligatoire si depositRequired = true'
+    description:
+      "Source de décision de la caution (COMPANY ou AGENCY) - obligatoire si depositRequired = true",
   })
   @ValidateIf((o) => o.depositRequired === true)
   @IsEnum(DepositDecisionSource)
   depositDecisionSource?: DepositDecisionSource;
 }
-
-
-
-
-
