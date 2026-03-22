@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 @layer base {
+  /* ══════════════════════════════════════════════
+     DARK THEME (default)
+     ══════════════════════════════════════════════ */
   :root {
     /* ── Surface System ────────────────────────── */
     --background: 10 10 12;          /* #0A0A0C - deep black */
@@ -23,7 +26,7 @@
     /* ── Brand Colors ─────────────────────────── */
     --primary: 245 166 35;          /* #F5A623 - warm amber (automotive) */
     --primary-hover: 224 148 24;    /* #E09418 - darker amber */
-    --primary-foreground: 10 10 12; /* #0A0A0C - text on primary */
+    --primary-foreground: 255 255 255; /* white text on primary */
 
     /* ── Accent ───────────────────────────────── */
     --accent: 59 130 246;           /* #3B82F6 - blue accent */
@@ -38,6 +41,43 @@
 
     /* ── Radius ───────────────────────────────── */
     --radius: 0.625rem;             /* 10px */
+  }
+
+  /* ══════════════════════════════════════════════
+     LIGHT THEME
+     ══════════════════════════════════════════════ */
+  .light {
+    /* ── Surface System ────────────────────────── */
+    --background: 250 250 250;       /* #FAFAFA - off-white */
+    --surface-0: 255 255 255;        /* #FFFFFF - sidebar / nav */
+    --surface-1: 255 255 255;        /* #FFFFFF - cards */
+    --surface-2: 245 245 245;        /* #F5F5F5 - elevated cards / dropdowns */
+    --surface-3: 238 238 238;        /* #EEEEEE - hover states */
+
+    /* ── Text System ──────────────────────────── */
+    --foreground: 23 23 23;          /* #171717 - primary text */
+    --foreground-muted: 82 82 82;    /* #525252 - secondary text */
+    --foreground-subtle: 115 115 115;/* #737373 - tertiary / labels */
+
+    /* ── Border System ────────────────────────── */
+    --border: 229 229 229;           /* #E5E5E5 - subtle borders */
+    --border-hover: 212 212 212;     /* #D4D4D4 - hover borders */
+
+    /* ── Brand Colors ─────────────────────────── */
+    --primary: 234 146 10;           /* #EA920A - slightly darker amber for light bg */
+    --primary-hover: 214 126 0;      /* #D67E00 - darker amber */
+    --primary-foreground: 255 255 255; /* white text on primary */
+
+    /* ── Accent ───────────────────────────────── */
+    --accent: 37 99 235;             /* #2563EB - slightly darker blue */
+    --accent-hover: 29 78 216;       /* #1D4ED8 - darker blue */
+    --accent-foreground: 255 255 255;
+
+    /* ── Status Colors (slightly adjusted for light bg) */
+    --success: 22 163 74;            /* #16A34A - green */
+    --warning: 234 146 10;           /* #EA920A - amber */
+    --error: 220 38 38;              /* #DC2626 - red */
+    --info: 37 99 235;               /* #2563EB - blue */
   }
 }
 
