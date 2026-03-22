@@ -10,14 +10,14 @@
 
 Based on comparative analysis with LocaSign and current MalocAuto state, the following UX improvements have been identified.
 
-| Improvement | Priority | Effort | Impact |
-|-------------|----------|--------|--------|
-| 1. Enhanced Dashboard KPIs | HIGH | Medium (2-3h) | Major UX improvement |
-| 2. WhatsApp in Web | MEDIUM | Low (30min) | Quick win |
-| 3. Skeleton Loaders | MEDIUM | Medium (1-2h) | Better perceived performance |
-| 4. Notifications Dropdown | MEDIUM | Medium (1-2h) | Makes header functional |
+| Improvement | Priority | Effort | Impact | API Status |
+|-------------|----------|--------|--------|------------|
+| 1. Enhanced Dashboard KPIs | HIGH | Medium (3-4h) | Major UX improvement | Partial - needs booking filter |
+| 2. WhatsApp in Web | MEDIUM | Low (30min) | Quick win | N/A - client-side only |
+| 3. Skeleton Loaders | MEDIUM | Medium (1-2h) | Better perceived performance | N/A - client-side only |
+| 4. Notifications Dropdown | MEDIUM | Medium (1-2h) | Makes header functional | EXISTS - verified |
 
-**Total Estimated Effort:** 5-8 hours
+**Total Estimated Effort:** 6-9 hours (with margin for testing/QA)
 
 ---
 
@@ -60,10 +60,22 @@ Based on comparative analysis with LocaSign and current MalocAuto state, the fol
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### API Calls Required
-- `GET /kpi/agency/:id` - Already exists, returns revenue, margin, occupationRate
-- `GET /bookings?returnDate=today` - Filter bookings returning today
-- `GET /bookings?startDate=today` - Filter bookings starting today
+### API Calls Required (Verified)
+
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| `GET /charges/kpi?startDate=X&endDate=Y` | EXISTS | Returns revenue, charges, margin, marginRate, occupancyRate, etc. (used in KPI page) |
+| `GET /charges/kpi/vehicles?startDate=X&endDate=Y` | EXISTS | Returns per-vehicle profitability |
+| `GET /analytics/agency/:agencyId/kpis?startDate=X&endDate=Y` | EXISTS | Alternative KPI endpoint (requires ANALYTICS module) |
+| `GET /bookings` | EXISTS | Supports filters via query params, but **no `returnDate=today` filter** |
+
+**API Gap Identified:**
+The booking API currently does not have a `returnDate` or `startDate` filter for "today's returns/departures".
+
+**Options:**
+1. Add filters to backend `GET /bookings` endpoint (recommended)
+2. Fetch all active bookings and filter client-side (not recommended for performance)
+3. Create new endpoint `GET /bookings/today-summary` (cleanest solution)
 
 ### New Types
 
@@ -536,20 +548,43 @@ export function NotificationsDropdown() {
 }
 ```
 
-### API Requirements
+### API Requirements (Verified)
 
-Existing endpoints to use:
-- `GET /notifications?limit=10` - Get recent notifications
-- `PATCH /notifications/:id/read` - Mark single as read
-- `PATCH /notifications/read-all` - Mark all as read
+Backend controller: `backend/src/modules/in-app-notification/in-app-notification.controller.ts`
 
-If API methods don't exist in `lib/api/notification.ts`, add:
+| Endpoint | Method | Status | Notes |
+|----------|--------|--------|-------|
+| `GET /notifications/in-app` | GET | EXISTS | Supports `?limit=X&unreadOnly=true` |
+| `GET /notifications/in-app/unread-count` | GET | EXISTS | Returns `{ count: number }` |
+| `PATCH /notifications/in-app/:id/read` | PATCH | EXISTS | Mark single as read |
+| `POST /notifications/in-app/read-all` | POST | EXISTS | Mark all as read (note: POST not PATCH) |
+
+**Frontend API file needed:** `lib/api/notification.ts` does not exist.
+
+Create:
 ```typescript
 // lib/api/notification.ts
-export const notificationApi = {
-  getRecent: (limit = 10) => apiClient.get(`/notifications?limit=${limit}`),
-  markAsRead: (id: string) => apiClient.patch(`/notifications/${id}/read`),
-  markAllAsRead: () => apiClient.patch('/notifications/read-all'),
+import { apiClient } from './client';
+
+export const inAppNotificationApi = {
+  getRecent: async (limit = 10, unreadOnly = false) => {
+    const res = await apiClient.get('/notifications/in-app', {
+      params: { limit, unreadOnly }
+    });
+    return res.data;
+  },
+  getUnreadCount: async () => {
+    const res = await apiClient.get('/notifications/in-app/unread-count');
+    return res.data.count;
+  },
+  markAsRead: async (id: string) => {
+    const res = await apiClient.patch(`/notifications/in-app/${id}/read`);
+    return res.data;
+  },
+  markAllAsRead: async () => {
+    const res = await apiClient.post('/notifications/in-app/read-all');
+    return res.data;
+  },
 };
 ```
 
@@ -586,6 +621,34 @@ Recommended implementation sequence:
 4. **Notifications Dropdown** (Polish)
    - Makes existing feature functional
    - Improves header completeness
+
+---
+
+## API Gaps Summary
+
+| Feature | Missing API | Backend File | Proposed Solution |
+|---------|-------------|--------------|-------------------|
+| Dashboard Today Returns | `GET /bookings?endDate=today` filter | `booking.service.ts` | Add date filters to `findAll()` |
+| Dashboard Today Departures | `GET /bookings?startDate=today` filter | `booking.service.ts` | Add date filters to `findAll()` |
+| Notifications Frontend | `lib/api/notification.ts` | N/A | Create new frontend API file |
+
+**Backend Changes Required:**
+Add to `booking.service.ts` `findAll()` method:
+```typescript
+// In filters handling
+if (filters.endDateFrom || filters.endDateTo) {
+  where.endDate = {
+    ...(filters.endDateFrom && { gte: new Date(filters.endDateFrom) }),
+    ...(filters.endDateTo && { lte: new Date(filters.endDateTo) }),
+  };
+}
+if (filters.startDateFrom || filters.startDateTo) {
+  where.startDate = {
+    ...(filters.startDateFrom && { gte: new Date(filters.startDateFrom) }),
+    ...(filters.startDateTo && { lte: new Date(filters.startDateTo) }),
+  };
+}
+```
 
 ---
 
