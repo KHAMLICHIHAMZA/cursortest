@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
-import { ArrowLeft, Save, X, CheckCircle, Clock, Car } from 'lucide-react';
+import { ArrowLeft, Save, X, CheckCircle, Clock, Car, MessageCircle, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from '@/components/ui/toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -552,6 +552,26 @@ export default function EditBookingPage() {
                         </p>
                         {booking.client.email && (
                           <p className="text-text-muted text-xs">{booking.client.email}</p>
+                        )}
+                        {booking.client.phone && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <a
+                              href={`https://wa.me/${booking.client.phone.replace(/\D/g, '').replace(/^0/, '212')}?text=${encodeURIComponent(`Bonjour ${booking.client.name}, concernant votre reservation #${String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}...`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors text-xs font-medium"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              WhatsApp
+                            </a>
+                            <a
+                              href={`tel:${booking.client.phone}`}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-xs font-medium"
+                            >
+                              <Phone className="h-3.5 w-3.5" />
+                              Appeler
+                            </a>
+                          </div>
                         )}
                       </div>
                     )}

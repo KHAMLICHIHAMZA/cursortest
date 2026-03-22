@@ -1,8 +1,9 @@
 'use client';
 
-import { Bell, Search, User, Menu } from 'lucide-react';
+import { Search, User, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { NotificationsDropdown } from '@/components/layout/notifications-dropdown';
 import { useSearch } from '@/contexts/search-context';
 import Link from 'next/link';
 
@@ -48,11 +49,8 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
         {/* Theme toggle */}
         <ThemeToggle className="h-8 w-8 px-0 justify-center" />
 
-        {/* Notifications */}
-        <button className="flex h-8 w-8 items-center justify-center rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-2 transition-colors relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-        </button>
+        {/* Notifications dropdown */}
+        <NotificationsDropdown />
 
         {/* User info - desktop */}
         <Link
