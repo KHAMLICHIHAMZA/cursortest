@@ -1,26 +1,27 @@
 import { apiClient } from './client';
 
+/** Aligné sur l’API backend `/notifications/in-app` */
 export interface InAppNotification {
   id: string;
-  type: 'BOOKING_RETURN' | 'BOOKING_START' | 'MAINTENANCE_DUE' | 'CLIENT_NEW' | 'FINE_ADDED' | 'SYSTEM' | 'INFO';
+  type?: string;
   title: string;
   message: string;
-  read: boolean;
+  actionUrl?: string | null;
+  readAt?: string | null;
   createdAt: string;
-  data?: Record<string, unknown>;
 }
 
 export const inAppNotificationApi = {
   getRecent: async (limit = 10, unreadOnly = false): Promise<InAppNotification[]> => {
-    const res = await apiClient.get('/notifications/in-app', {
-      params: { limit, unreadOnly }
+    const res = await apiClient.get<InAppNotification[]>('/notifications/in-app', {
+      params: { limit, unreadOnly: unreadOnly ? 'true' : undefined },
     });
-    return res.data;
+    return res.data ?? [];
   },
 
   getUnreadCount: async (): Promise<number> => {
-    const res = await apiClient.get('/notifications/in-app/unread-count');
-    return res.data.count;
+    const res = await apiClient.get<{ count: number }>('/notifications/in-app/unread-count');
+    return res.data?.count ?? 0;
   },
 
   markAsRead: async (id: string): Promise<void> => {

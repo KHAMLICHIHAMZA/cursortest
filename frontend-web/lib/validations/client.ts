@@ -44,7 +44,10 @@ export const createClientSchema = z.object({
   ),
   isMoroccan: z.boolean().optional().default(true),
   countryOfOrigin: z.string().max(100, 'Le pays d\'origine ne peut pas dépasser 100 caractères').optional(),
-  licenseExpiryDate: z.string().optional(),
+  licenseExpiryDate: z.string().optional().refine(
+    (val) => validateExpiryDate(val, 'permis'),
+    { message: 'La date d\'expiration du permis doit être dans le futur' },
+  ),
   isForeignLicense: z.boolean().optional().default(false),
   idCardType: z.string().max(50).optional(),
   idCardNumber: z.string().max(50, 'Le numéro de pièce d\'identité ne peut pas dépasser 50 caractères').optional(),

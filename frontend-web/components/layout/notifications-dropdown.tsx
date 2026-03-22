@@ -1,13 +1,42 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Check, Calendar, Car, Users, AlertTriangle, Info } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { inAppNotificationApi, InAppNotification } from '@/lib/api/notification';
+import {
+  Bell,
+  Check,
+  Calendar,
+  Car,
+  Users,
+  AlertTriangle,
+  Info,
+  FileText,
+  Receipt,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-const notificationIcons: Record<string, React.ElementType> = {
+interface InAppNotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  actionUrl: string | null;
+  createdAt: string;
+  readAt: string | null;
+  type?: string | null;
+}
+
+const notificationIcons: Record<string, LucideIcon> = {
+  CONTRACT_TO_SIGN: FileText,
+  INVOICE_AVAILABLE: Receipt,
+  BOOKING_LATE: Calendar,
+  CHECK_OUT_REMINDER: Calendar,
+  INCIDENT_REPORTED: AlertTriangle,
+  SYSTEM_ALERT: Info,
+  ADMIN_ANNOUNCEMENT: Bell,
   BOOKING_RETURN: Calendar,
   BOOKING_START: Calendar,
   MAINTENANCE_DUE: Car,
@@ -25,45 +54,82 @@ function formatTimeAgo(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return 'A l\'instant';
+  if (diffMins < 1) return "À l'instant";
   if (diffMins < 60) return `Il y a ${diffMins} min`;
   if (diffHours < 24) return `Il y a ${diffHours}h`;
   if (diffDays < 7) return `Il y a ${diffDays}j`;
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-export function NotificationsDropdown() {
+function notificationsHrefForRole(role?: string): string {
+  if (role === 'COMPANY_ADMIN') return '/company/notifications';
+  if (role === 'SUPER_ADMIN') return '/admin/notifications';
+  return '/agency/notifications';
+}
+
+interface NotificationsDropdownProps {
+  userRole?: string;
+}
+
+export function NotificationsDropdown({ userRole }: NotificationsDropdownProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const listHref = notificationsHrefForRole(userRole);
 
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['notifications', 'recent'],
-    queryFn: () => inAppNotificationApi.getRecent(10),
-    refetchInterval: 60000, // Refresh every minute
+  const {
+    data: unreadData,
+    isError: unreadError,
+  } = useQuery({
+    queryKey: ['header-notifications-count', userRole],
+    queryFn: async () => {
+      const res = await apiClient.get<{ count: number }>('/notifications/in-app/unread-count');
+      return res.data?.count ?? 0;
+    },
+    retry: false,
+    refetchInterval: 30000,
+    staleTime: 15000,
   });
+  const unreadCount = unreadError ? 0 : (unreadData ?? 0);
 
-  const { data: unreadCount = 0 } = useQuery({
-    queryKey: ['notifications', 'unread-count'],
-    queryFn: () => inAppNotificationApi.getUnreadCount(),
-    refetchInterval: 30000, // Refresh every 30 seconds
+  const {
+    data: notifications = [],
+    isLoading,
+    isError: listError,
+  } = useQuery<InAppNotificationItem[]>({
+    queryKey: ['header-notifications-list', userRole],
+    queryFn: async () => {
+      const res = await apiClient.get<InAppNotificationItem[]>('/notifications/in-app', {
+        params: { limit: '10' },
+      });
+      return res.data ?? [];
+    },
+    retry: false,
+    enabled: isOpen,
+    staleTime: 30000,
   });
 
   const markAsReadMutation = useMutation({
-    mutationFn: inAppNotificationApi.markAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    mutationFn: async (id: string) => {
+      await apiClient.patch(`/notifications/in-app/${id}/read`);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['header-notifications-count'] });
+      await queryClient.invalidateQueries({ queryKey: ['header-notifications-list'] });
     },
   });
 
   const markAllAsReadMutation = useMutation({
-    mutationFn: inAppNotificationApi.markAllAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    mutationFn: async () => {
+      await apiClient.post('/notifications/in-app/read-all');
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['header-notifications-count'] });
+      await queryClient.invalidateQueries({ queryKey: ['header-notifications-list'] });
     },
   });
 
-  // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -74,7 +140,6 @@ export function NotificationsDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close on escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false);
@@ -83,34 +148,33 @@ export function NotificationsDropdown() {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  const handleNotificationClick = (notif: InAppNotification) => {
-    if (!notif.read) {
-      markAsReadMutation.mutate(notif.id);
+  const handleRowClick = async (n: InAppNotificationItem) => {
+    if (!n.readAt) {
+      await markAsReadMutation.mutateAsync(n.id);
     }
+    setIsOpen(false);
+    router.push(n.actionUrl || listHref);
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex h-8 w-8 items-center justify-center rounded-md text-foreground-subtle hover:text-foreground hover:bg-surface-2 transition-colors relative"
+        className="flex h-9 w-9 items-center justify-center rounded-md text-foreground-muted hover:text-foreground hover:bg-surface-2 transition-colors relative"
         aria-label="Notifications"
         aria-expanded={isOpen}
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] text-center font-semibold">
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown panel */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-border bg-surface-1 shadow-elevation-3 overflow-hidden animate-fade-in z-50">
-          {/* Header */}
+        <div className="absolute right-0 top-full mt-2 w-[min(100vw-2rem,20rem)] sm:w-80 rounded-lg border border-border bg-surface-1 shadow-elevation-3 overflow-hidden animate-fade-in z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-foreground">Notifications</span>
@@ -122,6 +186,7 @@ export function NotificationsDropdown() {
             </div>
             {unreadCount > 0 && (
               <button
+                type="button"
                 onClick={() => markAllAsReadMutation.mutate()}
                 disabled={markAllAsReadMutation.isPending}
                 className="flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"
@@ -132,11 +197,14 @@ export function NotificationsDropdown() {
             )}
           </div>
 
-          {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {isLoading ? (
               <div className="py-8 text-center">
                 <div className="inline-block h-5 w-5 rounded-full border-2 border-surface-3 border-t-primary animate-spin" />
+              </div>
+            ) : listError ? (
+              <div className="py-8 px-4 text-center text-sm text-foreground-subtle">
+                Notifications indisponibles (module ou droits requis).
               </div>
             ) : notifications.length === 0 ? (
               <div className="py-12 text-center">
@@ -145,54 +213,55 @@ export function NotificationsDropdown() {
               </div>
             ) : (
               notifications.map((notif) => {
-                const Icon = notificationIcons[notif.type] || Info;
+                const Icon = (notif.type && notificationIcons[notif.type]) || Info;
+                const isUnread = !notif.readAt;
                 return (
-                  <div
+                  <button
                     key={notif.id}
+                    type="button"
                     className={cn(
-                      'flex gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-surface-2 transition-colors cursor-pointer',
-                      !notif.read && 'bg-primary/5'
+                      'w-full flex gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-surface-2 transition-colors text-left',
+                      isUnread && 'bg-primary/5',
                     )}
-                    onClick={() => handleNotificationClick(notif)}
-                    role="button"
-                    tabIndex={0}
+                    onClick={() => handleRowClick(notif)}
                   >
-                    <div className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0',
-                      notif.read ? 'bg-surface-2 text-foreground-subtle' : 'bg-primary/10 text-primary'
-                    )}>
+                    <div
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0',
+                        isUnread ? 'bg-primary/10 text-primary' : 'bg-surface-2 text-foreground-subtle',
+                      )}
+                    >
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        'text-sm truncate',
-                        notif.read ? 'text-foreground-muted' : 'text-foreground font-medium'
-                      )}>
+                      <p
+                        className={cn(
+                          'text-sm truncate',
+                          isUnread ? 'text-foreground font-medium' : 'text-foreground-muted',
+                        )}
+                      >
                         {notif.title}
                       </p>
                       {notif.message && (
-                        <p className="text-xs text-foreground-subtle truncate mt-0.5">
-                          {notif.message}
-                        </p>
+                        <p className="text-xs text-foreground-subtle truncate mt-0.5">{notif.message}</p>
                       )}
                       <p className="text-[10px] text-foreground-subtle mt-1">
                         {formatTimeAgo(notif.createdAt)}
                       </p>
                     </div>
-                    {!notif.read && (
+                    {isUnread && (
                       <div className="flex-shrink-0 mt-1">
                         <div className="h-2 w-2 rounded-full bg-primary" />
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })
             )}
           </div>
 
-          {/* Footer */}
           <Link
-            href="/agency/notifications"
+            href={listHref}
             className="flex items-center justify-center gap-1 px-4 py-3 text-xs font-medium text-primary hover:bg-surface-2 border-t border-border transition-colors"
             onClick={() => setIsOpen(false)}
           >

@@ -44,7 +44,7 @@ describe('Button component', () => {
   it('should apply secondary variant styles', () => {
     const { container } = render(<Button variant="secondary">Click me</Button>);
     const button = container.querySelector('button');
-    expect(button?.className).toContain('bg-card');
+    expect(button?.className).toContain('bg-surface-2');
   });
 
   it('should apply outline variant styles', () => {
@@ -56,7 +56,7 @@ describe('Button component', () => {
   it('should apply ghost variant styles', () => {
     const { container } = render(<Button variant="ghost">Click me</Button>);
     const button = container.querySelector('button');
-    expect(button?.className).toContain('text-text');
+    expect(button?.className).toContain('text-foreground-muted');
   });
 
   it('should apply danger variant styles', () => {
@@ -68,19 +68,19 @@ describe('Button component', () => {
   it('should apply size sm styles', () => {
     const { container } = render(<Button size="sm">Click me</Button>);
     const button = container.querySelector('button');
-    expect(button?.className).toContain('text-sm');
+    expect(button?.className).toContain('text-xs');
   });
 
   it('should apply size md styles', () => {
     const { container } = render(<Button size="md">Click me</Button>);
     const button = container.querySelector('button');
-    expect(button?.className).toContain('text-base');
+    expect(button?.className).toContain('text-sm');
   });
 
   it('should apply size lg styles', () => {
     const { container } = render(<Button size="lg">Click me</Button>);
     const button = container.querySelector('button');
-    expect(button?.className).toContain('text-lg');
+    expect(button?.className).toContain('text-base');
   });
 
   it('should apply custom className', () => {

@@ -11,25 +11,25 @@ describe('Badge component', () => {
   it('should apply active status styles', () => {
     const { container } = render(<Badge status="active">Active</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-blue-500');
+    expect(badge?.className).toContain('text-blue-400');
   });
 
   it('should apply pending status styles', () => {
     const { container } = render(<Badge status="pending">Pending</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-orange-500');
+    expect(badge?.className).toContain('text-amber-400');
   });
 
   it('should apply completed status styles', () => {
     const { container } = render(<Badge status="completed">Completed</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-gray-500');
+    expect(badge?.className).toContain('text-foreground-subtle');
   });
 
   it('should apply error status styles', () => {
     const { container } = render(<Badge status="error">Error</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-red-500');
+    expect(badge?.className).toContain('text-red-400');
   });
 
   it('should apply outline variant styles', () => {
@@ -42,19 +42,19 @@ describe('Badge component', () => {
   it('should apply size sm styles', () => {
     const { container } = render(<Badge size="sm">Small</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-xs');
+    expect(badge?.className).toContain('text-[10px]');
   });
 
   it('should apply size md styles', () => {
     const { container } = render(<Badge size="md">Medium</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-xs');
+    expect(badge?.className).toContain('text-[11px]');
   });
 
   it('should map status from children string', () => {
     const { container } = render(<Badge>IN_PROGRESS</Badge>);
     const badge = container.querySelector('span');
-    expect(badge?.className).toContain('text-blue-500');
+    expect(badge?.className).toContain('text-blue-400');
   });
 
   it('should apply custom className', () => {

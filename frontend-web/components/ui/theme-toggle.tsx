@@ -3,10 +3,34 @@
 import { Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/theme-context';
+import { cn } from '@/lib/utils/cn';
 
-export function ThemeToggle({ className }: { className?: string }) {
+interface ThemeToggleProps {
+  className?: string;
+  /** Mode icône seule (header v0) */
+  compact?: boolean;
+}
+
+export function ThemeToggle({ className, compact }: ThemeToggleProps) {
   const { theme, toggleTheme } = useTheme();
   const actionLabel = theme === 'dark' ? 'Passer en clair' : 'Passer en sombre';
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={toggleTheme}
+        aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}
+        title={actionLabel}
+        className={cn(
+          'flex h-9 w-9 items-center justify-center rounded-md border border-border bg-surface-1 text-foreground-muted hover:text-foreground hover:bg-surface-2 transition-colors',
+          className,
+        )}
+      >
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+    );
+  }
 
   return (
     <Button
@@ -16,13 +40,9 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggleTheme}
       aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}
       title={actionLabel}
-      className={`border border-border ${className || ''}`}
+      className={cn('border border-border', className)}
     >
-      {theme === 'dark' ? (
-        <Sun className="w-4 h-4" />
-      ) : (
-        <Moon className="w-4 h-4" />
-      )}
+      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       <span className="hidden md:inline ml-2 text-xs">{actionLabel}</span>
     </Button>
   );

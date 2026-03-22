@@ -1,189 +1,289 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { vehicleApi, Vehicle } from '@/lib/api/vehicle';
-import { clientApi, Client } from '@/lib/api/client-api';
+import { vehicleApi } from '@/lib/api/vehicle';
+import { clientApi } from '@/lib/api/client-api';
 import { bookingApi } from '@/lib/api/booking';
-import { Car, Users, Calendar, Plus } from 'lucide-react';
+import { apiClient } from '@/lib/api/client';
+import { Car, Users, Calendar, Plus, TrendingUp, Percent, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
-import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DashboardSkeleton, VehicleCardSkeleton } from '@/components/ui/skeleton';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { getImageUrl } from '@/lib/utils/image-url';
 
+interface KpiResult {
+  revenue: number;
+  charges: number;
+  margin: number;
+  marginRate: number;
+  occupancyRate: number;
+  totalBookings: number;
+}
+
+const STALE_MS = 2 * 60 * 1000;
+
 export default function AgencyDashboard() {
-  
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const endDate = now.toISOString().split('T')[0];
+
   const { data: vehicles, isLoading: vehiclesLoading } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => vehicleApi.getAll(),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_MS,
   });
 
   const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientApi.getAll(),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_MS,
   });
 
   const { data: bookingsSummary, isLoading: bookingsLoading } = useQuery({
     queryKey: ['bookings-summary'],
     queryFn: () => bookingApi.getSummary(),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_MS,
+  });
+
+  const { data: kpi, isLoading: kpiLoading } = useQuery<KpiResult>({
+    queryKey: ['dashboard-kpi', startDate, endDate],
+    queryFn: async () => {
+      const res = await apiClient.get('/charges/kpi', { params: { startDate, endDate } });
+      return res.data;
+    },
+    staleTime: STALE_MS,
   });
 
   const availableVehicles = vehicles?.filter((v) => v.status === 'AVAILABLE').length || 0;
   const rentedVehicles = vehicles?.filter((v) => v.status === 'RENTED').length || 0;
-  const activeBookings = bookingsSummary?.active || 0;
+  const activeBookings = bookingsSummary?.active ?? 0;
+
+  const isInitialLoading =
+    vehiclesLoading && clientsLoading && bookingsLoading && kpiLoading;
+
+  if (isInitialLoading) {
+    return (
+      <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
+        <MainLayout>
+          <DashboardSkeleton />
+        </MainLayout>
+      </RouteGuard>
+    );
+  }
 
   return (
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
       <MainLayout>
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8 flex flex-col gap-2">
-            <Badge status="info" className="w-fit">Agence</Badge>
-            <h1 className="text-3xl font-bold text-text">Tableau de bord Agence</h1>
-            <p className="text-text-muted">Gestion de votre agence</p>
+          {/* En-tête v0 */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                Tableau de bord
+              </h1>
+              <p className="mt-1 text-sm text-foreground-muted">
+                Vue d&apos;ensemble de votre agence
+              </p>
+            </div>
+            <Link href="/agency/kpi">
+              <Button variant="outline" size="sm">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Voir les KPI
+              </Button>
+            </Link>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+          {/* Ligne KPI (API charges/kpi) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="rounded-lg border border-border bg-surface-1 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <DollarSign className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-foreground-subtle">
+                    CA du mois
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {kpiLoading ? '...' : `${(kpi?.revenue ?? 0).toLocaleString('fr-FR')} MAD`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-1 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                  <Percent className="h-4 w-4 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-foreground-subtle">
+                    Occupation
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {kpiLoading ? '...' : `${kpi?.occupancyRate ?? 0}%`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-1 p-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                    (kpi?.margin ?? 0) >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                  }`}
+                >
+                  <TrendingUp
+                    className={`h-4 w-4 ${(kpi?.margin ?? 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}
+                  />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-foreground-subtle">
+                    Marge ({kpi?.marginRate ?? 0}%)
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {kpiLoading ? '...' : `${(kpi?.margin ?? 0).toLocaleString('fr-FR')} MAD`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-1 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                  <Calendar className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-foreground-subtle">
+                    Réservations
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {kpiLoading ? '...' : kpi?.totalBookings ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Flotte — StatCards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatCard
-              title="Véhicules disponibles"
+              title="Disponibles"
               value={availableVehicles}
               icon={Car}
-              iconColor="text-green-500"
+              iconColor="text-emerald-400"
               isLoading={vehiclesLoading}
             />
             <StatCard
-              title="Véhicules en location"
+              title="En location"
               value={rentedVehicles}
               icon={Car}
+              iconColor="text-blue-400"
               isLoading={vehiclesLoading}
             />
             <StatCard
               title="Clients"
-              value={clients?.length || 0}
+              value={clients?.length ?? 0}
               icon={Users}
+              iconColor="text-primary"
               isLoading={clientsLoading}
             />
             <StatCard
               title="Locations actives"
               value={activeBookings}
               icon={Calendar}
+              iconColor="text-amber-400"
               isLoading={bookingsLoading}
             />
           </div>
 
-          {/* Quick Actions */}
-          <div className="mb-3">
-            <h2 className="text-lg font-semibold text-text">Actions rapides</h2>
-            <p className="text-sm text-text-muted">Accès direct aux modules métier de l’agence.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-8">
-            <Link href="/agency/vehicles">
-              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
-                <div className="flex items-center gap-4 min-h-[72px]">
-                  <Car className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Véhicules</h3>
-                    <p className="text-sm text-text-muted">Gérer la flotte</p>
+          {/* Actions rapides v0 */}
+          <div className="mb-8">
+            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-foreground-subtle mb-3">
+              Actions rapides
+            </h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { href: '/agency/vehicles', icon: Car, label: 'Véhicules', desc: 'Gérer la flotte' },
+                { href: '/agency/clients', icon: Users, label: 'Clients', desc: 'Gérer les clients' },
+                { href: '/agency/bookings', icon: Calendar, label: 'Locations', desc: 'Réservations' },
+                { href: '/agency/planning', icon: Calendar, label: 'Planning', desc: "Vue d'ensemble" },
+              ].map((action) => (
+                <Link key={action.href} href={action.href}>
+                  <div className="group flex items-center gap-3 rounded-lg border border-border bg-surface-1 p-4 transition-all duration-200 hover:border-primary/30 hover:bg-surface-2 cursor-pointer">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                      <action.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-medium text-foreground truncate">{action.label}</h3>
+                      <p className="text-xs text-foreground-subtle truncate">{action.desc}</p>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/agency/clients">
-              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
-                <div className="flex items-center gap-4 min-h-[72px]">
-                  <Users className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Clients</h3>
-                    <p className="text-sm text-text-muted">Gérer les clients</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/agency/bookings">
-              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
-                <div className="flex items-center gap-4 min-h-[72px]">
-                  <Calendar className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Locations</h3>
-                    <p className="text-sm text-text-muted">Gérer les réservations</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/agency/planning">
-              <Card className="hover:border-primary/60 hover:shadow-md transition-all cursor-pointer h-full">
-                <div className="flex items-center gap-4 min-h-[72px]">
-                  <Calendar className="w-8 h-8 text-primary" />
-                  <div>
-                    <h3 className="font-semibold text-text mb-1">Planning</h3>
-                    <p className="text-sm text-text-muted">Vue d&apos;ensemble</p>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          </div>
-
-          {/* Recent Vehicles */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Véhicules récents</CardTitle>
-                <Link href="/agency/vehicles">
-                  <Button variant="primary" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nouveau véhicule
-                  </Button>
                 </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
+              ))}
+            </div>
+          </div>
+
+          {/* Véhicules récents */}
+          <div className="rounded-lg border border-border bg-surface-1">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">Véhicules récents</h2>
+              <Link href="/agency/vehicles">
+                <Button variant="primary" size="sm">
+                  <Plus className="h-3.5 w-3.5" />
+                  Nouveau véhicule
+                </Button>
+              </Link>
+            </div>
+            <div className="p-5">
               {vehiclesLoading ? (
-                <LoadingState message="Chargement des véhicules..." />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <VehicleCardSkeleton key={i} />
+                  ))}
+                </div>
               ) : vehicles && vehicles.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {vehicles.slice(0, 6).map((vehicle) => (
-                    <Card key={vehicle.id} variant="outlined" padding="sm" className="hover:border-primary/50 transition-colors">
+                    <div
+                      key={vehicle.id}
+                      className="group overflow-hidden rounded-lg border border-border bg-surface-0 transition-all duration-200 hover:border-border-hover"
+                    >
                       {vehicle.imageUrl ? (
                         <Image
                           src={getImageUrl(vehicle.imageUrl) || ''}
                           alt={`${vehicle.brand} ${vehicle.model}`}
                           width={640}
-                          height={320}
+                          height={128}
                           unoptimized
-                          className="w-full h-32 object-cover rounded-lg mb-3"
+                          className="w-full h-32 object-cover"
                         />
                       ) : (
-                        <div className="w-full h-32 bg-background rounded-lg mb-3 flex items-center justify-center">
-                          <Car className="w-8 h-8 text-text-muted" />
+                        <div className="w-full h-32 bg-surface-2 flex items-center justify-center">
+                          <Car className="h-6 w-6 text-foreground-subtle" />
                         </div>
                       )}
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-text">
-                          {vehicle.brand} {vehicle.model}
-                        </h3>
-                        <Badge status={vehicle.status.toLowerCase() as any}>
-                          {vehicle.status}
-                        </Badge>
+                      <div className="p-3.5">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <h3 className="text-sm font-medium text-foreground truncate">
+                            {vehicle.brand} {vehicle.model}
+                          </h3>
+                          <Badge status={vehicle.status.toLowerCase() as any} size="sm">
+                            {vehicle.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-foreground-subtle">{vehicle.registrationNumber}</p>
+                        {vehicle.dailyRate && (
+                          <p className="text-xs font-medium text-primary mt-2">
+                            {vehicle.dailyRate} MAD/jour
+                          </p>
+                        )}
                       </div>
-                      <p className="text-sm text-text-muted">{vehicle.registrationNumber}</p>
-                      {vehicle.dailyRate && (
-                        <p className="text-sm text-text mt-2">
-                          {vehicle.dailyRate} MAD/jour
-                        </p>
-                      )}
-                    </Card>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -194,15 +294,15 @@ export default function AgencyDashboard() {
                   action={
                     <Link href="/agency/vehicles/new">
                       <Button variant="primary">
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="h-4 w-4" />
                         Ajouter un véhicule
                       </Button>
                     </Link>
                   }
                 />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </MainLayout>
     </RouteGuard>

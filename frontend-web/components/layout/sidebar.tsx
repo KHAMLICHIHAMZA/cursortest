@@ -251,7 +251,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col z-50 transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed left-0 top-0 h-screen w-64 bg-surface-0/95 backdrop-blur-md border-r border-border flex flex-col z-50 transition-transform duration-300 lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

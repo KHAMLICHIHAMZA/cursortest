@@ -4,6 +4,7 @@ import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react
 import { useEffect, useState } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/contexts/theme-context';
+import { SearchProvider } from '@/contexts/search-context';
 
 function ChunkRecovery() {
   useEffect(() => {
@@ -92,9 +93,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <ChunkRecovery />
-        <ToastProvider />
-        {children}
+        <SearchProvider>
+          <ChunkRecovery />
+          <ToastProvider />
+          {children}
+        </SearchProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

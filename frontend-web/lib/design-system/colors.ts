@@ -1,6 +1,7 @@
 /**
- * Design System - Palette de couleurs MalocAuto v2
- * Premium dark theme with warm amber automotive accent
+ * Design System — références documentaires / composants hors Tailwind.
+ * Les couleurs runtime (clair/sombre) sont pilotées par `app/globals.css`
+ * + tokens Tailwind (`surface-*`, `foreground`, `primary`, etc.).
  */
 
 export const colors = {
