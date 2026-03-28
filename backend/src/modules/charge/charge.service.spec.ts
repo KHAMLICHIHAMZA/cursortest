@@ -30,7 +30,7 @@ describe("ChargeService", () => {
         delete: jest.fn(),
       },
       booking: { findMany: jest.fn() },
-      vehicle: { count: jest.fn(), findMany: jest.fn() },
+      vehicle: { count: jest.fn(), findMany: jest.fn(), findFirst: jest.fn() },
       agency: { findUnique: jest.fn() },
     };
     service = new ChargeService(mockPrisma as any);
@@ -46,6 +46,7 @@ describe("ChargeService", () => {
         amount: 500,
         date: "2026-01-15",
       };
+      mockPrisma.vehicle.findFirst.mockResolvedValue({ id: "v1" });
       mockPrisma.charge.create.mockResolvedValue({ id: "c1", ...dto });
       const result = await service.create(makeUser(), dto);
       expect(mockPrisma.charge.create).toHaveBeenCalled();
