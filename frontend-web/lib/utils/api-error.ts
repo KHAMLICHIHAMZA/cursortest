@@ -61,3 +61,32 @@ export function getApiErrorMessage(error: unknown, fallback = 'Une erreur est su
   return uniqueMessages.join(' • ');
 }
 
+/** Messages clairs quand l’API est injoignable (mauvaise URL en prod, CORS, réseau). */
+export function getLoginErrorMessage(error: unknown): string {
+  const err = error as {
+    response?: { data?: unknown };
+    code?: string;
+    message?: string;
+  };
+
+  if (!err?.response) {
+    const code = err?.code;
+    const msg = String(err?.message ?? '');
+    if (code === 'ECONNABORTED' || /timeout/i.test(msg)) {
+      return 'Le serveur met trop longtemps à répondre. Réessayez dans un instant.';
+    }
+    if (
+      code === 'ERR_NETWORK' ||
+      msg === 'Network Error' ||
+      code === 'ECONNREFUSED'
+    ) {
+      return "Impossible de joindre l'API. En déploiement (ex. Vercel), définissez NEXT_PUBLIC_API_URL sur l'URL publique du backend, puis reconstruisez le frontend. Vérifiez aussi CORS et que le backend est accessible.";
+    }
+    return 'Connexion impossible. Vérifiez votre réseau ou la configuration du serveur.';
+  }
+
+  return getApiErrorMessage(
+    error,
+    'Erreur de connexion. Vérifiez vos identifiants.',
+  );
+}

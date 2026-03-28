@@ -8,6 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { authApi } from '@/lib/api/auth';
+import {
+  getResolvedApiUrl,
+  isProductionApiUrlPointingToLocalhost,
+} from '@/lib/api/client';
+import { getLoginErrorMessage } from '@/lib/utils/api-error';
 import Cookies from 'js-cookie';
 
 export default function LoginPage() {
@@ -62,10 +67,8 @@ export default function LoginPage() {
       // Prefetch + replace keeps auth navigation smoother and cleaner in history.
       router.prefetch(targetRoute);
       router.replace(targetRoute);
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message || 'Erreur de connexion. Vérifiez vos identifiants.',
-      );
+    } catch (err: unknown) {
+      setError(getLoginErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +90,23 @@ export default function LoginPage() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isProductionApiUrlPointingToLocalhost() && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
+                  Configuration API invalide en production :{' '}
+                  <code className="rounded bg-background/80 px-1 py-0.5 text-xs">
+                    {getResolvedApiUrl()}
+                  </code>
+                  . Définissez{' '}
+                  <code className="rounded bg-background/80 px-1 py-0.5 text-xs">
+                    NEXT_PUBLIC_API_URL
+                  </code>{' '}
+                  (URL HTTPS du backend, ex.{' '}
+                  <code className="rounded bg-background/80 px-1 py-0.5 text-xs">
+                    …/api/v1
+                  </code>
+                  ) dans les variables d&apos;environnement Vercel, puis redéployez.
+                </div>
+              )}
               {error && (
                 <div className="rounded-lg bg-error/10 border border-error/20 p-3 text-sm text-error">
                   {error}

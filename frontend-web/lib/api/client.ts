@@ -4,6 +4,19 @@ import { getApiErrorMessage } from '../utils/api-error';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
+/** URL résolue au build (NEXT_PUBLIC_*). Utile pour diagnostics UI. */
+export function getResolvedApiUrl(): string {
+  return API_URL;
+}
+
+/** True si le bundle de prod appelle encore localhost — la connexion échouera côté navigateur. */
+export function isProductionApiUrlPointingToLocalhost(): boolean {
+  return (
+    process.env.NODE_ENV === 'production' &&
+    (API_URL.includes('localhost') || API_URL.includes('127.0.0.1'))
+  );
+}
+
 export const apiClient = axios.create({
   baseURL: API_URL,
   timeout: 15000,
