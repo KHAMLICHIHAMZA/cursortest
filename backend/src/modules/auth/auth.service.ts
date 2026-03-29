@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   ForbiddenException,
   NotFoundException,
+  HttpException,
+  Logger,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
@@ -19,6 +21,8 @@ import { sendPasswordResetEmail } from "../../services/email.service";
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -27,6 +31,23 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
+    try {
+      return await this.loginInternal(loginDto);
+    } catch (err: unknown) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      this.logger.error(
+        `Login unexpected error [${loginDto.email}]: ${msg}`,
+        stack,
+      );
+      throw err;
+    }
+  }
+
+  private async loginInternal(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
     const user = await this.prisma.user.findUnique({
@@ -212,14 +233,15 @@ export class AuthService {
     await this.auditService.logLogin(user.id, user.email);
 
     // Retourner le format attendu par le mobile
+    const displayName = String(user.name ?? "");
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.name.split(" ")[0] || "",
-        lastName: user.name.split(" ").slice(1).join(" ") || "",
+        firstName: displayName.split(" ")[0] || "",
+        lastName: displayName.split(" ").slice(1).join(" ") || "",
         role: user.role,
         companyId: user.companyId,
         company: user.company
