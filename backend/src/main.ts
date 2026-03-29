@@ -11,6 +11,20 @@ import { recordHttpMetric } from "./common/observability/http-metrics.store";
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // GET / : l'API est sous /api/v1 — éviter un 404 confus quand on ouvre l'URL racine dans un navigateur.
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    get: (path: string, handler: (req: Request, res: Response) => void) => void;
+  };
+  expressApp.get("/", (_req: Request, res: Response) => {
+    res.json({
+      service: "MalocAuto API",
+      version: "2.0.0",
+      apiBase: "/api/v1",
+      health: "/api/v1/health",
+      ready: "/api/v1/ready",
+    });
+  });
+
   // Lightweight request timing metrics for observability endpoints.
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = process.hrtime.bigint();
