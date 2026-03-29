@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE IF EXISTS "Vehicle"
+  ADD COLUMN IF NOT EXISTS "imageUrl" TEXT,
+  ADD COLUMN IF NOT EXISTS "horsepower" INTEGER,
+  ADD COLUMN IF NOT EXISTS "color" TEXT;
+
+
+

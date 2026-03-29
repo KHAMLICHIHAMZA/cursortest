@@ -37,8 +37,7 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
-# Prisma
-backend/prisma/migrations/
+# Prisma — les migrations DOIVENT être versionnées (deploy CI / Render: prisma migrate deploy)
 
 # Uploaded files (images, documents)
 backend/uploads/
