@@ -85,19 +85,19 @@ export function getLoginErrorMessage(error: unknown): string {
     return 'Connexion impossible. Vérifiez votre réseau ou la configuration du serveur.';
   }
 
-  const status = err.response.status;
+  const status = Number(err.response.status);
   if (status === 401 || status === 403) {
     return getApiErrorMessage(
       error,
       'Identifiants incorrects ou compte / société inactif.',
     );
   }
-  if (status != null && status >= 500) {
+  if (Number.isFinite(status) && status >= 500) {
     const detail = getApiErrorMessage(error, '');
     if (detail && !/^internal server error$/i.test(detail.trim())) {
       return detail;
     }
-    return 'Erreur serveur (souvent base de données pas à jour ou déploiement en cours). Attendez la fin du déploiement Render puis réessayez. Si besoin, vérifiez que `prisma migrate deploy` s’exécute au démarrage (`npm start`).';
+    return "Erreur serveur. Si le déploiement backend vient de finir, réessayez dans une minute. Sinon vérifiez les logs Render (migrations Prisma au démarrage).";
   }
 
   return getApiErrorMessage(

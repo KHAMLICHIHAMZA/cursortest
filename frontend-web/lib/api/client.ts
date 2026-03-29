@@ -45,8 +45,21 @@ apiClient.interceptors.response.use(
   async (error) => {
     // Skip message parsing for blob responses (PDF downloads etc.)
     const isBlob = error?.config?.responseType === 'blob';
-    if (!isBlob && error?.response?.data) {
-      error.response.data.message = getApiErrorMessage(error, 'Erreur serveur');
+    const data = error?.response?.data;
+    if (
+      !isBlob &&
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data)
+    ) {
+      try {
+        (data as Record<string, unknown>).message = getApiErrorMessage(
+          error,
+          'Erreur serveur',
+        );
+      } catch {
+        /* ignore: données figées ou forme inattendue */
+      }
     }
     const originalRequest = error.config;
 
@@ -93,8 +106,16 @@ apiClient.interceptors.response.use(
 
     // Gérer les erreurs 403 (Module non activé / Permission insuffisante)
     if (error.response?.status === 403) {
-      const errorMessage = error.response?.data?.message || error.response?.data?.error;
-      
+      const raw = error.response?.data?.message ?? error.response?.data?.error;
+      const errorMessage =
+        typeof raw === 'string'
+          ? raw
+          : Array.isArray(raw)
+            ? raw.filter((x) => typeof x === 'string').join(' • ')
+            : raw != null
+              ? String(raw)
+              : '';
+
       // Créer une erreur enrichie avec le code d'erreur
       const enhancedError = new Error(errorMessage || 'Accès refusé');
       (enhancedError as any).status = 403;
