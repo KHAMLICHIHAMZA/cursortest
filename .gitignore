@@ -19,6 +19,10 @@ dist/
 .env.production.local
 .env.production
 
+# Modèles d'environnement versionnés (sinon .env.* les exclut tous)
+!**/.env.example
+!**/.env.recette.example
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
