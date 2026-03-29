@@ -12,6 +12,11 @@ import * as bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import {
+  userForgotPasswordSelect,
+  userLoginSelect,
+  userSessionSelect,
+} from "./user-auth.select";
 import { AuditAction } from "@prisma/client";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
@@ -52,14 +57,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: {
-        company: true,
-        userAgencies: {
-          include: {
-            agency: true,
-          },
-        },
-      },
+      select: userLoginSelect,
     });
 
     if (!user) {
@@ -296,7 +294,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: { company: true },
+      select: userForgotPasswordSelect,
     });
 
     if (!user || !user.isActive) {
@@ -372,14 +370,7 @@ export class AuthService {
     // Vérifier que l'utilisateur est toujours actif
     const user = await this.prisma.user.findUnique({
       where: { id: storedToken.userId },
-      include: {
-        company: true,
-        userAgencies: {
-          include: {
-            agency: true,
-          },
-        },
-      },
+      select: userSessionSelect,
     });
 
     if (!user || !user.isActive) {
@@ -529,6 +520,7 @@ export class AuthService {
       this.prisma.user.update({
         where: { id: resetToken.userId },
         data: { password: hashedPassword },
+        select: { id: true },
       }),
       this.prisma.passwordResetToken.delete({
         where: { id: resetToken.id },
@@ -551,14 +543,7 @@ export class AuthService {
   async validateUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        company: true,
-        userAgencies: {
-          include: {
-            agency: true,
-          },
-        },
-      },
+      select: userSessionSelect,
     });
 
     if (!user || !user.isActive) {
@@ -576,6 +561,7 @@ export class AuthService {
     // Vérifier que l'admin est bien SUPER_ADMIN
     const admin = await this.prisma.user.findUnique({
       where: { id: adminUserId },
+      select: { id: true, email: true, role: true },
     });
 
     if (!admin || admin.role !== "SUPER_ADMIN") {
@@ -587,14 +573,7 @@ export class AuthService {
     // Récupérer l'utilisateur cible
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
-      include: {
-        company: true,
-        userAgencies: {
-          include: {
-            agency: true,
-          },
-        },
-      },
+      select: userSessionSelect,
     });
 
     if (!targetUser) {

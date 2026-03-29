@@ -64,7 +64,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Une erreur est su
 /** Messages clairs quand l’API est injoignable (mauvaise URL en prod, CORS, réseau). */
 export function getLoginErrorMessage(error: unknown): string {
   const err = error as {
-    response?: { data?: unknown };
+    response?: { status?: number; data?: unknown };
     code?: string;
     message?: string;
   };
@@ -73,7 +73,7 @@ export function getLoginErrorMessage(error: unknown): string {
     const code = err?.code;
     const msg = String(err?.message ?? '');
     if (code === 'ECONNABORTED' || /timeout/i.test(msg)) {
-      return 'Le serveur met trop longtemps à répondre. Réessayez dans un instant.';
+      return 'Le serveur met trop longtemps à répondre (cold start ou surcharge). Réessayez dans un instant. Si ça persiste après un nouveau déploiement du backend, vérifiez les logs Render.';
     }
     if (
       code === 'ERR_NETWORK' ||
@@ -83,6 +83,21 @@ export function getLoginErrorMessage(error: unknown): string {
       return "Impossible de joindre l'API. En déploiement (ex. Vercel), définissez NEXT_PUBLIC_API_URL sur l'URL publique du backend, puis reconstruisez le frontend. Vérifiez aussi CORS et que le backend est accessible.";
     }
     return 'Connexion impossible. Vérifiez votre réseau ou la configuration du serveur.';
+  }
+
+  const status = err.response.status;
+  if (status === 401 || status === 403) {
+    return getApiErrorMessage(
+      error,
+      'Identifiants incorrects ou compte / société inactif.',
+    );
+  }
+  if (status != null && status >= 500) {
+    const detail = getApiErrorMessage(error, '');
+    if (detail && !/^internal server error$/i.test(detail.trim())) {
+      return detail;
+    }
+    return 'Erreur serveur (souvent base de données pas à jour ou déploiement en cours). Attendez la fin du déploiement Render puis réessayez. Si besoin, vérifiez que `prisma migrate deploy` s’exécute au démarrage (`npm start`).';
   }
 
   return getApiErrorMessage(

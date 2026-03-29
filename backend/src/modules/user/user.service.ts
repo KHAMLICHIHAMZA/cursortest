@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { userProfileSelect } from "../auth/user-auth.select";
 import { PrismaSoftDeleteService } from "../../common/prisma/prisma-soft-delete.service";
 import { AuditService } from "../../common/services/audit.service";
 import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
@@ -78,14 +79,7 @@ export class UserService {
     if (user.role === "SUPER_ADMIN") {
       users = await this.prisma.user.findMany({
         where: this.softDeleteService.addSoftDeleteFilter(),
-        include: {
-          company: true,
-          userAgencies: {
-            include: {
-              agency: true,
-            },
-          },
-        },
+        select: userProfileSelect,
         orderBy: { createdAt: "desc" },
       });
     } else if (user.role === "COMPANY_ADMIN" && user.companyId) {
@@ -93,14 +87,7 @@ export class UserService {
         where: this.softDeleteService.addSoftDeleteFilter({
           companyId: user.companyId,
         }),
-        include: {
-          company: true,
-          userAgencies: {
-            include: {
-              agency: true,
-            },
-          },
-        },
+        select: userProfileSelect,
         orderBy: { createdAt: "desc" },
       });
     } else {
@@ -129,15 +116,6 @@ export class UserService {
     const skip = (safePage - 1) * safePageSize;
     const search = q?.trim();
     const normalizedAgencyId = agencyId?.trim();
-    const include = {
-      company: true,
-      userAgencies: {
-        include: {
-          agency: true,
-        },
-      },
-    } as const;
-
     if (user.role === "SUPER_ADMIN") {
       const where = this.softDeleteService.addSoftDeleteFilter({
         ...(search
@@ -159,7 +137,7 @@ export class UserService {
       const [itemsRaw, total, activeTotal] = await Promise.all([
         this.prisma.user.findMany({
           where,
-          include,
+          select: userProfileSelect,
           orderBy: { createdAt: "desc" },
           skip,
           take: safePageSize,
@@ -206,7 +184,7 @@ export class UserService {
       const [itemsRaw, total, activeTotal] = await Promise.all([
         this.prisma.user.findMany({
           where,
-          include,
+          select: userProfileSelect,
           orderBy: { createdAt: "desc" },
           skip,
           take: safePageSize,
@@ -235,16 +213,11 @@ export class UserService {
   }
 
   async findOne(id: string, user: any) {
-    const includeRelations = {
-      company: true,
-      userAgencies: { include: { agency: true } },
-    };
-
     // Users can see their own profile
     if (id === user.userId || id === user.sub) {
       const self = await this.prisma.user.findUnique({
         where: { id },
-        include: includeRelations,
+        select: userProfileSelect,
       });
       return self ? this.sanitizeUser(self) : null;
     }
@@ -253,20 +226,23 @@ export class UserService {
     if (user.role === "SUPER_ADMIN") {
       const found = await this.prisma.user.findUnique({
         where: { id },
-        include: includeRelations,
+        select: userProfileSelect,
       });
       return found ? this.sanitizeUser(found) : null;
     }
 
     if (user.role === "COMPANY_ADMIN" && user.companyId) {
-      const targetUser = await this.prisma.user.findUnique({ where: { id } });
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id },
+        select: { id: true, companyId: true },
+      });
       if (!targetUser || targetUser.companyId !== user.companyId) {
         throw new ForbiddenException("Accès refusé");
       }
 
       const userWithRelations = await this.prisma.user.findUnique({
         where: { id },
-        include: includeRelations,
+        select: userProfileSelect,
       });
       if (!userWithRelations) {
         throw new NotFoundException("Utilisateur introuvable");
@@ -303,6 +279,7 @@ export class UserService {
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true, email: true, deletedAt: true },
     });
 
     if (existingUser) {
@@ -314,6 +291,7 @@ export class UserService {
           data: {
             email: this.buildArchivedEmail(existingUser.email, existingUser.id),
           },
+          select: { id: true },
         });
       } else {
         throw new BadRequestException(
@@ -376,6 +354,7 @@ export class UserService {
 
     const newUser = await this.prisma.user.create({
       data: dataWithAudit,
+      select: { id: true },
     });
 
     if (agencyIds && agencyIds.length > 0) {
@@ -407,14 +386,7 @@ export class UserService {
 
     const userWithRelations = await this.prisma.user.findUnique({
       where: { id: newUser.id },
-      include: {
-        company: true,
-        userAgencies: {
-          include: {
-            agency: true,
-          },
-        },
-      },
+      select: userProfileSelect,
     });
 
     if (!userWithRelations) {
@@ -433,7 +405,7 @@ export class UserService {
         null,
         userWithRelations,
         user?.id || user?.userId || user?.sub,
-        newUser.companyId || null, // companyId
+        userWithRelations.companyId || null,
       )
       .catch((err) => console.error("Error logging user creation event:", err));
 
@@ -444,9 +416,7 @@ export class UserService {
   async update(id: string, updateUserDto: UpdateUserDto, user: any) {
     const targetUser = await this.prisma.user.findUnique({
       where: { id },
-      include: {
-        userAgencies: true,
-      },
+      select: userProfileSelect,
     });
 
     if (!targetUser) {
@@ -518,6 +488,7 @@ export class UserService {
     await this.prisma.user.update({
       where: { id },
       data: dataWithAudit,
+      select: { id: true },
     });
 
     if (updateUserDto.agencyIds !== undefined) {
@@ -537,14 +508,7 @@ export class UserService {
 
     const updatedUser = await this.prisma.user.findUnique({
       where: { id },
-      include: {
-        company: true,
-        userAgencies: {
-          include: {
-            agency: true,
-          },
-        },
-      },
+      select: userProfileSelect,
     });
 
     if (!updatedUser) {
@@ -572,6 +536,13 @@ export class UserService {
   async resetPassword(id: string, user: any) {
     const targetUser = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        companyId: true,
+        role: true,
+      },
     });
 
     if (!targetUser) {
@@ -633,6 +604,7 @@ export class UserService {
 
     const targetUser = await this.prisma.user.findFirst({
       where: this.softDeleteService.addSoftDeleteFilter({ id }),
+      select: userProfileSelect,
     });
 
     if (!targetUser) {
@@ -655,6 +627,7 @@ export class UserService {
     await this.prisma.user.update({
       where: { id },
       data: deleteData,
+      select: { id: true },
     });
 
     // Log business event
@@ -749,6 +722,7 @@ export class UserService {
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: updateData,
+      select: userProfileSelect,
     });
     return this.auditService.removeAuditFields(updated);
   }
@@ -758,7 +732,10 @@ export class UserService {
     currentPassword: string,
     newPassword: string,
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
     if (!user) throw new NotFoundException("Utilisateur introuvable");
 
     const isValid = await bcrypt.compare(currentPassword, user.password);
@@ -768,6 +745,7 @@ export class UserService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
+      select: { id: true },
     });
 
     return { message: "Mot de passe modifié avec succès" };

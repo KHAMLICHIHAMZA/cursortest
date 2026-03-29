@@ -1,6 +1,10 @@
 # Blueprint Render — backend API (monorepo)
 # Dashboard: lier ce dépôt ou « Apply » le blueprint pour appliquer build/start.
 # https://render.com/docs/blueprint-spec
+#
+# Prérequis: DATABASE_URL (PostgreSQL Render) sur le service.
+# Au démarrage: `npm start` = `prisma migrate deploy` puis `node dist/main`
+# (les migrations sont dans backend/prisma/migrations — versionnées dans Git).
 
 services:
   - type: web

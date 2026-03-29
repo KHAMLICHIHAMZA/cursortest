@@ -75,8 +75,7 @@ export class AnalyticsService {
       },
     });
 
-    // Get all users
-    const users = await this.prisma.user.findMany({
+    const totalUsers = await this.prisma.user.count({
       where: { deletedAt: null },
     });
 
@@ -85,7 +84,6 @@ export class AnalyticsService {
     const activeCompanies = companies.filter((c) => c.isActive).length;
     const totalAgencies = agencies.length;
     const totalVehicles = vehicles.length;
-    const totalUsers = users.length;
     const totalBookings = bookings.length;
     const completedBookings = bookings.filter(
       (b) => b.status === BookingStatus.RETURNED,

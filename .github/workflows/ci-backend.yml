@@ -5,11 +5,13 @@ on:
     branches: [main, develop]
     paths:
       - 'backend/**'
+      - 'render.yaml'
       - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [main, develop]
     paths:
       - 'backend/**'
+      - 'render.yaml'
       - '.github/workflows/ci-backend.yml'
   workflow_call:
 
@@ -54,9 +56,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
 
-      - name: Push database schema
+      - name: Apply migrations (same as production)
         working-directory: ./backend
-        run: npx prisma db push --accept-data-loss
+        run: npx prisma migrate deploy
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
 
@@ -123,9 +125,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
 
-      - name: Push database schema
+      - name: Apply migrations (same as production)
         working-directory: ./backend
-        run: npx prisma db push --accept-data-loss
+        run: npx prisma migrate deploy
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
 

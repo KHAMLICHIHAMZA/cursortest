@@ -595,6 +595,7 @@ export class CompanyService {
       // Check admin email (exclure les users supprimés)
       const existingAdmin = await this.prisma.user.findFirst({
         where: { email: adminEmail, deletedAt: null },
+        select: { id: true },
       });
 
       if (existingAdmin) {
@@ -642,6 +643,7 @@ export class CompanyService {
             companyId: createdCompany.id,
             isActive: true,
           },
+          select: { id: true },
         });
 
         await tx.passwordResetToken.create({

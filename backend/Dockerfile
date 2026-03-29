@@ -54,5 +54,5 @@ EXPOSE 3000
 # Set environment
 ENV NODE_ENV=production
 
-# Start the application
-CMD ["node", "dist/main"]
+# Aligné sur package.json : migrations puis API (obligatoire si schéma ≠ base)
+CMD ["npm", "start"]

@@ -294,6 +294,7 @@ export class BillingService {
           companyId,
           role: "COMPANY_ADMIN",
         },
+        select: { id: true, email: true },
       });
 
       if (!companyAdmin || !companyAdmin.email) {
