@@ -7,19 +7,6 @@ import { HealthService } from "./health.service";
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
-  /** GET /api/v1 — pas de handler avant : le client voyait un 404 sur l’URL « base » de l’API. */
-  @Get()
-  @ApiOperation({ summary: "Racine API — liens utiles" })
-  getApiRoot() {
-    return {
-      service: "MalocAuto API",
-      version: "2.0.0",
-      health: "/api/v1/health",
-      ready: "/api/v1/ready",
-      authLogin: "POST /api/v1/auth/login",
-    };
-  }
-
   @Get("health")
   @ApiOperation({ summary: "Liveness probe" })
   getHealth() {

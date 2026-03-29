@@ -11,6 +11,26 @@ import { recordHttpMetric } from "./common/observability/http-metrics.store";
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // GET /api/v1 : doit passer avant le routeur Nest (sinon 404). Pas fiable via @Get() seul avec globalPrefix.
+  const apiV1RootPayload = {
+    service: "MalocAuto API",
+    version: "2.0.0",
+    health: "/api/v1/health",
+    ready: "/api/v1/ready",
+    authLogin: "POST /api/v1/auth/login",
+  };
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET") {
+      return next();
+    }
+    const p = req.originalUrl?.split("?")[0] ?? "";
+    if (p === "/api/v1" || p === "/api/v1/") {
+      res.json(apiV1RootPayload);
+      return;
+    }
+    next();
+  });
+
   // GET / : l'API est sous /api/v1 — éviter un 404 confus quand on ouvre l'URL racine dans un navigateur.
   const expressApp = app.getHttpAdapter().getInstance() as {
     get: (path: string, handler: (req: Request, res: Response) => void) => void;
