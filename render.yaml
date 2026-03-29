@@ -3,8 +3,9 @@
 # https://render.com/docs/blueprint-spec
 #
 # Prérequis: DATABASE_URL (PostgreSQL Render) sur le service.
-# Au démarrage: `npm start` = `prisma migrate deploy` puis `node dist/main`
-# (les migrations sont dans backend/prisma/migrations — versionnées dans Git).
+# Démarrage: migrations puis Node (sans `npm start` pour éviter les lignes
+# « npm error … SIGTERM » quand Render remplace le conteneur au déploiement — normal).
+# Dashboard: si le blueprint n’est pas lié, copie cette commande dans Start Command.
 
 services:
   - type: web
@@ -12,5 +13,5 @@ services:
     runtime: node
     rootDir: backend
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npm start
+    startCommand: npx prisma migrate deploy && node dist/main
     healthCheckPath: /api/v1/health
