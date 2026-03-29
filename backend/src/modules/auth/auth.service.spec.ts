@@ -121,6 +121,15 @@ describe("AuthService", () => {
       expect(result).toHaveProperty("access_token");
       expect(result).toHaveProperty("refresh_token");
       expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
+      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { email: "test@example.com" },
+          select: expect.objectContaining({
+            email: true,
+            password: true,
+          }),
+        }),
+      );
     });
   });
 

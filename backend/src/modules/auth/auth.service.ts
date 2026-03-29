@@ -339,7 +339,6 @@ export class AuthService {
     // Vérifier le refresh token dans la base de données
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true },
     });
 
     if (

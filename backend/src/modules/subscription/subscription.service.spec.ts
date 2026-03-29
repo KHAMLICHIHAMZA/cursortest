@@ -259,7 +259,8 @@ describe("SubscriptionService", () => {
     it("should throw BadRequestException if suspension period exceeded 90 days", async () => {
       const mockUser = { userId: "user-1", role: "SUPER_ADMIN" };
       const oldDate = new Date();
-      oldDate.setDate(oldDate.getDate() - 91);
+      // Marge > 91 jours calendaires pour éviter les bords (fuseau, arrondi floor).
+      oldDate.setDate(oldDate.getDate() - 120);
       const mockSubscription = {
         id: "sub-1",
         status: SubscriptionStatus.SUSPENDED,
