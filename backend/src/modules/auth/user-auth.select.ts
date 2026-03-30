@@ -71,14 +71,18 @@ export const userProfileSelect = {
   deletedReason: true,
   createdAt: true,
   updatedAt: true,
-  company: true,
+  company: {
+    select: companyAuthSelect,
+  },
   userAgencies: {
     select: {
       id: true,
       userId: true,
       agencyId: true,
       permission: true,
-      agency: true,
+      agency: {
+        select: agencyAuthSelect,
+      },
     },
   },
 } satisfies Prisma.UserSelect;

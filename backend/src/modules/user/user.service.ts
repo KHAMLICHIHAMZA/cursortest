@@ -300,7 +300,10 @@ export class UserService {
       }
     }
 
-    let targetCompanyId = companyId || user.companyId;
+    let targetCompanyId =
+      companyId && String(companyId).trim() !== ""
+        ? companyId
+        : user.companyId;
 
     if (user.role === "COMPANY_ADMIN") {
       if (companyId && companyId !== user.companyId) {
@@ -311,12 +314,32 @@ export class UserService {
       targetCompanyId = user.companyId!;
     }
 
+    if (
+      ["COMPANY_ADMIN", "AGENCY_MANAGER", "AGENT"].includes(role) &&
+      !targetCompanyId
+    ) {
+      throw new BadRequestException(
+        "Sélectionnez une entreprise pour ce rôle.",
+      );
+    }
+
     if (targetCompanyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: targetCompanyId },
+        select: {
+          id: true,
+          isActive: true,
+          deletedAt: true,
+          status: true,
+        },
       });
 
-      if (!company || !company.isActive) {
+      if (
+        !company ||
+        !company.isActive ||
+        company.deletedAt ||
+        (company.status && company.status !== "ACTIVE")
+      ) {
         throw new BadRequestException("Société introuvable ou inactive");
       }
     }
@@ -327,6 +350,7 @@ export class UserService {
           id: { in: agencyIds },
           companyId: targetCompanyId,
         },
+        select: { id: true },
       });
 
       if (agencies.length !== agencyIds.length) {
