@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/client';
 import { getLoginErrorMessage } from '@/lib/utils/api-error';
 import Cookies from 'js-cookie';
+import { authCookieBase } from '@/lib/auth-cookies';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,29 +32,21 @@ export default function LoginPage() {
     try {
       const response = await authApi.login({ email, password });
 
-      // Stocker les tokens avec les bonnes options pour Next.js
-      Cookies.set('accessToken', response.accessToken, { 
+      Cookies.set('accessToken', response.accessToken, {
+        ...authCookieBase,
         expires: 7,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
       });
-      Cookies.set('refreshToken', response.refreshToken, { 
+      Cookies.set('refreshToken', response.refreshToken, {
+        ...authCookieBase,
         expires: 30,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
       });
-
-      // Stocker les infos utilisateur (nécessaire pour useModuleAccess, sidebar, etc.)
       Cookies.set('user', JSON.stringify(response.user), {
+        ...authCookieBase,
         expires: 7,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
       });
 
-      // Prime shared cache to avoid extra user-fetch/loading flash just after redirect.
       queryClient.setQueryData(['me'], response.user);
 
-      // Rediriger selon le rôle
       const role = response.user.role;
       let targetRoute = '/';
       if (role === 'SUPER_ADMIN') {
@@ -64,9 +57,9 @@ export default function LoginPage() {
         targetRoute = '/agency';
       }
 
-      // Prefetch + replace keeps auth navigation smoother and cleaner in history.
-      router.prefetch(targetRoute);
-      router.replace(targetRoute);
+      // Navigation complète : le middleware lit les cookies sur la requête document.
+      // router.replace (RSC) peut partir avant que les cookies soient visibles — surtout en navigation privée.
+      window.location.assign(targetRoute);
     } catch (err: unknown) {
       setError(getLoginErrorMessage(err));
     } finally {
