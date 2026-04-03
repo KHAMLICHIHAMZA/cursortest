@@ -201,6 +201,27 @@ describe('SaaS E2E Tests', () => {
     });
   });
 
+  /**
+   * Exercises CompanyService.findOne() → prisma.company.findFirst({ include: { users: { include: { userAgencies: … }}}})
+   * Catches production DB drift (e.g. schema has User.phone but migration never ran): would be 500 instead of 200.
+   */
+  describe('GET /companies/:id (super-admin detail)', () => {
+    it('returns 200 with users array and userAgencies on each user (nested include)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/companies/${companyId}`)
+        .set('Authorization', `Bearer ${superAdminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.id).toBe(companyId);
+      expect(Array.isArray(res.body.users)).toBe(true);
+      const companyAdminUser = res.body.users.find(
+        (u: { email: string }) => u.email === 'e2e-companyadmin@test.com',
+      );
+      expect(companyAdminUser).toBeDefined();
+      expect(Array.isArray(companyAdminUser.userAgencies)).toBe(true);
+    });
+  });
+
   describe('Subscription Lifecycle', () => {
     it('should suspend company when subscription expires', async () => {
       // Mettre à jour l'abonnement pour qu'il soit expiré (mais toujours ACTIVE pour que checkExpiredSubscriptions le détecte)

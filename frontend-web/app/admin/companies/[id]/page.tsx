@@ -16,6 +16,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/utils/api-error';
 
 const ALL_MODULES: { code: ModuleCode; label: string; description: string }[] = [
   { code: 'VEHICLES', label: 'Véhicules', description: 'Gestion du parc, GPS, charges' },
@@ -69,6 +70,13 @@ export default function EditCompanyPage() {
     queryKey: ['company', id],
     queryFn: () => companyApi.getById(id),
     enabled: !!id,
+    // Après POST, certains hébergements (réplication lecture) renvoient un 404 très bref sur GET
+    retry: (failureCount, err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404 && failureCount < 8) return true;
+      return failureCount < 2;
+    },
+    retryDelay: (attempt) => Math.min(1000 * (attempt + 1), 6000),
   });
 
   const { data: subscription, isLoading: subscriptionLoading } = useQuery({
@@ -414,14 +422,19 @@ export default function EditCompanyPage() {
     );
   }
 
-  if (error || !company) {
+  // Ne pas traiter un refetch échoué comme « absent » si le cache contient encore l’entreprise (ex. création récente).
+  if (!isLoading && !company) {
+    const apiMessage = error ? getApiErrorMessage(error, '') : '';
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN']}>
         <MainLayout>
           <ErrorState
             title="Entreprise non trouvée"
-            message="L'entreprise demandée n'existe pas ou a été supprimée."
-            onRetry={() => router.push('/admin/companies')}
+            message={
+              apiMessage ||
+              "L'entreprise demandée n'existe pas, a été supprimée, ou l'API a répondu une erreur (vérifiez NEXT_PUBLIC_API_URL en production)."
+            }
+            onRetry={() => queryClient.invalidateQueries({ queryKey: ['company', id] })}
           />
         </MainLayout>
       </RouteGuard>

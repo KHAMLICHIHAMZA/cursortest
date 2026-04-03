@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyApi, CreateCompanyDto } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/toast';
 
 export default function NewCompanyPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState<CreateCompanyDto>({
     name: '',
     raisonSociale: '',
@@ -33,6 +34,7 @@ export default function NewCompanyPage() {
   const createMutation = useMutation({
     mutationFn: (data: CreateCompanyDto) => companyApi.create(data),
     onSuccess: (createdCompany) => {
+      queryClient.setQueryData(['company', createdCompany.id], createdCompany);
       toast.success("Entreprise créée. Passez à l'étape pack puis modules.");
       router.push(`/admin/companies/${createdCompany.id}?section=pack`);
     },
