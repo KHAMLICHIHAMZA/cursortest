@@ -2,7 +2,9 @@
 # Dashboard: lier ce dépôt ou « Apply » le blueprint pour appliquer build/start.
 # https://render.com/docs/blueprint-spec
 #
-# Prérequis: DATABASE_URL (PostgreSQL Render) sur le service.
+# Prérequis: DATABASE_URL + DIRECT_URL sur le service.
+# Avec Neon : DATABASE_URL = endpoint *pooler* (-pooler), DIRECT_URL = endpoint direct (sans -pooler).
+# Sans DIRECT_URL, prisma migrate deploy timeout sur pg_advisory_lock via le pooler (P1002).
 # Démarrage: migrations puis Node (sans `npm start` pour éviter les lignes
 # « npm error … SIGTERM » quand Render remplace le conteneur au déploiement — normal).
 # Dashboard: si le blueprint n’est pas lié, copie cette commande dans Start Command.

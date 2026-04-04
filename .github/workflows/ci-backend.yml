@@ -55,18 +55,21 @@ jobs:
         run: npm run prisma:generate
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
 
       - name: Apply migrations (same as production)
         working-directory: ./backend
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
 
       - name: Run unit tests
         working-directory: ./backend
         run: npm run test
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
           JWT_SECRET: test-secret-key
           NODE_ENV: test
 
@@ -75,6 +78,7 @@ jobs:
         run: npm run test:cov
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
           JWT_SECRET: test-secret-key
           NODE_ENV: test
 
@@ -124,18 +128,21 @@ jobs:
         run: npm run prisma:generate
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
 
       - name: Apply migrations (same as production)
         working-directory: ./backend
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
 
       - name: Seed test database
         working-directory: ./backend
         run: npm run prisma:seed
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
 
       - name: Build application
         working-directory: ./backend
@@ -148,6 +155,7 @@ jobs:
           sleep 10
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
           JWT_SECRET: test-secret-key
           JWT_REFRESH_SECRET: test-refresh-secret-key
           PORT: 3000
@@ -158,6 +166,7 @@ jobs:
         run: npm run test:e2e
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
           JWT_SECRET: test-secret-key
           JWT_REFRESH_SECRET: test-refresh-secret-key
           PORT: 3000

@@ -57,6 +57,7 @@ jobs:
           npm run build
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
 
       - name: Setup Mobile
         working-directory: ./mobile-agent
@@ -69,6 +70,7 @@ jobs:
           sleep 15
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/malocauto_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/malocauto_test
           JWT_SECRET: test-secret-key
           JWT_REFRESH_SECRET: test-refresh-secret-key
           PORT: 3000
