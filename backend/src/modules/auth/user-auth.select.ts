@@ -1,9 +1,5 @@
 import type { Prisma } from "@prisma/client";
 
-/**
- * Champs nécessaires aux flux d’auth sans dépendre de colonnes absentes en prod
- * (ex. migrations non appliquées → `User.phone` manquant).
- */
 const companyAuthSelect = {
   id: true,
   name: true,
@@ -32,6 +28,9 @@ export const userSessionSelect = {
   id: true,
   email: true,
   name: true,
+  phone: true,
+  address: true,
+  dateOfBirth: true,
   role: true,
   companyId: true,
   isActive: true,
@@ -50,13 +49,13 @@ export const userLoginSelect = {
 } satisfies Prisma.UserSelect;
 
 /**
- * Détail profil, listes admin, create/update user — exclut `phone` si la colonne
- * n’existe pas encore en base. Mot de passe jamais chargé.
+ * Détail profil, listes admin, create/update user. Mot de passe jamais chargé.
  */
 export const userProfileSelect = {
   id: true,
   email: true,
   name: true,
+  phone: true,
   address: true,
   dateOfBirth: true,
   role: true,

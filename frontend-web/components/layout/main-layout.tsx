@@ -13,7 +13,81 @@ import { toast } from '@/components/ui/toast';
 
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import {
+  setAuthSessionStartedAtClient,
+  startNewAuthSessionClient,
+} from '@/lib/auth-session.client';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
+
+import type { AuthResponse } from '@/lib/api/auth';
+
+/** Aligné sur GET /auth/me : adresse stockée en JSON ou texte libre. */
+function parseMeAddressDetails(
+  address?: string | null,
+): AuthResponse['user']['addressDetails'] {
+  if (!address) return undefined;
+  try {
+    const parsed = JSON.parse(address);
+    if (parsed && typeof parsed === 'object') {
+      return {
+        line1: typeof parsed.line1 === 'string' ? parsed.line1 : undefined,
+        line2: typeof parsed.line2 === 'string' ? parsed.line2 : undefined,
+        city: typeof parsed.city === 'string' ? parsed.city : undefined,
+        postalCode:
+          typeof parsed.postalCode === 'string' ? parsed.postalCode : undefined,
+        country: typeof parsed.country === 'string' ? parsed.country : undefined,
+      };
+    }
+  } catch {
+    return { line1: address };
+  }
+  return undefined;
+}
+
+type MeUser = AuthResponse['user'];
+
+type ProfilePatchResponse = Partial<
+  Pick<
+    MeUser,
+    | 'id'
+    | 'email'
+    | 'name'
+    | 'role'
+    | 'companyId'
+    | 'phone'
+    | 'address'
+    | 'dateOfBirth'
+  >
+>;
+
+function mergeMeAfterProfilePatch(
+  prev: MeUser | undefined,
+  updated: ProfilePatchResponse,
+): MeUser {
+  const base = prev ?? {
+    id: updated.id ?? '',
+    email: updated.email ?? '',
+    name: updated.name ?? '',
+    role: updated.role ?? '',
+    agencyIds: [],
+  };
+  const addressDetails =
+    parseMeAddressDetails(updated.address ?? undefined) ?? base.addressDetails;
+  return {
+    ...base,
+    id: updated.id ?? base.id,
+    email: updated.email ?? base.email,
+    name: updated.name ?? base.name,
+    role: updated.role ?? base.role,
+    companyId: updated.companyId ?? base.companyId,
+    phone: updated.phone ?? base.phone,
+    address: updated.address ?? base.address,
+    addressDetails,
+    dateOfBirth: updated.dateOfBirth ?? base.dateOfBirth,
+    profileCompletionRequired: false,
+    missingProfileFields: [],
+  };
+}
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -54,6 +128,14 @@ export function MainLayout({ children }: MainLayoutProps) {
     }
     if (adminRefreshToken) {
       Cookies.set('refreshToken', adminRefreshToken, { expires: 7 });
+    }
+
+    const adminSessionStart = localStorage.getItem('admin_authSessionStartedAt');
+    if (adminSessionStart) {
+      setAuthSessionStartedAtClient(adminSessionStart);
+      localStorage.removeItem('admin_authSessionStartedAt');
+    } else {
+      startNewAuthSessionClient();
     }
 
     localStorage.removeItem('impersonating');
@@ -98,9 +180,20 @@ export function MainLayout({ children }: MainLayoutProps) {
         country: string;
       };
       dateOfBirth: string;
-    }) => apiClient.patch('/users/me', payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['me'] });
+    }) => apiClient.patch('/users/me', payload).then((res) => res.data),
+    onSuccess: async (updatedUser: ProfilePatchResponse) => {
+      queryClient.setQueryData(['me'], (prev) =>
+        mergeMeAfterProfilePatch(prev as MeUser | undefined, updatedUser),
+      );
+      await queryClient.refetchQueries({ queryKey: ['me'] });
+      const fresh = queryClient.getQueryData(['me']) as MeUser | undefined;
+      if (fresh?.profileCompletionRequired) {
+        queryClient.setQueryData(['me'], {
+          ...fresh,
+          profileCompletionRequired: false,
+          missingProfileFields: [],
+        });
+      }
       toast.success('Profil complété avec succès');
     },
     onError: (error: any) => {

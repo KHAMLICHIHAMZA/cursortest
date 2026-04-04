@@ -7,7 +7,8 @@
 # « npm error … SIGTERM » quand Render remplace le conteneur au déploiement — normal).
 # Dashboard: si le blueprint n’est pas lié, copie cette commande dans Start Command.
 # Ne pas retirer `prisma migrate deploy` : sinon schéma Prisma et DB prod divergent
-# (ex. colonne User.phone manquante → 500 sur GET /companies/:id).
+# (ex. colonne User.phone manquante → 500 sur GET /companies/:id, ou Vehicle.maintenanceAlertIntervalKm
+# manquante → 500 sur listes véhicules). Déployer toujours le dossier prisma/migrations à jour.
 # Après déploiement : `npm run smoke:remote` dans backend avec SMOKE_API_BASE (+ JWT optionnel).
 
 services:
