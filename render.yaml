@@ -12,6 +12,10 @@
 # (ex. colonne User.phone manquante → 500 sur GET /companies/:id, ou Vehicle.maintenanceAlertIntervalKm
 # manquante → 500 sur listes véhicules). Déployer toujours le dossier prisma/migrations à jour.
 # Après déploiement : `npm run smoke:remote` dans backend avec SMOKE_API_BASE (+ JWT optionnel).
+#
+# Neon « idle » : migrate peut encore timeout sur pg_advisory_lock (P1002, 10s). Prisma permet de
+# désactiver ce verrou si un seul déploiement applique les migrations à la fois (éviter 2 deploys parallèles).
+# Sinon : réveiller la branche (requête SQL dans Neon) puis redéployer, ou ajouter connect_timeout=60 aux URLs.
 
 services:
   - type: web
@@ -21,3 +25,6 @@ services:
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/main
     healthCheckPath: /api/v1/health
+    envVars:
+      - key: PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK
+        value: "1"
