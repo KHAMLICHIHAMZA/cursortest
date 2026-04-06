@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { authApi } from '@/lib/api/auth';
 import { companyApi } from '@/lib/api/company';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -13,7 +14,27 @@ import { RouteGuard } from '@/components/auth/route-guard';
 import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 
+function effectiveRoleBadgeLabel(role?: string) {
+  switch (role) {
+    case 'SUPER_ADMIN':
+      return 'Super Admin';
+    case 'COMPANY_ADMIN':
+      return 'Admin société';
+    case 'AGENCY_MANAGER':
+      return 'Responsable agence';
+    case 'AGENT':
+      return 'Agent';
+    default:
+      return 'Plateforme';
+  }
+}
+
 export default function AdminDashboard() {
+  const { data: me } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => authApi.getMe(),
+  });
+
   const { data: adminStats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: () => companyApi.getAdminStats(),
@@ -29,7 +50,9 @@ export default function AdminDashboard() {
       <MainLayout>
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex flex-col gap-2">
-            <Badge status="info" className="w-fit">Super Admin</Badge>
+            <Badge status="info" className="w-fit">
+              {effectiveRoleBadgeLabel(me?.role)}
+            </Badge>
             <h1 className="text-3xl font-bold text-text">Tableau de bord Admin</h1>
             <p className="text-text-muted">Gestion complète de la plateforme MalocAuto</p>
           </div>

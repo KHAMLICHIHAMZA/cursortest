@@ -16,6 +16,8 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import { AUTH_SESSION_START_COOKIE } from '@/lib/auth-session';
+import { startNewAuthSessionClient } from '@/lib/auth-session.client';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
@@ -106,12 +108,38 @@ export default function UsersPage() {
       if (currentRefreshToken) {
         localStorage.setItem('admin_refreshToken', currentRefreshToken);
       }
+      const sessionStart = Cookies.get(AUTH_SESSION_START_COOKIE);
+      if (sessionStart) {
+        localStorage.setItem('admin_authSessionStartedAt', sessionStart);
+      }
+      startNewAuthSessionClient();
       localStorage.setItem('impersonating', 'true');
       localStorage.setItem('impersonatedUser', JSON.stringify(data.user));
 
       // Remplacer par les tokens de l'utilisateur cible
       Cookies.set('accessToken', data.access_token, { expires: 1 });
       Cookies.set('refreshToken', data.refresh_token, { expires: 1 });
+
+      const u = data.user;
+      const displayName =
+        [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email;
+      Cookies.set(
+        'user',
+        JSON.stringify({
+          id: u.id,
+          email: u.email,
+          name: displayName,
+          role: u.role,
+          companyId: u.companyId,
+          agencyIds: u.agencyIds ?? [],
+        }),
+        {
+          expires: 1,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        },
+      );
+      queryClient.invalidateQueries({ queryKey: ['me'] });
 
       toast.success(`Connecte en tant que ${data.user.email}`);
 
