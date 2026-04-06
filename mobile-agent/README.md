@@ -168,13 +168,11 @@ npm run android
 
 ### API Backend
 
-Modifier `src/config/api.ts` pour configurer l'URL de l'API :
+L’URL est résolue dans `src/config/api.ts` :
 
-```typescript
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000/api/v1'
-  : 'https://api.malocauto.com/api/v1';
-```
+1. **`EXPO_PUBLIC_API_URL`** (recommandé pour **préprod** / prod de test) : fichier `.env` à la racine de `mobile-agent`, voir `.env.example`. Redémarrer Expo après changement.
+2. Sinon **`expo.extra.apiUrl`** dans la config Expo.
+3. Sinon en **`__DEV__`** : localhost / IP du serveur Metro ; hors dev : `https://api.malocauto.com/api/v1`.
 
 ### Permissions
 

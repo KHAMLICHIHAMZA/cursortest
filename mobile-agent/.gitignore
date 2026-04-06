@@ -17,3 +17,7 @@ web-build/
 *.log
 *.tmp
 
+# Variables locales (préprod, clés)
+.env
+.env.local
+

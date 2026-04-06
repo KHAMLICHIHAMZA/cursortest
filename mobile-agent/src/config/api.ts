@@ -21,11 +21,23 @@ const getDevHost = (): string | null => {
   return null;
 };
 
+/** Ajoute /api/v1 si l'env ne le contient pas déjà. */
+const normalizeApiBaseUrl = (raw: string): string => {
+  const u = raw.trim().replace(/\/$/, '');
+  if (u.endsWith('/api/v1')) return u;
+  return `${u}/api/v1`;
+};
+
 // Détecter automatiquement l'URL de l'API selon la plateforme
 const getApiUrl = () => {
-  // Si une URL est définie dans la config, l'utiliser
+  // Préprod / prod de test : .env (EXPO_PUBLIC_API_URL) — prioritaire même en __DEV__
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (fromEnv) {
+    return normalizeApiBaseUrl(fromEnv);
+  }
+
   if (Constants.expoConfig?.extra?.apiUrl) {
-    return Constants.expoConfig.extra.apiUrl;
+    return normalizeApiBaseUrl(String(Constants.expoConfig.extra.apiUrl));
   }
 
   // En développement
