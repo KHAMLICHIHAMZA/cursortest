@@ -13,11 +13,10 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
-import { getImageUrl } from '@/lib/utils/image-url';
+import { BackendImage } from '@/components/ui/backend-image';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
@@ -106,20 +105,12 @@ export default function VehiclesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredVehicles.map((vehicle) => (
                 <Card key={vehicle.id} className="hover:border-primary transition-colors">
-                  {vehicle.imageUrl ? (
-                    <Image
-                      src={getImageUrl(vehicle.imageUrl) || ''}
-                      alt={`${vehicle.brand} ${vehicle.model}`}
-                      width={800}
-                      height={480}
-                      unoptimized
-                      className="w-full h-48 object-cover rounded-t-lg mb-4"
-                    />
-                  ) : (
-                    <div className="w-full h-48 bg-background rounded-t-lg mb-4 flex items-center justify-center">
-                      <Car className="w-12 h-12 text-text-muted" />
-                    </div>
-                  )}
+                  <BackendImage
+                    imageUrl={vehicle.imageUrl}
+                    alt={`${vehicle.brand} ${vehicle.model}`}
+                    className="w-full h-48 object-cover rounded-t-lg mb-4"
+                    placeholderClassName="w-full h-48 rounded-t-lg mb-4"
+                  />
                   <div className="px-4 pb-4">
                     <div className="flex items-start justify-between mb-4">
                       <div>

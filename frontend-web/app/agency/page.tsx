@@ -7,7 +7,7 @@ import { bookingApi } from '@/lib/api/booking';
 import { apiClient } from '@/lib/api/client';
 import { Car, Users, Calendar, Plus, TrendingUp, Percent, DollarSign } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { BackendImage } from '@/components/ui/backend-image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
@@ -15,7 +15,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { DashboardSkeleton, VehicleCardSkeleton } from '@/components/ui/skeleton';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
-import { getImageUrl } from '@/lib/utils/image-url';
 
 interface KpiResult {
   revenue: number;
@@ -253,20 +252,13 @@ export default function AgencyDashboard() {
                       key={vehicle.id}
                       className="group overflow-hidden rounded-lg border border-border bg-surface-0 transition-all duration-200 hover:border-border-hover"
                     >
-                      {vehicle.imageUrl ? (
-                        <Image
-                          src={getImageUrl(vehicle.imageUrl) || ''}
-                          alt={`${vehicle.brand} ${vehicle.model}`}
-                          width={640}
-                          height={128}
-                          unoptimized
-                          className="w-full h-32 object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-32 bg-surface-2 flex items-center justify-center">
-                          <Car className="h-6 w-6 text-foreground-subtle" />
-                        </div>
-                      )}
+                      <BackendImage
+                        imageUrl={vehicle.imageUrl}
+                        alt={`${vehicle.brand} ${vehicle.model}`}
+                        className="w-full h-32 object-cover"
+                        placeholderClassName="w-full h-32 bg-surface-2"
+                        iconClassName="h-6 w-6 text-foreground-subtle"
+                      />
                       <div className="p-3.5">
                         <div className="flex items-center justify-between mb-1.5">
                           <h3 className="text-sm font-medium text-foreground truncate">

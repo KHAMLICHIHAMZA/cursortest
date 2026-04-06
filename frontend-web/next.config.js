@@ -9,7 +9,26 @@ const nextConfig = {
   // when multiple Next dev servers are accidentally launched.
   distDir: process.env.NEXT_DIST_DIR || '.next',
   images: {
-    domains: ['localhost'],
+    remotePatterns: (() => {
+      const patterns = [
+        { protocol: 'http', hostname: 'localhost', pathname: '/**' },
+        { protocol: 'https', hostname: 'localhost', pathname: '/**' },
+      ];
+      const raw = process.env.NEXT_PUBLIC_API_URL;
+      if (raw) {
+        try {
+          const u = new URL(raw);
+          patterns.push({
+            protocol: u.protocol.replace(':', ''),
+            hostname: u.hostname,
+            pathname: '/**',
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+      return patterns;
+    })(),
   },
   webpack: (config, { dev }) => {
     // Workaround: cssnano-simple may fail on some generated CSS selectors.
