@@ -229,33 +229,40 @@ async function bootstrap() {
     next();
   });
 
-  // Configuration du chemin de stockage des images de permis
-  const staticLicensePath = process.env.UPLOAD_PATH
-    ? join(process.env.UPLOAD_PATH, "licenses")
-    : join(__dirname, "..", "uploads", "licenses");
+  // Racine « uploads » (contient vehicles/, licenses/, fines/, etc.). UPLOAD_PATH = ce dossier en prod.
+  const uploadsRoot = process.env.UPLOAD_PATH
+    ? process.env.UPLOAD_PATH
+    : join(__dirname, "..", "uploads");
+  const staticLicensePath = join(uploadsRoot, "licenses");
 
-  // Serve static files pour les permis avec setHeaders pour forcer les en-têtes CORS
+  const setUploadCorsHeaders = (res: Response, filePath: string) => {
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      "Content-Length, Content-Type",
+    );
+    if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) {
+      res.setHeader("Content-Type", "image/jpeg");
+    } else if (filePath.endsWith(".png")) {
+      res.setHeader("Content-Type", "image/png");
+    } else if (filePath.endsWith(".gif")) {
+      res.setHeader("Content-Type", "image/gif");
+    } else if (filePath.endsWith(".webp")) {
+      res.setHeader("Content-Type", "image/webp");
+    }
+  };
+
+  // Fichiers statiques sous /uploads *avant* le globalPrefix api/v1 (sinon risque de 404).
+  // Ne pas utiliser join(UPLOAD_PATH, "vehicles") comme racine : l’URL est déjà /uploads/vehicles/…
   app.useStaticAssets(staticLicensePath, {
     prefix: "/uploads/licenses/",
-    setHeaders: (res: Response, filePath: string) => {
-      // Forcer les en-têtes CORS sur chaque fichier servi
-      // Le CORS global gère déjà les origines autorisées
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-      res.setHeader(
-        "Access-Control-Expose-Headers",
-        "Content-Length, Content-Type",
-      );
-      // Définir le type de contenu approprié pour les images
-      if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) {
-        res.setHeader("Content-Type", "image/jpeg");
-      } else if (filePath.endsWith(".png")) {
-        res.setHeader("Content-Type", "image/png");
-      } else if (filePath.endsWith(".gif")) {
-        res.setHeader("Content-Type", "image/gif");
-      } else if (filePath.endsWith(".webp")) {
-        res.setHeader("Content-Type", "image/webp");
-      }
-    },
+    setHeaders: (res: Response, filePath: string) =>
+      setUploadCorsHeaders(res, filePath),
+  });
+  app.useStaticAssets(uploadsRoot, {
+    prefix: "/uploads/",
+    setHeaders: (res: Response, filePath: string) =>
+      setUploadCorsHeaders(res, filePath),
   });
 
   // Security - Configurer Helmet pour ne pas bloquer les images CORS
@@ -269,35 +276,6 @@ async function bootstrap() {
 
   // Global prefix with versioning
   app.setGlobalPrefix("api/v1");
-
-  // Configuration du chemin de stockage des images
-  const staticUploadPath = process.env.UPLOAD_PATH
-    ? join(process.env.UPLOAD_PATH, "vehicles")
-    : join(__dirname, "..", "uploads");
-
-  // Serve static files avec setHeaders pour forcer les en-têtes CORS
-  app.useStaticAssets(staticUploadPath, {
-    prefix: "/uploads/",
-    setHeaders: (res: Response, filePath: string) => {
-      // Forcer les en-têtes CORS sur chaque fichier servi
-      // Le CORS global gère déjà les origines autorisées
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-      res.setHeader(
-        "Access-Control-Expose-Headers",
-        "Content-Length, Content-Type",
-      );
-      // Définir le type de contenu approprié pour les images
-      if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) {
-        res.setHeader("Content-Type", "image/jpeg");
-      } else if (filePath.endsWith(".png")) {
-        res.setHeader("Content-Type", "image/png");
-      } else if (filePath.endsWith(".gif")) {
-        res.setHeader("Content-Type", "image/gif");
-      } else if (filePath.endsWith(".webp")) {
-        res.setHeader("Content-Type", "image/webp");
-      }
-    },
-  });
 
   // Validation
   app.useGlobalPipes(
