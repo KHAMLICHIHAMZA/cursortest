@@ -13,9 +13,17 @@ interface ImageUploadProps {
   onChange: (file: File | null, previewUrl?: string) => void;
   className?: string;
   disabled?: boolean;
+  /** Libellé au-dessus de la zone ; défaut « Photo du véhicule ». Mettre chaîne vide pour ne rien afficher (le parent fournit le label). */
+  label?: string;
 }
 
-export function ImageUpload({ value, onChange, className, disabled }: ImageUploadProps) {
+export function ImageUpload({
+  value,
+  onChange,
+  className,
+  disabled,
+  label = 'Photo du véhicule',
+}: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(value || null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,9 +148,9 @@ export function ImageUpload({ value, onChange, className, disabled }: ImageUploa
 
   return (
     <div className={cn('space-y-2', className)}>
-      <label className="block text-sm font-medium text-text mb-2">
-        Photo du véhicule
-      </label>
+      {label ? (
+        <label className="block text-sm font-medium text-text mb-2">{label}</label>
+      ) : null}
 
       {preview ? (
         <Card className="relative p-4">

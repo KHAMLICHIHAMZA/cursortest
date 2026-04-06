@@ -612,6 +612,7 @@ export default function EditClientPage() {
                 Photo du permis de conduite
               </label>
               <ImageUpload
+                label=""
                 value={imagePreview || (uploadedImageUrl ? getImageUrl(uploadedImageUrl) : getImageUrl(client?.licenseImageUrl) || undefined)}
                 onChange={handleImageChange}
                 disabled={uploadImageMutation.isPending}

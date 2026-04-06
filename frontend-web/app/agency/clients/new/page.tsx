@@ -534,6 +534,7 @@ export default function NewClientPage() {
                 Photo du permis de conduite
               </label>
               <ImageUpload
+                label=""
                 value={imagePreview || undefined}
                 onChange={handleImageChange}
                 disabled={uploadImageMutation.isPending}
