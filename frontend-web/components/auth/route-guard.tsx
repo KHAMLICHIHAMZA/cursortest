@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
+import { clearAllAuthCookiesClient } from '@/lib/auth-session.client';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -30,6 +31,28 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  /** Pendant l'impersonation, le cookie user peut rester « Super Admin » un instant : le JWT est déjà la cible. */
+  useEffect(() => {
+    if (!isClient || !allowedRoles?.length) return;
+
+    if (localStorage.getItem('impersonating') !== 'true') return;
+
+    let impRole: string | undefined;
+    try {
+      const raw = localStorage.getItem('impersonatedUser');
+      if (raw) impRole = JSON.parse(raw)?.role as string | undefined;
+    } catch {
+      return;
+    }
+    if (!impRole || allowedRoles.includes(impRole)) return;
+
+    if (impRole === 'COMPANY_ADMIN') {
+      router.replace('/company');
+    } else if (impRole === 'AGENCY_MANAGER' || impRole === 'AGENT') {
+      router.replace('/agency');
+    }
+  }, [isClient, allowedRoles, router]);
 
   const { data: user, isLoading, error } = useQuery({
     queryKey: ['me'],
@@ -73,8 +96,7 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
     }
 
     if (error) {
-      Cookies.remove('accessToken');
-      Cookies.remove('refreshToken');
+      clearAllAuthCookiesClient();
       router.replace('/login');
       return;
     }
@@ -130,9 +152,7 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
               type="button"
               className="rounded-md bg-primary px-3 py-2 text-sm text-white"
               onClick={() => {
-                Cookies.remove('accessToken');
-                Cookies.remove('refreshToken');
-                Cookies.remove('user');
+                clearAllAuthCookiesClient();
                 router.replace('/login');
               }}
             >
