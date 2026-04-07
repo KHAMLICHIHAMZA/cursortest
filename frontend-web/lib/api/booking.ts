@@ -30,6 +30,7 @@ export interface Booking {
     model: string;
     registrationNumber: string;
     dailyRate?: number;
+    mileage?: number;
   };
   client?: {
     id: string;
@@ -43,6 +44,16 @@ export interface Booking {
     name: string;
     preparationTimeMinutes?: number;
   };
+  /** Pièces liées à la réservation (check-in / check-out, etc.) — renvoyées par GET /bookings/:id */
+  documents?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description?: string | null;
+    url: string;
+    key: string;
+    mimeType?: string | null;
+  }>;
 }
 
 export interface CreateBookingDto {
@@ -66,6 +77,93 @@ export interface PaginatedBookingsResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export type BookingFuelLevel =
+  | 'EMPTY'
+  | 'QUARTER'
+  | 'HALF'
+  | 'THREE_QUARTERS'
+  | 'FULL';
+
+export type TerrainDamageZone =
+  | 'FRONT'
+  | 'REAR'
+  | 'LEFT'
+  | 'RIGHT'
+  | 'ROOF'
+  | 'INTERIOR'
+  | 'WHEELS'
+  | 'WINDOWS';
+
+export type TerrainDamageType =
+  | 'SCRATCH'
+  | 'DENT'
+  | 'BROKEN'
+  | 'PAINT'
+  | 'GLASS'
+  | 'OTHER';
+
+export type TerrainDamageSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export const TERRAIN_DAMAGE_ZONES: TerrainDamageZone[] = [
+  'FRONT',
+  'REAR',
+  'LEFT',
+  'RIGHT',
+  'ROOF',
+  'INTERIOR',
+  'WHEELS',
+  'WINDOWS',
+];
+
+export const TERRAIN_DAMAGE_TYPES: TerrainDamageType[] = [
+  'SCRATCH',
+  'DENT',
+  'BROKEN',
+  'PAINT',
+  'GLASS',
+  'OTHER',
+];
+
+export const TERRAIN_DAMAGE_SEVERITIES: TerrainDamageSeverity[] = ['LOW', 'MEDIUM', 'HIGH'];
+
+/** Aligné sur le DTO backend DamageDto (check-in / check-out). */
+export interface TerrainDamagePayload {
+  zone: TerrainDamageZone;
+  type: TerrainDamageType;
+  severity: TerrainDamageSeverity;
+  description?: string;
+  photos: string[];
+}
+
+export interface CheckInPayload {
+  odometerStart: number;
+  fuelLevelStart: BookingFuelLevel;
+  photosBefore: string[];
+  notesStart?: string;
+  existingDamages?: TerrainDamagePayload[];
+  driverLicensePhoto: string;
+  driverLicenseExpiry: string;
+  identityDocument?: string;
+  extractionStatus?: 'OK' | 'TO_VERIFY';
+  depositStatusCheckIn?: 'PENDING' | 'COLLECTED';
+  signature: string;
+}
+
+export interface CheckOutPayload {
+  odometerEnd: number;
+  fuelLevelEnd: BookingFuelLevel;
+  photosAfter: string[];
+  notesEnd?: string;
+  newDamages?: TerrainDamagePayload[];
+  extraFees?: number;
+  lateFee?: number;
+  damageFee?: number;
+  cashCollected?: boolean;
+  cashAmount?: number;
+  cashReceipt?: string;
+  returnSignature: string;
 }
 
 export interface BookingSummary {
@@ -144,6 +242,18 @@ export const bookingApi = {
   // Génération manuelle de facture (rattrapage)
   generateInvoice: async (id: string): Promise<any> => {
     const response = await apiClient.post(`/invoices/booking/${id}/generate`);
+    return response.data;
+  },
+
+  /** Départ client (équivalent app agent) — réservation CONFIRMED */
+  checkIn: async (id: string, payload: CheckInPayload): Promise<Booking> => {
+    const response = await apiClient.post(`/bookings/${id}/checkin`, payload);
+    return response.data;
+  },
+
+  /** Retour véhicule — réservation IN_PROGRESS ou LATE */
+  checkOut: async (id: string, payload: CheckOutPayload): Promise<Booking> => {
+    const response = await apiClient.post(`/bookings/${id}/checkout`, payload);
     return response.data;
   },
 };

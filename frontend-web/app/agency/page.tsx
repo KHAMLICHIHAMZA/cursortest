@@ -7,6 +7,7 @@ import { bookingApi } from '@/lib/api/booking';
 import { apiClient } from '@/lib/api/client';
 import { Car, Users, Calendar, Plus, TrendingUp, Percent, DollarSign } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { BackendImage } from '@/components/ui/backend-image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,7 @@ interface KpiResult {
 const STALE_MS = 2 * 60 * 1000;
 
 export default function AgencyDashboard() {
+  const router = useRouter();
   const now = new Date();
   const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const endDate = now.toISOString().split('T')[0];
@@ -50,6 +52,12 @@ export default function AgencyDashboard() {
     staleTime: STALE_MS,
   });
 
+  const { data: confirmedBookingsPage } = useQuery({
+    queryKey: ['bookings-light', 'count', 'CONFIRMED'],
+    queryFn: () => bookingApi.getLight({ page: 1, pageSize: 1, status: 'CONFIRMED' }),
+    staleTime: STALE_MS,
+  });
+
   const { data: kpi, isLoading: kpiLoading } = useQuery<KpiResult>({
     queryKey: ['dashboard-kpi', startDate, endDate],
     queryFn: async () => {
@@ -62,6 +70,8 @@ export default function AgencyDashboard() {
   const availableVehicles = vehicles?.filter((v) => v.status === 'AVAILABLE').length || 0;
   const rentedVehicles = vehicles?.filter((v) => v.status === 'RENTED').length || 0;
   const activeBookings = bookingsSummary?.active ?? 0;
+  const lateBookings = bookingsSummary?.late ?? 0;
+  const confirmedForCheckIn = confirmedBookingsPage?.total ?? 0;
 
   const isInitialLoading =
     vehiclesLoading && clientsLoading && bookingsLoading && kpiLoading;
@@ -199,6 +209,38 @@ export default function AgencyDashboard() {
               isLoading={bookingsLoading}
             />
           </div>
+
+          {(confirmedForCheckIn > 0 || activeBookings > 0 || lateBookings > 0) && (
+            <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-foreground">
+                <p className="font-medium">Terrain — à traiter</p>
+                <p className="text-xs text-foreground-muted mt-1">
+                  {confirmedForCheckIn > 0 && (
+                    <span className="mr-2">
+                      {confirmedForCheckIn} réservation
+                      {confirmedForCheckIn > 1 ? 's' : ''} confirmée
+                      {confirmedForCheckIn > 1 ? 's' : ''} (check-in)
+                    </span>
+                  )}
+                  {(activeBookings > 0 || lateBookings > 0) && (
+                    <span>
+                      {activeBookings > 0 && `${activeBookings} en cours`}
+                      {activeBookings > 0 && lateBookings > 0 ? ' · ' : ''}
+                      {lateBookings > 0 && `${lateBookings} en retard`}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                onClick={() => router.push('/agency/bookings')}
+              >
+                Ouvrir les locations
+              </Button>
+            </div>
+          )}
 
           {/* Actions rapides v0 */}
           <div className="mb-8">

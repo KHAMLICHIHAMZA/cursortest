@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Calendar, Plus } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { AgencyFilter } from '@/components/ui/agency-filter';
@@ -21,6 +22,7 @@ import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
 
 export default function BookingsPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -233,17 +235,41 @@ export default function BookingsPage() {
                           </TableCell>
                           <TableCell>
                             {isModuleActive && (
-                              <div className="flex items-center justify-end gap-2">
-                                <Link href={`/agency/bookings/${booking.id}`}>
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                {booking.status === 'CONFIRMED' && (
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
-                                    aria-label="Modifier la réservation"
-                                    title="Modifier la réservation"
+                                    type="button"
+                                    aria-label="Check-in terrain"
+                                    title="Check-in terrain"
+                                    onClick={() => router.push(`/agency/bookings/${booking.id}/check-in`)}
                                   >
-                                    Modifier
+                                    Check-in
                                   </Button>
-                                </Link>
+                                )}
+                                {(booking.status === 'IN_PROGRESS' || booking.status === 'LATE') && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    type="button"
+                                    aria-label="Check-out terrain"
+                                    title="Check-out terrain"
+                                    onClick={() => router.push(`/agency/bookings/${booking.id}/check-out`)}
+                                  >
+                                    Check-out
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  type="button"
+                                  aria-label="Modifier la réservation"
+                                  title="Modifier la réservation"
+                                  onClick={() => router.push(`/agency/bookings/${booking.id}`)}
+                                >
+                                  Modifier
+                                </Button>
                               </div>
                             )}
                           </TableCell>

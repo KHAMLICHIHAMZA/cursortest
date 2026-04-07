@@ -23,6 +23,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
+import { BackendImage } from '@/components/ui/backend-image';
+import { getImageUrl } from '@/lib/utils/image-url';
 
 type AgencyOpeningHours = Record<
   string,
@@ -92,6 +94,7 @@ export default function EditBookingPage() {
   const queryClient = useQueryClient();
   const bookingId = params.id as string;
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; status?: BookingStatus }>({ isOpen: false });
+  const [showManualTerrainStatus, setShowManualTerrainStatus] = useState(false);
   const invalidateBookingRelatedQueries = () =>
     queryClient.invalidateQueries({
       predicate: (query) =>
@@ -245,6 +248,15 @@ export default function EditBookingPage() {
 
   const currentStatus = (booking?.status as BookingStatus) || 'DRAFT';
   const availableStatusTransitions = STATUS_TRANSITIONS[currentStatus] || [];
+  const isFieldAgentRole = user?.role === 'AGENT';
+  const isTerrainStatusManual = (s: BookingStatus) =>
+    (currentStatus === 'CONFIRMED' && s === 'IN_PROGRESS') ||
+    ((currentStatus === 'IN_PROGRESS' || currentStatus === 'LATE') && s === 'RETURNED');
+  const visibleStatusTransitions = availableStatusTransitions.filter((s) => {
+    if (!isTerrainStatusManual(s)) return true;
+    if (isFieldAgentRole) return false;
+    return showManualTerrainStatus;
+  });
   
   // Vérifier si l'utilisateur est Agency Manager pour l'override des frais
   const isAgencyManager = user?.role === 'AGENCY_MANAGER' || user?.role === 'COMPANY_ADMIN' || user?.role === 'SUPER_ADMIN';
@@ -513,9 +525,53 @@ export default function EditBookingPage() {
             <div className="space-y-6">
               <div className="bg-card border border-border rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-text mb-4">Changer le statut</h2>
+                {(currentStatus === 'CONFIRMED' ||
+                  currentStatus === 'IN_PROGRESS' ||
+                  currentStatus === 'LATE') && (
+                  <div className="mb-4 rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
+                    <p className="text-sm font-medium text-text">Terrain (remplacement agent)</p>
+                    <p className="text-xs text-text-muted">
+                      Depuis un PC ou une tablette, effectuez le check-in ou le check-out avec photos,
+                      kilométrage et signature — comme sur l’app agent.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {currentStatus === 'CONFIRMED' && (
+                        <Button
+                          variant="primary"
+                          className="w-full justify-center"
+                          type="button"
+                          onClick={() => router.push(`/agency/bookings/${bookingId}/check-in`)}
+                        >
+                          Ouvrir le check-in
+                        </Button>
+                      )}
+                      {(currentStatus === 'IN_PROGRESS' || currentStatus === 'LATE') && (
+                        <Button
+                          variant="primary"
+                          className="w-full justify-center"
+                          type="button"
+                          onClick={() => router.push(`/agency/bookings/${bookingId}/check-out`)}
+                        >
+                          Ouvrir le check-out
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {isAgencyManager && !isFieldAgentRole && (
+                  <label className="flex items-center gap-2 text-xs text-text-muted mb-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showManualTerrainStatus}
+                      onChange={(e) => setShowManualTerrainStatus(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    Autoriser le changement manuel « départ / retour » sans dossier check-in/out (cas exceptionnel)
+                  </label>
+                )}
                 <div className="space-y-2">
-                  {availableStatusTransitions.length > 0 ? (
-                    availableStatusTransitions.map((status) => (
+                  {visibleStatusTransitions.length > 0 ? (
+                    visibleStatusTransitions.map((status) => (
                       <Button
                         key={status}
                         variant="ghost"
@@ -695,6 +751,47 @@ export default function EditBookingPage() {
                         )}
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {booking.documents && booking.documents.length > 0 && (
+                <div className="bg-card border border-border rounded-lg p-6">
+                  <h2 className="text-lg font-semibold text-text mb-1">Dossier terrain</h2>
+                  <p className="text-xs text-text-muted mb-4">
+                    Pièces enregistrées lors du check-in ou du check-out (lecture seule).
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {booking.documents.map((doc) => {
+                      const isPdf =
+                        doc.mimeType?.toLowerCase().includes('pdf') ||
+                        doc.url.toLowerCase().endsWith('.pdf');
+                      return (
+                        <div key={doc.id} className="space-y-1 min-w-0">
+                          {isPdf ? (
+                            <a
+                              href={getImageUrl(doc.url)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center h-28 rounded-md border border-border bg-background text-xs text-primary font-medium px-2 text-center hover:bg-background/80"
+                            >
+                              PDF — {doc.title}
+                            </a>
+                          ) : (
+                            <BackendImage
+                              imageUrl={doc.url}
+                              alt={doc.title}
+                              className="w-full h-28 object-cover rounded-md"
+                              placeholderClassName="h-28 rounded-md"
+                            />
+                          )}
+                          <p className="text-xs text-text font-medium truncate" title={doc.title}>
+                            {doc.title}
+                          </p>
+                          <p className="text-[10px] text-text-muted truncate">{doc.type}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

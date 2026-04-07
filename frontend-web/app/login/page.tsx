@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
 import { getLoginErrorMessage } from '@/lib/utils/api-error';
 import Cookies from 'js-cookie';
 import { authCookieBase } from '@/lib/auth-cookies';
+import { startNewAuthSessionClient } from '@/lib/auth-session.client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,6 +24,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sessionNotice, setSessionNotice] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.get('reason') === 'session_expired' ||
+      params.get('expired') === 'true'
+    ) {
+      setSessionNotice(
+        'Votre session a expiré. Veuillez vous reconnecter pour continuer.',
+      );
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +60,7 @@ export default function LoginPage() {
       });
 
       queryClient.setQueryData(['me'], response.user);
+      startNewAuthSessionClient();
 
       const role = response.user.role;
       let targetRoute = '/';
@@ -98,6 +113,11 @@ export default function LoginPage() {
                     …/api/v1
                   </code>
                   ) dans les variables d&apos;environnement Vercel, puis redéployez.
+                </div>
+              )}
+              {sessionNotice && (
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-text">
+                  {sessionNotice}
                 </div>
               )}
               {error && (

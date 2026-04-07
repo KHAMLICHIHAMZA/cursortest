@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { authCookieBase } from '../auth-cookies';
+import { clearAllAuthCookiesClient } from '../auth-session.client';
 import { getApiErrorMessage } from '../utils/api-error';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
@@ -96,9 +97,7 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // Refresh échoué, rediriger vers login
-        Cookies.remove('accessToken', { path: '/' });
-        Cookies.remove('refreshToken', { path: '/' });
+        clearAllAuthCookiesClient();
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }

@@ -25,8 +25,35 @@ const transporter = !useResend
   : null;
 
 const getFromAddress = () => {
-  if (useResend) return "MalocAuto <onboarding@resend.dev>";
+  if (useResend) {
+    return process.env.RESEND_FROM || "MalocAuto <onboarding@resend.dev>";
+  }
   return process.env.SMTP_FROM || "noreply@malocauto.com";
+};
+
+const isResendSandboxRestriction = (msg: string): boolean => {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("only send testing emails") ||
+    m.includes("verify a domain") ||
+    m.includes("resend.com/domains")
+  );
+};
+
+const logEmailFailure = (
+  label: string,
+  email: string,
+  error: unknown,
+): void => {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (useResend && isResendSandboxRestriction(message)) {
+    logger.warn(
+      `${label} → ${email} : limite Resend (compte de test = une seule ligne, souvent l’email d’inscription exact ; .com ≠ .fr). ` +
+        `Valider un domaine sur resend.com/domains et définir RESEND_FROM, ou utiliser le même email que sur Resend.`,
+    );
+  } else {
+    logger.error(`${label} → ${email}:`, error);
+  }
 };
 
 const getFrontendResetBaseUrl = (override?: string): string => {
@@ -89,7 +116,7 @@ export const sendWelcomeEmail = async (
       `Welcome email sent to ${email} via ${useResend ? "Resend" : "SMTP"}`,
     );
   } catch (error) {
-    logger.error(`Failed to send welcome email to ${email}:`, error);
+    logEmailFailure("Welcome email", email, error);
   }
 };
 
@@ -126,6 +153,6 @@ export const sendPasswordResetEmail = async (
       `Password reset email sent to ${email} via ${useResend ? "Resend" : "SMTP"}`,
     );
   } catch (error) {
-    logger.error(`Failed to send password reset email to ${email}:`, error);
+    logEmailFailure("Password reset email", email, error);
   }
 };

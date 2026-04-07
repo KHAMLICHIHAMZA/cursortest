@@ -8,6 +8,11 @@
 # testing
 /coverage
 /.vitest
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+/e2e/fixtures/one-pixel.png
 
 # next.js
 /.next/

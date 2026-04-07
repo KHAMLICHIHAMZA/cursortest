@@ -40,9 +40,23 @@ export class EmailService {
   }
 
   private getFromAddress(): string {
-    if (this.useResend) return "MalocAuto <onboarding@resend.dev>";
+    if (this.useResend) {
+      return (
+        this.configService.get<string>("RESEND_FROM") ||
+        "MalocAuto <onboarding@resend.dev>"
+      );
+    }
     return (
       this.configService.get<string>("SMTP_FROM") || "noreply@malocauto.com"
+    );
+  }
+
+  private isResendSandboxRestriction(msg: string): boolean {
+    const m = msg.toLowerCase();
+    return (
+      m.includes("only send testing emails") ||
+      m.includes("verify a domain") ||
+      m.includes("resend.com/domains")
     );
   }
 
@@ -84,7 +98,16 @@ export class EmailService {
         },
       });
     } catch (error) {
-      this.logger.error("Email send error:", error);
+      const message =
+        error instanceof Error ? error.message : String(error ?? "");
+      if (this.useResend && this.isResendSandboxRestriction(message)) {
+        this.logger.warn(
+          `Email non envoyé (limite Resend sans domaine vérifié / destinataire de test). ` +
+            `Configurer RESEND_FROM + domaine sur resend.com/domains, ou envoyer uniquement vers l’email du compte Resend. Détail: ${message}`,
+        );
+      } else {
+        this.logger.error("Email send error:", error);
+      }
 
       await this.prisma.notification.create({
         data: {

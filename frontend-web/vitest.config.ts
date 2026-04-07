@@ -9,6 +9,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./test-setup.ts'],
     css: true,
+    /** Playwright vit dans `e2e/` (fichiers `*.spec.ts`) — ne pas les lancer avec Vitest. */
+    include: ['**/__tests__/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

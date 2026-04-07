@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import {
+  getAuthSessionMaxMs,
+  redirectLoginClearSession,
+  AUTH_SESSION_START_COOKIE,
+} from '@/lib/auth-session';
 
 // Routes protégées par rôle (ordre important : plus spécifique d'abord)
 const ROLE_ROUTES: Record<string, string[]> = {
@@ -55,6 +60,16 @@ export function middleware(request: NextRequest) {
   if (!payload || !payload.role) {
     const loginUrl = new URL('/login', request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Session navigateur : durée max depuis la connexion (refresh JWT ne prolonge pas cette limite)
+  const sessionStartRaw = request.cookies.get(AUTH_SESSION_START_COOKIE)?.value;
+  const sessionStart = sessionStartRaw ? Number(sessionStartRaw) : NaN;
+  if (!sessionStartRaw || Number.isNaN(sessionStart)) {
+    return redirectLoginClearSession(request);
+  }
+  if (Date.now() - sessionStart > getAuthSessionMaxMs()) {
+    return redirectLoginClearSession(request);
   }
 
   // Si le token access est expiré, on laisse passer côté serveur

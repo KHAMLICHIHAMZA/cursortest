@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Cookies from 'js-cookie';
+import { clearAllAuthCookiesClient } from '@/lib/auth-session.client';
 import { useRouter } from 'next/navigation';
 import { 
   fetchAgencyModules, 
@@ -117,8 +118,7 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
   }, [isAdmin, isAgencyUser, isCompanyAdmin, agencyId, companyId]);
 
   const handleLogout = () => {
-    Cookies.remove('accessToken');
-    Cookies.remove('refreshToken');
+    clearAllAuthCookiesClient();
     clearModulesCache();
     router.push('/login');
   };
