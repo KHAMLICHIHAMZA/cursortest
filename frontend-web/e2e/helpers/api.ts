@@ -15,16 +15,21 @@ export function e2eApiTimeoutMs(): number {
 
 export function agentCredentials(): { email: string; password: string } {
   return {
-    email: process.env.E2E_AGENT_EMAIL ?? 'agent1@autolocation.fr',
-    password: process.env.E2E_AGENT_PASSWORD ?? 'agent123',
+    email: process.env.E2E_AGENT_EMAIL?.trim() || 'agent1@autolocation.fr',
+    password: process.env.E2E_AGENT_PASSWORD?.trim() || 'agent123',
   };
 }
 
 export function adminCredentials(): { email: string; password: string } {
-  return {
-    email: process.env.E2E_ADMIN_EMAIL ?? 'admin@malocauto.com',
-    password: process.env.E2E_ADMIN_PASSWORD ?? 'admin123',
-  };
+  const email = process.env.E2E_ADMIN_EMAIL?.trim() || 'admin@malocauto.com';
+  const fromEnv = process.env.E2E_ADMIN_PASSWORD;
+  const password =
+    fromEnv !== undefined && fromEnv !== ''
+      ? fromEnv
+      : process.env.GITHUB_ACTIONS === 'true'
+        ? '__E2E_ADMIN_PASSWORD_MISSING__'
+        : 'admin123';
+  return { email, password };
 }
 
 export type UserLightRow = {
