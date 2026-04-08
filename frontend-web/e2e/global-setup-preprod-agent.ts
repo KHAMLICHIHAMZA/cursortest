@@ -5,6 +5,7 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { seedPreprodTerrainBookingsIfNeeded } from './helpers/preprod-terrain-seed';
 
 const API_TIMEOUT_MS = 120_000;
 
@@ -147,6 +148,12 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
   if (!meRow) {
     console.warn('[globalSetup preprod agent] GET /auth/me après impersonate échoué.');
     return;
+  }
+  const agencyId = meRow.agencyIds?.[0];
+  if (agencyId) {
+    await seedPreprodTerrainBookingsIfNeeded(fetchTimeout, apiUrl, adminToken, agencyId, imp.access_token);
+  } else {
+    console.warn('[globalSetup preprod agent] Pas d’agencyIds sur /auth/me — semis terrain E2E ignoré.');
   }
   const userCookie = JSON.stringify({
     id: meRow.id,
