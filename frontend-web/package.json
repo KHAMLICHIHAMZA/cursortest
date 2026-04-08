@@ -13,6 +13,10 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:preprod": "cross-env E2E_TARGET=preprod playwright test",
+    "test:e2e:preprod:impersonation": "cross-env E2E_TARGET=preprod playwright test e2e/impersonation-roundtrip.spec.ts",
+    "test:e2e:preprod:agency": "cross-env E2E_TARGET=preprod playwright test e2e/agency-terrain.spec.ts",
+    "test:e2e:impersonation": "playwright test e2e/impersonation-roundtrip.spec.ts",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
@@ -54,6 +58,7 @@
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3",
     "vitest": "^1.1.0",
-    "@playwright/test": "^1.49.1"
+    "@playwright/test": "^1.49.1",
+    "cross-env": "^7.0.3"
   }
 }

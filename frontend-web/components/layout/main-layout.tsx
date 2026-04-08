@@ -17,6 +17,7 @@ import {
   setAuthSessionStartedAtClient,
   startNewAuthSessionClient,
 } from '@/lib/auth-session.client';
+import { authCookieBase } from '@/lib/auth-cookies';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 
 import type { AuthResponse } from '@/lib/api/auth';
@@ -130,6 +131,14 @@ export function MainLayout({ children }: MainLayoutProps) {
       Cookies.set('refreshToken', adminRefreshToken, { expires: 7 });
     }
 
+    const adminUserJson = localStorage.getItem('admin_user');
+    if (adminUserJson) {
+      Cookies.set('user', adminUserJson, {
+        ...authCookieBase,
+        expires: 7,
+      });
+    }
+
     const adminSessionStart = localStorage.getItem('admin_authSessionStartedAt');
     if (adminSessionStart) {
       setAuthSessionStartedAtClient(adminSessionStart);
@@ -142,6 +151,9 @@ export function MainLayout({ children }: MainLayoutProps) {
     localStorage.removeItem('impersonatedUser');
     localStorage.removeItem('admin_accessToken');
     localStorage.removeItem('admin_refreshToken');
+    localStorage.removeItem('admin_user');
+
+    queryClient.removeQueries({ queryKey: ['me'] });
 
     router.push('/admin/users');
     setTimeout(() => window.location.reload(), 100);

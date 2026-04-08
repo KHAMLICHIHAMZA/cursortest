@@ -15,7 +15,10 @@ import {
 import { getLoginErrorMessage } from '@/lib/utils/api-error';
 import Cookies from 'js-cookie';
 import { authCookieBase } from '@/lib/auth-cookies';
-import { startNewAuthSessionClient } from '@/lib/auth-session.client';
+import {
+  startNewAuthSessionClient,
+  clearImpersonationStorageClient,
+} from '@/lib/auth-session.client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,6 +48,8 @@ export default function LoginPage() {
 
     try {
       const response = await authApi.login({ email, password });
+
+      clearImpersonationStorageClient();
 
       Cookies.set('accessToken', response.accessToken, {
         ...authCookieBase,

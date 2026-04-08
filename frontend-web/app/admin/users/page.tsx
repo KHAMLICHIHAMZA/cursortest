@@ -102,6 +102,10 @@ export default function UsersPage() {
       // Sauvegarder les tokens admin actuels pour pouvoir revenir
       const currentAccessToken = Cookies.get('accessToken');
       const currentRefreshToken = Cookies.get('refreshToken');
+      const currentUserCookie = Cookies.get('user');
+      if (currentUserCookie) {
+        localStorage.setItem('admin_user', currentUserCookie);
+      }
       if (currentAccessToken) {
         localStorage.setItem('admin_accessToken', currentAccessToken);
       }

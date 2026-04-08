@@ -71,7 +71,8 @@ export function RouteGuard({ children, allowedRoles }: RouteGuardProps) {
     enabled: isClient && !!token,
     initialData: cachedUser || undefined,
     retry: false,
-    staleTime: 5 * 60 * 1000,
+    // Toujours reconcilier avec GET /auth/me après changement de JWT/cookie (impersonation, etc.).
+    staleTime: 0,
   });
 
   useEffect(() => {
