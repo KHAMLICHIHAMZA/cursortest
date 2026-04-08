@@ -53,11 +53,17 @@ export async function stopImpersonationAndExpectAdminUsers(page: Page): Promise<
   const preprod = process.env.E2E_TARGET === 'preprod';
 
   if (preprod) {
-    /* Build Vercel souvent en retard vs correctifs ; anciennes builds redirigent /admin ou laissent /agency. */
     await stop.click({ force: true });
-    await page.waitForTimeout(2_000);
-    await loginAsAdmin(page);
-    await ensureAdminUsersListVisible(page);
+    await page.waitForTimeout(1_500);
+    try {
+      await expect(page.getByRole('heading', { name: 'Utilisateurs' })).toBeVisible({
+        timeout: 18_000,
+      });
+    } catch {
+      /* Anciennes builds ou cookie désynchronisé : session admin explicite. */
+      await loginAsAdmin(page);
+      await ensureAdminUsersListVisible(page);
+    }
   } else {
     const mePromise = authMeResponsePromise(page);
     await Promise.all([
