@@ -11,14 +11,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
-    "test:e2e:preprod": "playwright test",
-    "test:e2e:preprod:impersonation": "playwright test e2e/impersonation-roundtrip.spec.ts",
-    "test:e2e:preprod:agency": "playwright test e2e/agency-terrain.spec.ts",
-    "test:e2e:preprod:smoke": "playwright test e2e/agency-login-smoke.spec.ts e2e/impersonation-roundtrip.spec.ts",
-    "test:e2e:impersonation": "playwright test e2e/impersonation-roundtrip.spec.ts",
-    "test:e2e:ui": "playwright test --ui"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -41,7 +34,6 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
