@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
-  loginAccessToken,
+  resolveE2EAgentApiToken,
   findConfirmedBookingEligibleForCheckIn,
   findConfirmedWithDepositEligible,
   findInProgressBookingId,
@@ -35,7 +35,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   let checkInOdometer = '12000';
 
   test.beforeAll(async ({ request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     if (!token) return;
     confirmedId = await findConfirmedBookingEligibleForCheckIn(request, token);
     depositBookingId = await findConfirmedWithDepositEligible(request, token);
@@ -51,7 +51,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : erreur si les quatre photos véhicule manquent', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible (permis)');
 
@@ -69,7 +69,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : erreur si tout sauf la signature', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible');
 
@@ -90,7 +90,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : erreur si photo permis manquante', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible');
 
@@ -109,7 +109,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : erreur si date expiration permis manquante', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible');
 
@@ -132,7 +132,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : erreur si kilométrage départ invalide', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible');
 
@@ -151,7 +151,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-out refusé tant que la réservation est encore confirmée', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED');
 
@@ -163,7 +163,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-out refusé sur réservation déjà retournée', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!returnedId, 'Aucune réservation RETURNED en base pour ce compte');
 
@@ -175,7 +175,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in refusé si la réservation est déjà en cours', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!inProgressId, 'Aucune réservation IN_PROGRESS en base pour ce compte');
 
@@ -187,7 +187,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in refusé si la réservation est en retard (LATE)', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!lateId, 'Aucune réservation LATE en base pour ce compte');
 
@@ -199,7 +199,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : dommage déclaré sans photo dommage', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible');
 
@@ -225,7 +225,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
   });
 
   test('check-in : caution encore « en attente » bloque la soumission', async ({ page, request }) => {
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, `Login API échoue (${apiBaseUrl()})`);
     test.skip(!depositBookingId, 'Aucune réservation CONFIRMED avec caution en base pour ce compte');
 
@@ -252,7 +252,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-in complet (uploads + signature) → fiche réservation', async ({ page, request }) => {
     test.skip(!confirmedId, 'Aucune réservation CONFIRMED éligible');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const fixture = ensureOnePixelPng();
@@ -273,7 +273,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : erreur si les quatre photos retour manquent', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -298,7 +298,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : erreur sans signature', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -327,7 +327,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : erreur encaissement espèces coché sans montant', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -360,7 +360,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : erreur frais supplémentaires invalides', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -393,7 +393,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : erreur frais dégâts invalides', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -424,7 +424,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : erreur kilométrage retour < kilométrage départ', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -453,7 +453,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : dommage déclaré sans photo dommage', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -487,7 +487,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out : kilométrage retour invalide (≤ 0)', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     const full = await fetchBooking(request, token, confirmedId);
@@ -515,7 +515,7 @@ test.describe.serial('Agence — terrain (check-in / check-out)', () => {
 
   test('check-out complet → fiche réservation', async ({ page, request }) => {
     test.skip(!confirmedId, 'Booking manquant');
-    const token = await loginAccessToken(request);
+    const token = await resolveE2EAgentApiToken(request);
     test.skip(!token, 'Login API échoue');
 
     let full = await fetchBooking(request, token, confirmedId);

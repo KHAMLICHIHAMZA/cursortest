@@ -1,4 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export function apiBaseUrl(): string {
   return process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:3000/api/v1';
@@ -73,6 +75,33 @@ export async function loginAccessToken(request: APIRequestContext): Promise<stri
   if (!res.ok()) return null;
   const data = (await res.json()) as { accessToken?: string; access_token?: string };
   return data.accessToken ?? data.access_token ?? null;
+}
+
+/** Token pour appels API « en tant qu’agent » : mot de passe agent, ou cookie issu du globalSetup préprod. */
+export async function resolveE2EAgentApiToken(
+  request: APIRequestContext,
+): Promise<string | null> {
+  if (process.env.E2E_AGENT_PASSWORD) {
+    return loginAccessToken(request);
+  }
+  if (process.env.E2E_TARGET === 'preprod') {
+    const fromFile = readPreprodAgentAccessTokenFromStorage();
+    if (fromFile) return fromFile;
+  }
+  return loginAccessToken(request);
+}
+
+function readPreprodAgentAccessTokenFromStorage(): string | null {
+  try {
+    const p = path.join(process.cwd(), 'e2e', '.auth', 'preprod-agent.json');
+    if (!fs.existsSync(p)) return null;
+    const state = JSON.parse(fs.readFileSync(p, 'utf8')) as {
+      cookies?: Array<{ name: string; value: string }>;
+    };
+    return state.cookies?.find((c) => c.name === 'accessToken')?.value ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export type BookingLightItem = { id: string; status?: string };

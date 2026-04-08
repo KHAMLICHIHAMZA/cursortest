@@ -13,6 +13,7 @@
 /blob-report/
 /playwright/.cache/
 /e2e/fixtures/one-pixel.png
+/e2e/.auth/
 
 # next.js
 /.next/

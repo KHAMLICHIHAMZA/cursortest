@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginAccessToken, apiBaseUrl } from './helpers/api';
+import { resolveE2EAgentApiToken, apiBaseUrl } from './helpers/api';
 import { loginAsAgent } from './helpers/auth-ui';
 
 /**
@@ -8,8 +8,8 @@ import { loginAsAgent } from './helpers/auth-ui';
  * et disposer d’au moins une réservation CONFIRMED éligible (permis).
  */
 test('agent : login API + UI et liste des locations', async ({ page, request }) => {
-  const token = await loginAccessToken(request);
-  test.skip(!token, `Login agent API échoue (${apiBaseUrl()}) — renseigner E2E_AGENT_* pour la préprod.`);
+  const token = await resolveE2EAgentApiToken(request);
+  test.skip(!token, `Token agent API absent (${apiBaseUrl()}) — préprod : mot de passe E2E_AGENT_PASSWORD ou globalSetup admin/impersonate.`);
 
   await loginAsAgent(page);
   await page.goto('/agency/bookings');

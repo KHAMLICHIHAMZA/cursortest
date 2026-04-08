@@ -26,11 +26,15 @@ function loadOptionalE2EPreprodEnv(): void {
 loadOptionalE2EPreprodEnv();
 
 const isPreprod = process.env.E2E_TARGET === 'preprod';
+/** Préprod sans mot de passe agent : globalSetup admin → impersonation + storageState pour les specs agence uniquement. */
+const usePreprodAgentBootstrap = isPreprod && !process.env.E2E_AGENT_PASSWORD;
 
 if (isPreprod) {
   process.env.PLAYWRIGHT_BASE_URL ??= 'https://v0-cursortest.vercel.app';
   process.env.PLAYWRIGHT_API_URL ??= 'https://malocauto-api.onrender.com/api/v1';
 }
+
+const preprodAgentStorage = path.join(__dirname, 'e2e', '.auth', 'preprod-agent.json');
 
 /**
  * Local (défaut) : backend + Next locaux.
@@ -40,8 +44,9 @@ if (isPreprod) {
  *
  * Variables :
  * - PLAYWRIGHT_BASE_URL, PLAYWRIGHT_API_URL
- * - E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD (impersonation)
- * - E2E_AGENT_EMAIL / E2E_AGENT_PASSWORD (terrain agence)
+ * - E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD (impersonation ; sans E2E_AGENT_PASSWORD,
+ *   globalSetup complète le profil agent via PATCH /users/me puis écrit storageState)
+ * - E2E_AGENT_EMAIL / E2E_AGENT_PASSWORD (optionnel ; sinon bootstrap admin ci-dessus)
  */
 export default defineConfig({
   testDir: './e2e',
@@ -54,6 +59,7 @@ export default defineConfig({
   expect: {
     timeout: isPreprod ? 25_000 : 5_000,
   },
+  globalSetup: usePreprodAgentBootstrap ? './e2e/global-setup-preprod-agent.ts' : undefined,
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3001',
     trace: 'on-first-retry',
@@ -62,5 +68,26 @@ export default defineConfig({
     navigationTimeout: isPreprod ? 60_000 : 30_000,
     actionTimeout: isPreprod ? 30_000 : 15_000,
   },
-  projects: [{ name: isPreprod ? 'chromium-preprod' : 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: usePreprodAgentBootstrap
+    ? [
+        {
+          name: 'chromium-preprod-impersonation',
+          testMatch: /impersonation-roundtrip\.spec\.ts/,
+          use: { ...devices['Desktop Chrome'] },
+        },
+        {
+          name: 'chromium-preprod-agency',
+          testMatch: /agency-.*\.spec\.ts/,
+          use: {
+            ...devices['Desktop Chrome'],
+            storageState: preprodAgentStorage,
+          },
+        },
+      ]
+    : [
+        {
+          name: isPreprod ? 'chromium-preprod' : 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+      ],
 });
