@@ -69,6 +69,7 @@ async function ensureAgentProfileComplete(apiUrl: string, accessToken: string): 
 }
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
+  process.env.E2E_TARGET ??= 'preprod';
   if (process.env.E2E_TARGET !== 'preprod') return;
   if (process.env.E2E_AGENT_PASSWORD) return;
 

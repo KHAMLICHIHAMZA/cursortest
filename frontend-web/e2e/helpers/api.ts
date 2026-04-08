@@ -2,13 +2,15 @@ import type { APIRequestContext } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const DEFAULT_PREPROD_API = 'https://malocauto-api.onrender.com/api/v1';
+
 export function apiBaseUrl(): string {
-  return process.env.PLAYWRIGHT_API_URL ?? 'http://127.0.0.1:3000/api/v1';
+  return process.env.PLAYWRIGHT_API_URL ?? DEFAULT_PREPROD_API;
 }
 
-/** Render / préprod : cold start souvent > 30 s. */
+/** API distante (OnRender) : cold start souvent élevé. */
 export function e2eApiTimeoutMs(): number {
-  return process.env.E2E_TARGET === 'preprod' ? 120_000 : 60_000;
+  return 120_000;
 }
 
 export function agentCredentials(): { email: string; password: string } {

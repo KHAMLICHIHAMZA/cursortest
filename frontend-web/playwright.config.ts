@@ -25,28 +25,22 @@ function loadOptionalE2EPreprodEnv(): void {
 
 loadOptionalE2EPreprodEnv();
 
+/** E2E = préprod uniquement (Vercel + OnRender). */
+process.env.E2E_TARGET ??= 'preprod';
 const isPreprod = process.env.E2E_TARGET === 'preprod';
-/** Préprod sans mot de passe agent : globalSetup admin → impersonation + storageState pour les specs agence uniquement. */
-const usePreprodAgentBootstrap = isPreprod && !process.env.E2E_AGENT_PASSWORD;
 
-if (isPreprod) {
-  process.env.PLAYWRIGHT_BASE_URL ??= 'https://v0-cursortest.vercel.app';
-  process.env.PLAYWRIGHT_API_URL ??= 'https://malocauto-api.onrender.com/api/v1';
-}
+process.env.PLAYWRIGHT_BASE_URL ??= 'https://v0-cursortest.vercel.app';
+process.env.PLAYWRIGHT_API_URL ??= 'https://malocauto-api.onrender.com/api/v1';
+
+/** Sans E2E_AGENT_PASSWORD : globalSetup admin → impersonation + storageState (projet agency uniquement). */
+const usePreprodAgentBootstrap = isPreprod && !process.env.E2E_AGENT_PASSWORD;
 
 const preprodAgentStorage = path.join(__dirname, 'e2e', '.auth', 'preprod-agent.json');
 
 /**
- * Local (défaut) : backend + Next locaux.
+ * E2E ciblent uniquement la préprod (URLs par défaut ci-dessus, surcharge via `.env.e2e.preprod`).
  *
- * Préprod : `npm run test:e2e:preprod` (ou `E2E_TARGET=preprod`)
- * — front Vercel + API OnRender par défaut, surcharge possible via `.env.e2e.preprod`.
- *
- * Variables :
- * - PLAYWRIGHT_BASE_URL, PLAYWRIGHT_API_URL
- * - E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD (impersonation ; sans E2E_AGENT_PASSWORD,
- *   globalSetup complète le profil agent via PATCH /users/me puis écrit storageState)
- * - E2E_AGENT_EMAIL / E2E_AGENT_PASSWORD (optionnel ; sinon bootstrap admin ci-dessus)
+ * Variables : PLAYWRIGHT_* ; E2E_ADMIN_* ; E2E_AGENT_* (optionnel si bootstrap sans mot de passe agent).
  */
 export default defineConfig({
   testDir: './e2e',
@@ -55,9 +49,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: [['list']],
-  timeout: isPreprod ? 180_000 : 30_000,
+  timeout: 180_000,
   expect: {
-    timeout: isPreprod ? 25_000 : 5_000,
+    timeout: 25_000,
   },
   globalSetup: usePreprodAgentBootstrap ? './e2e/global-setup-preprod-agent.ts' : undefined,
   use: {
@@ -84,10 +78,5 @@ export default defineConfig({
           },
         },
       ]
-    : [
-        {
-          name: isPreprod ? 'chromium-preprod' : 'chromium',
-          use: { ...devices['Desktop Chrome'] },
-        },
-      ],
+    : [{ name: 'chromium-preprod', use: { ...devices['Desktop Chrome'] } }],
 });
