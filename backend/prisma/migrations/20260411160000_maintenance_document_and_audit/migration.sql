@@ -1,0 +1,6 @@
+ALTER TABLE "Maintenance"
+  ADD COLUMN IF NOT EXISTS "documentUrl" TEXT,
+  ADD COLUMN IF NOT EXISTS "createdByUserId" TEXT,
+  ADD COLUMN IF NOT EXISTS "updatedByUserId" TEXT,
+  ADD COLUMN IF NOT EXISTS "deletedByUserId" TEXT,
+  ADD COLUMN IF NOT EXISTS "deletedReason" TEXT;
