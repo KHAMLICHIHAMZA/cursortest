@@ -13,11 +13,11 @@ Quand des changements touchent Prisma, le seed, ou le code Nest :
 
 1. `npm run prisma:generate`
 2. `npx prisma migrate deploy` sur une base **vide ou dédiée CI** (même ordre de migrations que GitHub), puis `npm run prisma:seed`
-3. `npm test` (et `npm run test:e2e` si le workflow d’intégration est concerné)
+3. `npm test` puis **`npm run test:e2e`** (requis comme le job « Tests d’intégration Backend » : seed + schéma alignés, serveur testé via la suite Jest e2e)
 4. `npm run lint`
 5. `npm run build`
 
-Raccourci : depuis `backend/`, avec `DATABASE_URL` / `DIRECT_URL` pointant vers une base **dédiée** (recréée si les migrations changent), exécuter `npm run verify:push`.
+Raccourci : depuis `backend/`, avec `DATABASE_URL` / `DIRECT_URL` pointant vers une base **dédiée** (recréée si les migrations changent), exécuter **`npm run verify:push`** — ce script enchaîne generate, `migrate deploy`, seed, tests unitaires, **tests e2e**, lint et build.
 
 Si `prisma generate` échoue sous Windows avec `EPERM` / `rename ... query_engine`, fermer l’instance Node/IDE qui verrouille le binaire, puis relancer ; à défaut enchaîner manuellement : `npx prisma migrate deploy`, `npm run prisma:seed`, `npm test`, `npm run lint`, `npm run build`.
 

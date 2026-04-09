@@ -20,7 +20,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "verify:push": "npm run prisma:generate && npx prisma migrate deploy && npm run prisma:seed && npm test && npm run lint && npm run build",
+    "verify:push": "npm run prisma:generate && npx prisma migrate deploy && npm run prisma:seed && npm test && npm run test:e2e && npm run lint && npm run build",
     "smoke:remote": "node scripts/smoke-remote-api.mjs"
   },
   "dependencies": {
