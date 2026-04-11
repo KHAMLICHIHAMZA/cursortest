@@ -1,7 +1,8 @@
 # MALOC - Contexte Projet pour ChatGPT
 
-> Derniere mise a jour : 15 fevrier 2026
-> Branche : `v2-preprod` | Commit : `436e0cd`
+> Dernière mise à jour : 28 mars 2026  
+> Branche de référence : `main`  
+> Fichier compagnon racine : **`AGENTS.md`** (règles courtes pour agents IA)
 
 ---
 
@@ -9,10 +10,10 @@
 
 ```
 MALOC/
-├── backend/          # NestJS + Prisma + PostgreSQL (port 3333)
-├── frontend-web/     # Next.js 14 App Router (port 3003) — frontend unifie (admin + agency + company)
+├── backend/          # NestJS + Prisma + PostgreSQL (port 3000 en dev)
+├── frontend-web/     # Next.js 14 App Router (port 3001 en dev, ou 8080 via proxy)
 ├── mobile-agent/     # React Native (Expo) — app mobile agent terrain
-├── docs/             # Specifications fonctionnelles
+├── docs/             # Spécifications, dossiers MOA/MOE, captures
 └── scripts/          # Scripts PowerShell utilitaires
 ```
 
@@ -49,7 +50,7 @@ Chaque module a son controller, service, DTOs, et souvent des specs :
 | Auth | `/api/v1/auth` | Login, refresh, forgot/reset password, impersonate |
 | Company | `/api/v1/companies` | CRUD companies, settings |
 | Agency | `/api/v1/agencies` | CRUD agences |
-| User | `/api/v1/users` | CRUD users, reset password |
+| User | `/api/v1/users` | CRUD users ; `POST :id/reset-password` (lien e-mail) ; `POST :id/set-password` (mot de passe immédiat admin, option envoi e-mail) |
 | Vehicle | `/api/v1/vehicles` | CRUD vehicules, recherche marques/modeles, upload image, champs tracker GPS |
 | Client | `/api/v1/clients` | CRUD clients, upload/analyse permis (AI) |
 | Booking | `/api/v1/bookings` | CRUD reservations, calcul auto prix total, penalites retard |
@@ -84,7 +85,7 @@ Les modeles principaux dans `backend/prisma/schema.prisma` :
 - **User** : email, role enum, companyId, agencyIds, mot de passe hash bcrypt
 - **Vehicle** : brand, model, registrationNumber, year, color, mileage, dailyRate, depositAmount, status enum, fuel, gearbox, horsepower, imageUrl, **gpsTrackerId**, **gpsTrackerLabel**, agencyId
 - **Client** : nom, email, telephone, CIN, permis, adresse, agencyId
-- **Booking** : bookingNumber, dates, statut enum (PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED), totalPrice (auto-calcule), depositAmount, lateFeeAmount, vehicleId, clientId
+- **Booking** : bookingNumber, dates, statut enum (dont **PICKUP_LATE** = retard au départ sans check-in, **NO_SHOW**, **EXTENDED**, etc.), totalPrice, depositAmount, lateFeeAmount, vehicleId, clientId — voir `schema.prisma` pour la liste à jour
 - **Contract** : lie au booking, statut, signature
 - **Invoice** : lie au booking, montant, statut
 - **Fine** : vehicleId, date infraction, montant, statut, detection auto booking actif
@@ -102,7 +103,7 @@ Les modeles principaux dans `backend/prisma/schema.prisma` :
 
 ### Admin (SUPER_ADMIN)
 - `/admin/companies` : liste/CRUD companies
-- `/admin/users` : gestion utilisateurs plateforme
+- `/admin/users` : gestion utilisateurs (liste paginée) ; icône clé : **mot de passe** — envoi du lien par e-mail **ou** définition immédiate du mot de passe (généré ou saisi), avec option d’envoi par e-mail ou affichage/copie si la boîte mail pose problème
 - `/admin/subscriptions` : abonnements SaaS
 - `/admin/company-health` : sante des companies
 - `/admin/notifications` : broadcast notifications
@@ -147,6 +148,14 @@ Agency links (operational):
 ---
 
 ## 6. Fonctionnalites Recemment Implementees
+
+### Admin — mot de passe utilisateur
+- **Lien e-mail** : comportement historique (token reset, e-mail avec lien).
+- **Mot de passe immédiat** : `POST /api/v1/users/:id/set-password` avec `{ sendEmail: boolean, password?: string }` ; si `password` absent, génération serveur ; révocation des refresh tokens ; e-mail optionnel avec le mot de passe en clair.
+- UI : composant `frontend-web/components/admin/user-password-dialog.tsx` (liste utilisateurs + fiche utilisateur).
+
+### Réservations — statut PICKUP_LATE (retard au départ)
+- Cycle de vie / crons côté backend (`booking-lifecycle.scheduler.ts`, services booking/planning) ; alignement web + mobile (listes, détail, check-in, missions).
 
 ### Module GPS (nouveau)
 - Carte Leaflet avec tuiles CartoDB Dark Matter
@@ -213,36 +222,35 @@ Agency links (operational):
 
 ## 8. Comptes de Test (Seed)
 
+Voir aussi `README.md` (section Comptes de Test). Exemples courants après `npm run prisma:seed` :
+
 | Email | Mot de passe | Role |
 |-------|-------------|------|
-| admin@maloc.ma | Admin123! | SUPER_ADMIN |
-| mizokhamlichi@gmail.com | (a verifier dans seed) | COMPANY_ADMIN |
+| admin@malocauto.com | admin123 | SUPER_ADMIN |
+| admin@autolocation.fr | admin123 | COMPANY_ADMIN |
 
 ---
 
 ## 9. Commandes de Lancement
 
 ```bash
-# Backend (port 3333)
+# Backend (port 3000)
 cd backend && npm run dev
 
-# Frontend (port 3003)
-cd frontend-web && npm run dev
+# Frontend (port 3001, ou proxy racine port 8080)
+cd frontend-web && npm run dev -- -p 3001
 
-# Prisma
-cd backend && npx prisma db push && npx prisma generate && npx prisma db seed
+# Prisma (dev — préférer migrate dev / migrate deploy selon contexte)
+cd backend && npx prisma migrate deploy && npx prisma generate && npm run prisma:seed
 ```
 
 ---
 
-## 10. Ce Qui Reste a Faire / Ameliorations Possibles
+## 10. Pistes d’amélioration (non exhaustif)
 
-- Tests E2E complets pour les nouveaux modules (GPS, Charges)
-- Integration tracker GPS reel (API externe selon le modele de tracker)
-- Dashboard KPI enrichi avec graphiques (charts)
-- Notifications push reelles (Firebase a configurer)
-- Export CSV/Excel des charges
-- Rapports financiers par vehicule/periode
-- Mode sombre (dark mode) complet
-- Optimisation performances (pagination server-side sur les listes longues)
-- CI/CD pipeline (GitHub Actions en place mais a completer)
+- Intégration tracker GPS réel (API fabricant)
+- Dashboard KPI avec graphiques
+- Notifications push production (Firebase)
+- Export CSV / rapports financiers avancés
+- Pagination server-side sur les très longues listes
+- CI : voir `.github/workflows/` (backend, frontend, mobile)

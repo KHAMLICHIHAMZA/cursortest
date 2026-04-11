@@ -267,8 +267,10 @@ Regles de mise a jour recommandees:
 
 ### 12.1 Documents racine projet (strategie, guides, preprod)
 
+> **Note (mars 2026)** : certains fichiers listés à l’origine ont été retirés du dépôt après livraison (ex. audit d’unification, rapports de test ponctuels). Voir `README.md` et `CONTEXT_CHATGPT.md` pour l’état actuel.
+
+- `AGENTS.md`
 - `APPLICATIONS_DETAILS.md`
-- `AUDIT_UNIFICATION_FRONTEND.md`
 - `CHECKLIST_SECRETS.md`
 - `CONTEXT_CHATGPT.md`
 - `CR_PREPRODUCTION_V2.1.md`
@@ -277,8 +279,6 @@ Regles de mise a jour recommandees:
 - `GUIDE_PILOTE_2_FRONTEND_AGENCY.md`
 - `GUIDE_PILOTE_3_FRONTEND_ADMIN.md`
 - `GUIDE_PILOTE_4_MOBILE_AGENT.md`
-- `LOGIN_3100_TEST_REPORT.md`
-- `NETTOYAGE_PREPROD_COMPLET.md`
 - `PORTS_APPLICATIONS.md`
 - `PREPROD_CHECKLIST.md`
 - `QUESTIONS_PREPROD_V2.md`

@@ -12,6 +12,7 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Users, Plus, Edit, Trash2, Key, LogIn } from 'lucide-react';
+import { UserPasswordDialog } from '@/components/admin/user-password-dialog';
 import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -33,6 +34,7 @@ export default function UsersPage() {
   const pageSize = 25;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [passwordDialogUser, setPasswordDialogUser] = useState<User | null>(null);
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const { data: currentUser } = useQuery({
@@ -334,9 +336,9 @@ export default function UsersPage() {
                             variant="ghost"
                             size="sm"
                             className="h-9 w-9 p-0"
-                            onClick={() => resetPasswordMutation.mutate(user.id)}
-                            aria-label="Réinitialiser le mot de passe"
-                            title="Réinitialiser le mot de passe"
+                            onClick={() => setPasswordDialogUser(user)}
+                            aria-label="Mot de passe (lien ou immédiat)"
+                            title="Mot de passe : e-mail ou définition admin"
                           >
                             <Key className="w-4 h-4" />
                           </Button>
@@ -390,6 +392,12 @@ export default function UsersPage() {
               }
             />
           )}
+
+          <UserPasswordDialog
+            user={passwordDialogUser}
+            open={!!passwordDialogUser}
+            onClose={() => setPasswordDialogUser(null)}
+          />
 
           <ConfirmDialog
             isOpen={deleteDialogOpen}

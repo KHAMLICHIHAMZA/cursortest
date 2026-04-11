@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { UserService } from "./user.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import { AdminSetPasswordDto } from "./dto/admin-set-password.dto";
 import { UpdateMeDto } from "./dto/update-me.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -105,6 +106,20 @@ export class UserController {
   @ApiOperation({ summary: "Reset user password (send reset email)" })
   async resetPassword(@Param("id") id: string, @CurrentUser() user: any) {
     return this.userService.resetPassword(id, user);
+  }
+
+  @Post(":id/set-password")
+  @Roles("SUPER_ADMIN", "COMPANY_ADMIN")
+  @ApiOperation({
+    summary:
+      "Définir le mot de passe immédiatement (admin), avec envoi e-mail optionnel",
+  })
+  async adminSetPassword(
+    @Param("id") id: string,
+    @Body() body: AdminSetPasswordDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.userService.adminSetPassword(id, body, user);
   }
 
   @Delete(":id")

@@ -211,10 +211,16 @@ npm run test:e2e            # Tests E2E
 
 ## Documentation
 
+### Pour assistants IA (ChatGPT, Cursor, etc.)
+
+- **[`CONTEXT_CHATGPT.md`](./CONTEXT_CHATGPT.md)** — Contexte projet détaillé (stack, RBAC, modules API, routes UI, commandes)
+- **[`AGENTS.md`](./AGENTS.md)** — Règles courtes + lien vers la validation `verify:push`
+
 ### Principale
 
 - [Détails des Applications](./APPLICATIONS_DETAILS.md) — Vue d'ensemble de l'architecture
 - [Spécifications complètes](./docs/specs.md)
+- [Index dossier `docs/`](./docs/README.md)
 - [API Documentation](http://localhost:3000/api/docs) (Swagger, backend démarré)
 - [Ports des Applications](./PORTS_APPLICATIONS.md)
 
@@ -222,7 +228,6 @@ npm run test:e2e            # Tests E2E
 
 - [Tests V2 et Unification](./TESTS_V2_ET_UNIFICATION.md) — 126 tests fonctionnels
 - [Questions Préprod V2](./QUESTIONS_PREPROD_V2.md) — Revue technique
-- [Audit Unification Frontend](./AUDIT_UNIFICATION_FRONTEND.md) — Analyse migration
 - [Checklist Préprod](./PREPROD_CHECKLIST.md)
 - [Checklist Secrets](./CHECKLIST_SECRETS.md)
 - [Sécurité JWT](./backend/SECURITE_JWT.md)
@@ -232,7 +237,7 @@ npm run test:e2e            # Tests E2E
 - [PILOTE 1 - Backend API](./GUIDE_PILOTE_1_BACKEND.md)
 - [PILOTE 4 - Mobile Agent](./GUIDE_PILOTE_4_MOBILE_AGENT.md)
 
-> **Note :** Les guides PILOTE 2 (Frontend Agency) et PILOTE 3 (Frontend Admin) sont obsolètes — ces apps ont été fusionnées dans `frontend-web`.
+> **Note :** Les guides PILOTE 2 (Frontend Agency) et PILOTE 3 (Frontend Admin) sont obsolètes — ces apps ont été fusionnées dans `frontend-web`. L’audit d’unification papier a été retiré du dépôt (travail terminé).
 
 ---
 

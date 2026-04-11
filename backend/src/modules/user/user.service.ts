@@ -11,7 +11,10 @@ import { AuditService } from "../../common/services/audit.service";
 import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { sendWelcomeEmail } from "../../services/email.service";
+import {
+  sendWelcomeEmail,
+  sendAdminTemporaryPasswordEmail,
+} from "../../services/email.service";
 import { BusinessEventType } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
@@ -27,6 +30,18 @@ export class UserService {
 
   private generateResetToken(): string {
     return randomBytes(32).toString("hex");
+  }
+
+  /** Mot de passe provisoire lisible (14 caractères). */
+  private generateTemporaryPassword(): string {
+    const chars =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+    const bytes = randomBytes(14);
+    let pwd = "";
+    for (let i = 0; i < 14; i++) {
+      pwd += chars[bytes[i]! % chars.length];
+    }
+    return pwd;
   }
 
   private buildArchivedEmail(email: string, userId: string): string {
@@ -607,6 +622,96 @@ export class UserService {
     );
 
     return { message: "Email de réinitialisation du mot de passe envoyé" };
+  }
+
+  /**
+   * Définit immédiatement le mot de passe (admin).
+   * Peut envoyer le mot de passe par e-mail, ou le renvoyer une fois dans la réponse (sans e-mail).
+   */
+  async adminSetPassword(
+    id: string,
+    dto: { password?: string; sendEmail: boolean },
+    user: any,
+  ) {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        companyId: true,
+        role: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException("Utilisateur introuvable");
+    }
+
+    if (
+      user.role === "COMPANY_ADMIN" &&
+      targetUser.companyId !== user.companyId
+    ) {
+      throw new ForbiddenException(
+        "Impossible de modifier le mot de passe d'un utilisateur d'une autre société",
+      );
+    }
+
+    if (
+      user.role === "COMPANY_ADMIN" &&
+      targetUser.role === "COMPANY_ADMIN" &&
+      targetUser.id !== (user.sub || user.userId)
+    ) {
+      throw new ForbiddenException(
+        "Impossible de modifier le mot de passe d'un autre administrateur",
+      );
+    }
+
+    const plain =
+      dto.password && dto.password.trim().length > 0
+        ? dto.password.trim()
+        : this.generateTemporaryPassword();
+
+    const hashedPassword = await bcrypt.hash(plain, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id },
+        data: { password: hashedPassword },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: id, revoked: false },
+        data: { revoked: true, revokedAt: new Date() },
+      }),
+    ]);
+
+    if (dto.sendEmail) {
+      try {
+        await sendAdminTemporaryPasswordEmail(
+          targetUser.email,
+          targetUser.name,
+          plain,
+        );
+        return {
+          message: "Mot de passe mis à jour et envoyé par e-mail",
+          emailed: true,
+        };
+      } catch (e) {
+        console.error("adminSetPassword email error:", e);
+        return {
+          message:
+            "Mot de passe mis à jour. L'e-mail n'a pas pu être envoyé — le mot de passe provisoire est affiché ci-dessous.",
+          emailed: false,
+          temporaryPassword: plain,
+        };
+      }
+    }
+
+    return {
+      message:
+        "Mot de passe mis à jour. Communiquez-le à l'utilisateur par un canal sécurisé.",
+      temporaryPassword: plain,
+    };
   }
 
   async remove(id: string, user: any, reason?: string) {

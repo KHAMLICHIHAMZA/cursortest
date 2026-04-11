@@ -120,6 +120,37 @@ export const sendWelcomeEmail = async (
   }
 };
 
+/** Mot de passe défini par un admin (réinitialisation directe). */
+export const sendAdminTemporaryPasswordEmail = async (
+  email: string,
+  name: string,
+  plainPassword: string,
+): Promise<void> => {
+  const loginBaseUrl = getFrontendResetBaseUrl();
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #3E7BFA;">Nouveau mot de passe MalocAuto</h2>
+      <p>Bonjour ${name},</p>
+      <p>Un administrateur a défini un nouveau mot de passe pour votre compte.</p>
+      <p style="margin: 20px 0; padding: 16px; background: #f4f6f8; border-radius: 8px; font-family: monospace; font-size: 16px; word-break: break-all;">
+        ${plainPassword}
+      </p>
+      <p>Vous pouvez vous connecter sur : <a href="${loginBaseUrl}/login">${loginBaseUrl}/login</a></p>
+      <p><strong>Pensez à changer ce mot de passe</strong> après connexion (profil) si possible.</p>
+      <p style="color: #666; font-size: 13px;">Si vous n'êtes pas à l'origine de cette demande, contactez immédiatement votre administrateur.</p>
+    </div>
+  `;
+
+  await sendEmail(
+    email,
+    "MalocAuto — votre nouveau mot de passe",
+    html,
+  );
+  logger.log(
+    `Admin-set password email sent to ${email} via ${useResend ? "Resend" : "SMTP"}`,
+  );
+};
+
 export const sendPasswordResetEmail = async (
   email: string,
   name: string,

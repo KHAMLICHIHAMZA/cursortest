@@ -86,6 +86,23 @@ export const userApi = {
     return data;
   },
 
+  /** Mot de passe défini par l'admin (immédiat). */
+  adminSetPassword: async (
+    id: string,
+    body: { password?: string; sendEmail: boolean },
+  ): Promise<{
+    message: string;
+    emailed?: boolean;
+    temporaryPassword?: string;
+  }> => {
+    const { data } = await apiClient.post<{
+      message: string;
+      emailed?: boolean;
+      temporaryPassword?: string;
+    }>(`/users/${id}/set-password`, body);
+    return data;
+  },
+
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/users/${id}`);
   },

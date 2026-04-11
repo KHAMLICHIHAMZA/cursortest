@@ -14,6 +14,9 @@ import { ErrorState } from '@/components/ui/error-state';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { UserPasswordDialog } from '@/components/admin/user-password-dialog';
+import { User } from '@/lib/api/user';
+import { Key } from 'lucide-react';
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -40,6 +43,7 @@ export default function EditUserPage() {
     agencyIds: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -112,11 +116,27 @@ export default function EditUserPage() {
     <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN']}>
       <MainLayout>
         <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-6 px-2 sm:px-0">
-          <Card className="p-4">
+          <Card className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p className="text-sm text-text-muted">
               Email: <span className="font-medium text-text">{user.email}</span>
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setPasswordDialogOpen(true)}
+            >
+              <Key className="w-4 h-4 mr-2" />
+              Mot de passe (lien ou immédiat)
+            </Button>
           </Card>
+
+          <UserPasswordDialog
+            user={user as User}
+            open={passwordDialogOpen}
+            onClose={() => setPasswordDialogOpen(false)}
+          />
           <Card>
             <CardHeader>
               <CardTitle>Modifier l&apos;utilisateur</CardTitle>
