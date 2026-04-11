@@ -19,7 +19,9 @@ Quand des changements touchent Prisma, le seed, ou le code Nest :
 
 Raccourci : depuis `backend/`, avec `DATABASE_URL` / `DIRECT_URL` pointant vers une base **dédiée** (recréée si les migrations changent), exécuter **`npm run verify:push`** — ce script enchaîne generate, `migrate deploy`, seed, tests unitaires, **tests e2e**, lint et build.
 
-Si `prisma generate` échoue sous Windows avec `EPERM` / `rename ... query_engine`, fermer l’instance Node/IDE qui verrouille le binaire, puis relancer ; à défaut enchaîner manuellement : `npx prisma migrate deploy`, `npm run prisma:seed`, `npm test`, `npm run lint`, `npm run build`.
+Si `prisma generate` échoue sous Windows avec `EPERM` / `rename ... query_engine`, la cause la plus fréquente est un **serveur backend déjà lancé** (`nest start --watch`, `node dist/main`, etc.) : le client Prisma charge `query_engine-windows.dll.node`, ce qui bloque le remplacement du fichier. Arrêter ces processus pour le dossier `backend/`, puis relancer `prisma generate`. Sinon, fermer toute autre instance Node qui utiliserait ce client ; à défaut enchaîner manuellement : `npx prisma migrate deploy`, `npm run prisma:seed`, `npm test`, `npm run lint`, `npm run build`.
+
+Le schéma utilise `directUrl` : avoir **`DIRECT_URL`** dans `.env` (souvent identique à `DATABASE_URL` en local sans pooler) évite des surprises avec `migrate` / outils.
 
 ## Si tu ne peux pas exécuter les commandes
 

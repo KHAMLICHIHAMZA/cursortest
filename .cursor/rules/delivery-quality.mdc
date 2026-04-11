@@ -1,0 +1,16 @@
+---
+description: Ne pas considérer une tâche livrée sans tests réussis ; éviter les régressions ; changements minimaux.
+alwaysApply: true
+---
+
+# Livraison et qualité
+
+## Avant de dire que c’est « terminé » ou « prêt »
+
+- Exécuter les **tests et vérifications pertinents** pour ce qui a été modifié (backend, frontend, mobile selon le cas). Une livraison sans exécution réussie des checks applicables n’est pas considérée comme complète.
+- Pour un push Git, suivre **`pre-push-verification.mdc`** (notamment `npm run verify:push` côté backend quand le backend change).
+
+## Régressions et périmètre
+
+- Préserver le comportement existant sauf demande explicite : pas de refactor ou « nettoyage » hors sujet.
+- Si les commandes ne peuvent pas être lancées dans l’environnement (erreur locale, pas de DB, etc.), **le dire clairement** et lister ce qui reste à exécuter — ne pas affirmer que tout est validé.
