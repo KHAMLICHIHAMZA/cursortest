@@ -70,6 +70,7 @@ export default function BookingsPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { status: any; label: string }> = {
       CONFIRMED: { status: 'confirmed', label: 'Confirmée' },
+      PICKUP_LATE: { status: 'warning', label: 'Retard départ' },
       IN_PROGRESS: { status: 'active', label: 'En cours' },
       RETURNED: { status: 'completed', label: 'Terminée' },
       CANCELLED: { status: 'cancelled', label: 'Annulée' },
@@ -78,7 +79,7 @@ export default function BookingsPage() {
       DRAFT: { status: 'draft', label: 'Brouillon' },
       NO_SHOW: { status: 'error', label: 'Absence' },
     };
-    return statusMap[status] || { status: 'completed', label: status };
+    return statusMap[status] || { status: 'pending', label: status };
   };
 
   // Afficher le message si le module n'est pas activé
@@ -221,7 +222,7 @@ export default function BookingsPage() {
                               </p>
                               <p className={`${new Date(booking.endDate) < new Date() && (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') ? 'text-orange-500 font-medium' : 'text-text-muted'}`}>
                                 → {new Date(booking.endDate).toLocaleDateString('fr-FR')}
-                                {new Date(booking.endDate) < new Date() && booking.status === 'IN_PROGRESS' && ' ⚠️'}
+                                {new Date(booking.endDate) < new Date() && (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') && ' ⚠️'}
                               </p>
                             </div>
                           </TableCell>
@@ -236,7 +237,7 @@ export default function BookingsPage() {
                           <TableCell>
                             {isModuleActive && (
                               <div className="flex flex-wrap items-center justify-end gap-2">
-                                {booking.status === 'CONFIRMED' && (
+                                {(booking.status === 'CONFIRMED' || booking.status === 'PICKUP_LATE') && (
                                   <Button
                                     variant="outline"
                                     size="sm"

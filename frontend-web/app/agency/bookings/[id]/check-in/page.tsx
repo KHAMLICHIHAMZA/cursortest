@@ -196,13 +196,13 @@ export default function BookingCheckInPage() {
     );
   }
 
-  if (booking.status !== 'CONFIRMED') {
+  if (booking.status !== 'CONFIRMED' && booking.status !== 'PICKUP_LATE') {
     return (
       <RouteGuard allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AGENCY_MANAGER', 'AGENT']}>
         <MainLayout>
           <div className="max-w-lg mx-auto py-12 px-4">
             <p className="text-text-muted">
-              Le check-in n’est possible que pour une réservation confirmée. Statut actuel :{' '}
+              Le check-in n’est possible que pour une réservation confirmée ou en retard au départ. Statut actuel :{' '}
               <strong>{booking.status}</strong>.
             </p>
             <Link href={`/agency/bookings/${bookingId}`}>

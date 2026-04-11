@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { bookingApi } from '@/lib/api/booking';
 import { planningApi } from '@/lib/api/planning';
+import { toast } from '@/components/ui/toast';
 
 type PlanningResource = {
   id: string;
@@ -158,6 +159,7 @@ export function PlanningBoard({
       vehicleId: draft.resourceId,
       startDate: draft.start.toISOString(),
       endDate: draft.end.toISOString(),
+      excludeBookingId: bookingId,
     });
 
     if (!availability.available && availability.conflicts?.length) {
@@ -166,6 +168,7 @@ export function PlanningBoard({
         delete next[eventId];
         return next;
       });
+      toast.error('Créneau indisponible ou conflit avec une autre réservation');
       return;
     }
 

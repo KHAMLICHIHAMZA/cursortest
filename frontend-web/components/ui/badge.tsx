@@ -11,6 +11,7 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const statusMap: Record<string, StatusKey> = {
   'CONFIRMED': 'confirmed',
+  'PICKUP_LATE': 'warning',
   'IN_PROGRESS': 'active',
   'LATE': 'late',
   'RETURNED': 'completed',

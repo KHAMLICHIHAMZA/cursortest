@@ -58,6 +58,12 @@ export default function AgencyDashboard() {
     staleTime: STALE_MS,
   });
 
+  const { data: pickupLateBookingsPage } = useQuery({
+    queryKey: ['bookings-light', 'count', 'PICKUP_LATE'],
+    queryFn: () => bookingApi.getLight({ page: 1, pageSize: 1, status: 'PICKUP_LATE' }),
+    staleTime: STALE_MS,
+  });
+
   const { data: kpi, isLoading: kpiLoading } = useQuery<KpiResult>({
     queryKey: ['dashboard-kpi', startDate, endDate],
     queryFn: async () => {
@@ -71,7 +77,8 @@ export default function AgencyDashboard() {
   const rentedVehicles = vehicles?.filter((v) => v.status === 'RENTED').length || 0;
   const activeBookings = bookingsSummary?.active ?? 0;
   const lateBookings = bookingsSummary?.late ?? 0;
-  const confirmedForCheckIn = confirmedBookingsPage?.total ?? 0;
+  const confirmedForCheckIn =
+    (confirmedBookingsPage?.total ?? 0) + (pickupLateBookingsPage?.total ?? 0);
 
   const isInitialLoading =
     vehiclesLoading && clientsLoading && bookingsLoading && kpiLoading;
@@ -218,8 +225,7 @@ export default function AgencyDashboard() {
                   {confirmedForCheckIn > 0 && (
                     <span className="mr-2">
                       {confirmedForCheckIn} réservation
-                      {confirmedForCheckIn > 1 ? 's' : ''} confirmée
-                      {confirmedForCheckIn > 1 ? 's' : ''} (check-in)
+                      {confirmedForCheckIn > 1 ? 's' : ''} en attente de check-in (confirmée ou retard au départ)
                     </span>
                   )}
                   {(activeBookings > 0 || lateBookings > 0) && (

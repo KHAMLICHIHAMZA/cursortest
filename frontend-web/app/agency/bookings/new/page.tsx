@@ -23,6 +23,7 @@ import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
 import { useState, useEffect, useMemo } from 'react';
+import { getPastBookingPeriodWarning } from '@/lib/utils/booking-past-warning';
 
 type AgencyOpeningHours = Record<
   string,
@@ -158,6 +159,10 @@ export default function NewBookingPage() {
   const endHoursWarning = useMemo(
     () => getOpeningHoursWarning(endDate, selectedAgency?.openingHours as AgencyOpeningHours | undefined),
     [endDate, selectedAgency]
+  );
+  const pastPeriodWarning = useMemo(
+    () => getPastBookingPeriodWarning(startDate, endDate),
+    [startDate, endDate],
   );
   const isInvalidDateRange = useMemo(() => {
     if (!startDate || !endDate) return false;
@@ -345,6 +350,12 @@ export default function NewBookingPage() {
                 )}
               </div>
             </div>
+
+            {pastPeriodWarning && (
+              <p className="text-sm text-red-500 mt-2" role="status">
+                {pastPeriodWarning}
+              </p>
+            )}
 
             <div>
               <label htmlFor="totalAmount" className="block text-sm font-medium text-text mb-2">

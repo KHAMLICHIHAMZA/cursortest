@@ -49,6 +49,8 @@ export const planningApi = {
     vehicleId: string;
     startDate: string;
     endDate: string;
+    /** Édition planning : exclure la réservation courante pour ne pas se conflit avec soi-même */
+    excludeBookingId?: string;
   }) => {
     const response = await apiClient.post('/planning/check-availability', data);
     return response.data;

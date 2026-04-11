@@ -14,6 +14,48 @@ interface PlanningCalendarProps {
   selectedAgencyId?: string | null;
 }
 
+/** Fenêtre API alignée sur la vue + dates affichées (sinon seul « aujourd'hui → +30j » était chargé). */
+function getPlanningQueryRange(view: 'day' | 'week' | 'month', currentDate: Date) {
+  const padBefore = 2;
+  const padAfter = 2;
+  const d = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate(),
+  );
+
+  let rangeStart: Date;
+  let rangeEnd: Date;
+
+  if (view === 'day') {
+    rangeStart = new Date(d);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(d);
+    rangeEnd.setHours(23, 59, 59, 999);
+  } else if (view === 'week') {
+    const dayIndex = (d.getDay() + 6) % 7;
+    rangeStart = new Date(d);
+    rangeStart.setDate(d.getDate() - dayIndex);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeStart.getDate() + 6);
+    rangeEnd.setHours(23, 59, 59, 999);
+  } else {
+    const first = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    rangeStart = new Date(first);
+    rangeStart.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeStart.getDate() + 41);
+    rangeEnd.setHours(23, 59, 59, 999);
+  }
+
+  rangeStart.setDate(rangeStart.getDate() - padBefore);
+  rangeEnd.setDate(rangeEnd.getDate() + padAfter);
+
+  return { start: rangeStart.toISOString(), end: rangeEnd.toISOString() };
+}
+
 export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -29,9 +71,20 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
   const [brandFilter, setBrandFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
+  const planningRange = useMemo(
+    () => getPlanningQueryRange(view, currentDate),
+    [view, currentDate],
+  );
+
   const { data, isLoading, error } = useQuery<PlanningData>({
-    queryKey: ['planning', selectedAgencyId],
-    queryFn: () => planningApi.getPlanning({ agencyId: selectedAgencyId || undefined }),
+    queryKey: ['planning', selectedAgencyId, view, planningRange.start, planningRange.end],
+    queryFn: () =>
+      planningApi.getPlanning({
+        agencyId: selectedAgencyId || undefined,
+        start: planningRange.start,
+        end: planningRange.end,
+      }),
+    enabled: true,
   });
 
   const normalizeToKnownType = (value: any): 'BOOKING' | 'MAINTENANCE' | 'PREPARATION_TIME' | 'OTHER' => {
@@ -291,7 +344,7 @@ export function PlanningCalendar({ selectedAgencyId }: PlanningCalendarProps) {
                       : 'bg-card text-text hover:bg-background border border-border'
                   }`}
                 >
-                  Booking
+                  Réservation
                 </button>
                 <button
                   type="button"

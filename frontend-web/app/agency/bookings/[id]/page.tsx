@@ -12,6 +12,7 @@ import { vehicleApi } from '@/lib/api/vehicle';
 import { clientApi } from '@/lib/api/client-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
@@ -25,6 +26,7 @@ import { ModuleNotIncluded, FeatureNotIncluded } from '@/components/ui/module-no
 import Cookies from 'js-cookie';
 import { BackendImage } from '@/components/ui/backend-image';
 import { getImageUrl } from '@/lib/utils/image-url';
+import { getPastBookingPeriodWarning } from '@/lib/utils/booking-past-warning';
 
 type AgencyOpeningHours = Record<
   string,
@@ -53,12 +55,22 @@ function getOpeningHoursWarning(dateValue: string, openingHours?: AgencyOpeningH
   return null;
 }
 
-type BookingStatus = 'DRAFT' | 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'RETURNED' | 'CANCELLED' | 'LATE' | 'NO_SHOW';
+type BookingStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PICKUP_LATE'
+  | 'IN_PROGRESS'
+  | 'RETURNED'
+  | 'CANCELLED'
+  | 'LATE'
+  | 'NO_SHOW';
 
 const STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   DRAFT: ['PENDING', 'CANCELLED'],
   PENDING: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
+  PICKUP_LATE: ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
   IN_PROGRESS: ['RETURNED', 'LATE'],
   LATE: ['RETURNED'],
   RETURNED: [],
@@ -70,9 +82,10 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   DRAFT: 'Brouillon',
   PENDING: 'En attente',
   CONFIRMED: 'Confirmée',
-  IN_PROGRESS: 'ACTIVE',
-  LATE: 'En retard',
-  RETURNED: 'TERMINÉE',
+  PICKUP_LATE: 'Retard au départ',
+  IN_PROGRESS: 'En cours',
+  LATE: 'En retard (retour)',
+  RETURNED: 'Terminée',
   CANCELLED: 'Annulée',
   NO_SHOW: 'Client absent',
 };
@@ -81,6 +94,7 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   DRAFT: 'bg-gray-500/20 text-gray-500',
   PENDING: 'bg-yellow-500/20 text-yellow-500',
   CONFIRMED: 'bg-blue-500/20 text-blue-500',
+  PICKUP_LATE: 'bg-amber-500/20 text-amber-400',
   IN_PROGRESS: 'bg-green-500/20 text-green-500',
   LATE: 'bg-orange-500/20 text-orange-500',
   RETURNED: 'bg-gray-500/20 text-gray-500',
@@ -133,6 +147,7 @@ export default function EditBookingPage() {
       totalAmount: 0,
       depositRequired: false,
       depositAmount: undefined,
+      extensionReason: '',
     },
   });
 
@@ -191,6 +206,11 @@ export default function EditBookingPage() {
     return end.getTime() <= start.getTime();
   }, [startDate, endDate]);
 
+  const pastPeriodWarning = useMemo(
+    () => getPastBookingPeriodWarning(startDate || '', endDate || undefined),
+    [startDate, endDate],
+  );
+
   const updateMutation = useMutation({
     mutationFn: (data: UpdateBookingFormData) => {
       const updateData: any = {
@@ -200,6 +220,10 @@ export default function EditBookingPage() {
         depositRequired: data.depositRequired,
         depositAmount: data.depositAmount,
       };
+      const reason = data.extensionReason?.trim();
+      if (reason) {
+        updateData.extensionReason = reason;
+      }
       return bookingApi.update(bookingId, updateData);
     },
     onSuccess: () => {
@@ -247,10 +271,11 @@ export default function EditBookingPage() {
   };
 
   const currentStatus = (booking?.status as BookingStatus) || 'DRAFT';
+  const statusLabel = STATUS_LABELS[currentStatus] ?? booking?.status ?? '';
   const availableStatusTransitions = STATUS_TRANSITIONS[currentStatus] || [];
   const isFieldAgentRole = user?.role === 'AGENT';
   const isTerrainStatusManual = (s: BookingStatus) =>
-    (currentStatus === 'CONFIRMED' && s === 'IN_PROGRESS') ||
+    ((currentStatus === 'CONFIRMED' || currentStatus === 'PICKUP_LATE') && s === 'IN_PROGRESS') ||
     ((currentStatus === 'IN_PROGRESS' || currentStatus === 'LATE') && s === 'RETURNED');
   const visibleStatusTransitions = availableStatusTransitions.filter((s) => {
     if (!isTerrainStatusManual(s)) return true;
@@ -362,7 +387,7 @@ export default function EditBookingPage() {
             <h1 className="text-3xl font-bold text-text">Modifier la réservation</h1>
             <div className="flex items-center gap-3">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[currentStatus]}`}>
-                {STATUS_LABELS[currentStatus]}
+                {statusLabel}
               </span>
             </div>
           </div>
@@ -460,6 +485,28 @@ export default function EditBookingPage() {
                   </div>
                 </div>
 
+                {pastPeriodWarning && (
+                  <p className="text-sm text-red-500 mt-2" role="status">
+                    {pastPeriodWarning}
+                  </p>
+                )}
+
+                <div>
+                  <label htmlFor="extensionReason" className="block text-sm font-medium text-text mb-2">
+                    Motif de modification des dates (optionnel)
+                  </label>
+                  <Textarea
+                    id="extensionReason"
+                    rows={3}
+                    placeholder="Ex. prolongation après appel client — retard avion…"
+                    className="w-full min-h-[80px]"
+                    {...register('extensionReason')}
+                  />
+                  <p className="text-xs text-text-muted mt-1">
+                    Si renseigné avec un changement de dates, le motif est journalisé côté dossier.
+                  </p>
+                </div>
+
                 <div>
                   <label htmlFor="totalAmount" className="block text-sm font-medium text-text mb-2">
                     Montant total (MAD)
@@ -526,6 +573,7 @@ export default function EditBookingPage() {
               <div className="bg-card border border-border rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-text mb-4">Changer le statut</h2>
                 {(currentStatus === 'CONFIRMED' ||
+                  currentStatus === 'PICKUP_LATE' ||
                   currentStatus === 'IN_PROGRESS' ||
                   currentStatus === 'LATE') && (
                   <div className="mb-4 rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
@@ -535,7 +583,7 @@ export default function EditBookingPage() {
                       kilométrage et signature — comme sur l’app agent.
                     </p>
                     <div className="flex flex-col gap-2">
-                      {currentStatus === 'CONFIRMED' && (
+                      {(currentStatus === 'CONFIRMED' || currentStatus === 'PICKUP_LATE') && (
                         <Button
                           variant="primary"
                           className="w-full justify-center"

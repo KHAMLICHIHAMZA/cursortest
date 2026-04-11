@@ -245,7 +245,7 @@ export const bookingApi = {
     return response.data;
   },
 
-  /** Départ client (équivalent app agent) — réservation CONFIRMED */
+  /** Départ client — réservation CONFIRMED ou PICKUP_LATE (retard au départ) */
   checkIn: async (id: string, payload: CheckInPayload): Promise<Booking> => {
     const response = await apiClient.post(`/bookings/${id}/checkin`, payload);
     return response.data;
