@@ -2,8 +2,20 @@
 
 Plateforme SaaS multi-tenant pour la gestion complète de location de véhicules.
 
-**Version :** 2.0.0  
+**Version produit (communication) :** 2.0.0  
 **Architecture :** Frontend unifié (Next.js) + Backend API (NestJS)
+
+Les packages `backend/`, `frontend-web/` et `mobile-agent/` ont chacun un **`package.json`** avec une version npm **indépendante** : elles ne sont pas synchronisées automatiquement avec la version « produit » ci-dessus. Voir **[`CHANGELOG.md`](./CHANGELOG.md)** pour l’historique des changements notables.
+
+---
+
+## Prêt technique vs prêt prouvé (environnement)
+
+- **Prêt technique** : code sur `main`, CI verte, migrations présentes, exemples d’env à jour.
+- **Prêt prouvé** : déploiement réel (ou staging identique) + checks manuels (santé API, mail réel si concerné, parcours critique).
+
+Ne pas confondre **documentation à jour** et **preuve sur un environnement** : checklist détaillée dans **[`docs/PRODUCTION_READINESS.md`](./docs/PRODUCTION_READINESS.md)**.  
+Protection GitHub recommandée : **[`docs/GITHUB_BRANCH_PROTECTION.md`](./docs/GITHUB_BRANCH_PROTECTION.md)**.
 
 ---
 
@@ -218,6 +230,8 @@ npm run test:e2e            # Tests E2E
 
 ### Principale
 
+- **[Changelog](./CHANGELOG.md)** — Historique des changements (tenir à jour à chaque évolution notable)
+- **[Preuve environnement / prod](./docs/PRODUCTION_READINESS.md)** — Dernière ligne droite : ce qui est « prêt » vs « prouvé »
 - [Détails des Applications](./APPLICATIONS_DETAILS.md) — Vue d'ensemble de l'architecture
 - [Spécifications complètes](./docs/specs.md)
 - [Index dossier `docs/`](./docs/README.md)
@@ -229,7 +243,8 @@ npm run test:e2e            # Tests E2E
 - [Tests V2 et Unification](./TESTS_V2_ET_UNIFICATION.md) — 126 tests fonctionnels
 - [Questions Préprod V2](./QUESTIONS_PREPROD_V2.md) — Revue technique
 - [Checklist Préprod](./PREPROD_CHECKLIST.md)
-- [Checklist Secrets](./CHECKLIST_SECRETS.md)
+- [Checklist Secrets](./CHECKLIST_SECRETS.md) — Audit secrets (complémentaire à la [preuve environnement](./docs/PRODUCTION_READINESS.md))
+- [Protection branche `main` (GitHub)](./docs/GITHUB_BRANCH_PROTECTION.md)
 - [Sécurité JWT](./backend/SECURITE_JWT.md)
 
 ### Guides de Pilotes

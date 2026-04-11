@@ -2,6 +2,9 @@
 
 **Date :** 2025-01-26
 
+> **Rôle de ce document** : auditer **secrets et clés** (JWT, SMTP, AI, etc.).  
+> Pour la **preuve complète sur un environnement déployé** (santé API, mail réel, migrations), utiliser en complément **[`docs/PRODUCTION_READINESS.md`](./docs/PRODUCTION_READINESS.md)**.
+
 ---
 
 ## ⚠️ Secrets à Vérifier

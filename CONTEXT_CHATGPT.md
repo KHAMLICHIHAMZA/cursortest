@@ -2,7 +2,8 @@
 
 > Dernière mise à jour : 28 mars 2026  
 > Branche de référence : `main`  
-> Fichier compagnon racine : **`AGENTS.md`** (règles courtes pour agents IA)
+> Fichier compagnon racine : **`AGENTS.md`** (règles courtes pour agents IA)  
+> **Changements notables** : tenir **`CHANGELOG.md`** à jour ; **preuve environnement** : **`docs/PRODUCTION_READINESS.md`** (évite l’écart « documenté prêt » / « prouvé en prod »).
 
 ---
 
