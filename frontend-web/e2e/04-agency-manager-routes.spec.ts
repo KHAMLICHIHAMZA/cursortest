@@ -6,8 +6,8 @@ import { AGENCY_PATHS } from './routes';
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Agency Manager — routes agence', () => {
-  test('parcours complet (une seule session)', async ({ page }, testInfo) => {
-    await login(page, CREDS.agencyManager.email, CREDS.agencyManager.password, /\/agency/, testInfo);
+  test('parcours complet (une seule session)', async ({ page }) => {
+    await login(page, CREDS.agencyManager.email, CREDS.agencyManager.password, /\/agency/);
 
     for (const path of AGENCY_PATHS) {
       await gotoAndAssertLoads(page, path);

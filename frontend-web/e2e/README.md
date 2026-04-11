@@ -24,7 +24,7 @@ Avant la suite, le front préprod est appelé 2× pour limiter le cold start. Op
 ## Préprod (`https://v0-cursortest.vercel.app`)
 
 - Le compte **Super Admin** (`admin@malocauto.com` / seed) fonctionne en général.
-- Les comptes **company / manager / agent** du README peuvent être **inactifs** sur la base préprod : les tests correspondants sont alors **ignorés** (`skipped`) avec un message, pas une fausse erreur.
+- Les comptes **company / manager / agent** doivent être **actifs** sur la base préprod ; sinon les tests **échouent** avec « Compte inactif » (pas de skip).
 
 Pour forcer des identifiants :
 

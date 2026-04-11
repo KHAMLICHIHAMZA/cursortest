@@ -6,8 +6,8 @@ import { ADMIN_PATHS } from './routes';
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Super Admin — toutes les routes statiques', () => {
-  test('parcours complet (une seule session)', async ({ page }, testInfo) => {
-    await login(page, CREDS.superAdmin.email, CREDS.superAdmin.password, /\/admin/, testInfo);
+  test('parcours complet (une seule session)', async ({ page }) => {
+    await login(page, CREDS.superAdmin.email, CREDS.superAdmin.password, /\/admin/);
 
     for (const path of ADMIN_PATHS) {
       await gotoAndAssertLoads(page, path);

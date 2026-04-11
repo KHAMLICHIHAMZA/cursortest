@@ -5,8 +5,8 @@ import { gotoAndAssertLoads } from './helpers/assert';
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Agent — accès agence & restrictions middleware', () => {
-  test('parcours complet (une session)', async ({ page }, testInfo) => {
-    await login(page, CREDS.agent.email, CREDS.agent.password, /\/agency/, testInfo);
+  test('parcours complet (une session)', async ({ page }) => {
+    await login(page, CREDS.agent.email, CREDS.agent.password, /\/agency/);
 
     await gotoAndAssertLoads(page, '/agency');
     await gotoAndAssertLoads(page, '/agency/bookings');

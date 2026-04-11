@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const CREDS = {
   superAdmin: {
@@ -20,15 +20,13 @@ const CREDS = {
 } as const;
 
 /**
- * Connexion web. Sur préprod, les comptes seed peuvent être **inactifs** : dans ce cas,
- * si `testInfo` est fourni, le test est **skipped** avec un message explicite au lieu d’un timeout.
+ * Connexion web. Compte inactif → **échec explicite** (pas de skip), pour une suite qui va au bout.
  */
 export async function login(
   page: Page,
   email: string,
   password: string,
   expectedPathRegex: RegExp = /\/(admin|company|agency)/,
-  testInfo?: TestInfo,
 ) {
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await page.getByRole('textbox', { name: 'Email' }).fill(email);
@@ -48,9 +46,9 @@ export async function login(
   ]).catch(() => 'timeout' as const);
 
   if (race === 'inactive') {
-    const msg = `Compte inactif sur cet environnement (${email}). Activer l’utilisateur en base ou utiliser PW_* (voir e2e/README.md).`;
-    if (testInfo) testInfo.skip(true, msg);
-    throw new Error(msg);
+    throw new Error(
+      `Compte inactif sur cet environnement (${email}). Activer l’utilisateur en base ou définir PW_* (voir e2e/README.md).`,
+    );
   }
 
   if (race !== 'ok') {
