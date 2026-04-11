@@ -33,6 +33,11 @@ Pour forcer des identifiants :
 - `PW_AGENCY_MANAGER_EMAIL`, `PW_AGENCY_MANAGER_PASSWORD`
 - `PW_AGENT_EMAIL`, `PW_AGENT_PASSWORD`
 
+### « Compte inactif » en préprod alors que le seed local est OK
+
+La base hébergée peut avoir `isActive = false` sur les users démo. Réactiver avec le script SQL :  
+[`backend/scripts/sql/activate-e2e-demo-users.sql`](../../backend/scripts/sql/activate-e2e-demo-users.sql) (Neon / console Postgres), puis relancer `npm run test:e2e`.
+
 ## Rapports
 
 Après exécution : `npx playwright show-report` (dossier `playwright-report/`).
