@@ -34,6 +34,8 @@ enum BookingStatus {
   DRAFT
   PENDING
   CONFIRMED
+  /// Départ prévu dépassé de 30 min sans check-in (véhicule toujours réservé)
+  PICKUP_LATE
   IN_PROGRESS
   EXTENDED // Prolongation (ajout pour compléter les états métier)
   LATE
