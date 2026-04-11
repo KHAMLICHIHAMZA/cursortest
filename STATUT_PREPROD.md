@@ -17,7 +17,8 @@
 | **Racine** | `package.json` | **Orchestration uniquement** (`concurrently`) — pas de stack Next/React ici |
 
 La **preuve « prêt environnement »** (checklists déploiement, pas seulement code) est dans **[`docs/PRODUCTION_READINESS.md`](./docs/PRODUCTION_READINESS.md)**.  
-La **chaîne prod** (hébergeurs, variables, santé, smoke) est décrite dans **[`docs/PRODUCTION.md`](./docs/PRODUCTION.md)**.
+La **chaîne prod** (hébergeurs, variables, santé, smoke) est décrite dans **[`docs/PRODUCTION.md`](./docs/PRODUCTION.md)**.  
+L’**audit actionnable préprod → prod** (12 piliers, matrice variables, phases A–D) : **[`docs/AUDIT_PREPROD_VERS_PROD.md`](./docs/AUDIT_PREPROD_VERS_PROD.md)**.
 
 ---
 

@@ -4,6 +4,8 @@
 
 Lisez **`CONTEXT_CHATGPT.md`** à la racine : architecture, rôles RBAC, modules backend, routes frontend, comptes seed, commandes utiles.
 
+Pour le **cadre préprod → prod** (vérité, env, phases) : **`docs/AUDIT_PREPROD_VERS_PROD.md`**.
+
 Après une évolution **produit, API ou déploiement** notable : ajouter une entrée dans **`CHANGELOG.md`** (même courte).
 
 ## Règles dépôt

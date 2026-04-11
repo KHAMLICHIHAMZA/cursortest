@@ -233,6 +233,7 @@ npm run test:e2e            # Tests E2E
 - **[Changelog](./CHANGELOG.md)** — Historique des changements (tenir à jour à chaque évolution notable)
 - **[Preuve environnement / prod](./docs/PRODUCTION_READINESS.md)** — Dernière ligne droite : ce qui est « prêt » vs « prouvé »
 - **[Chaîne production](./docs/PRODUCTION.md)** — Backend Render, front, Postgres, variables, domaines, smoke
+- **[Audit préprod → prod](./docs/AUDIT_PREPROD_VERS_PROD.md)** — Source de vérité, matrice env, phases, parcours métier
 - [Détails des Applications](./APPLICATIONS_DETAILS.md) — Vue d'ensemble de l'architecture
 - [Spécifications complètes](./docs/specs.md)
 - [Index dossier `docs/`](./docs/README.md)

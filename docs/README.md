@@ -12,6 +12,7 @@ Ce dossier regroupe surtout des **livrabes datés** (MOA, MOE, captures, analyse
 | [`../AGENTS.md`](../AGENTS.md) | Règles courtes pour agents (Cursor, etc.) |
 | [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) | **Prêt technique vs prêt prouvé** (checklist environnement réel) |
 | [`PRODUCTION.md`](PRODUCTION.md) | **Chaîne prod** : Render, front, base, variables, santé, smoke |
+| [`AUDIT_PREPROD_VERS_PROD.md`](AUDIT_PREPROD_VERS_PROD.md) | **Audit préprod → prod** (12 piliers, matrice env, phases A–D) |
 | [`GITHUB_BRANCH_PROTECTION.md`](GITHUB_BRANCH_PROTECTION.md) | Configurer la protection de `main` sur GitHub |
 | [`specs.md`](specs.md) | Spécifications techniques |
 

@@ -12,6 +12,10 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 - …
 
+### Documentation
+
+- **`docs/AUDIT_PREPROD_VERS_PROD.md`** : cadre complet préprod → prod (vérité, monorepo, env, Prisma, infra, CI, parcours, sécurité, phases).
+
 ## [2.0.x] - 2026-03-28
 
 ### Ajouté
