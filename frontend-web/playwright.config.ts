@@ -16,7 +16,7 @@ export default defineConfig({
   // Cold start Render / réseau : un retry évite les faux négatifs.
   retries: process.env.PW_NO_RETRIES ? 0 : 2,
   workers: 1,
-  timeout: 180_000,
+  timeout: 300_000,
   expect: { timeout: 60_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {

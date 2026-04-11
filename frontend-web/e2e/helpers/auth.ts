@@ -35,23 +35,27 @@ export async function login(
   await page.getByRole('textbox', { name: 'Mot de passe' }).fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
 
-  // Préprod Render : cold start / TLS peut dépasser 2 min avant la 1ère réponse login.
-  const deadline = Date.now() + 240_000;
-  while (Date.now() < deadline) {
-    const path = new URL(page.url()).pathname;
-    if (expectedPathRegex.test(path)) return;
+  const inactive = page.getByText(/Compte inactif/i).first();
 
-    const inactive = await page.getByText(/Compte inactif/i).isVisible().catch(() => false);
-    if (inactive) {
-      const msg = `Compte inactif sur cet environnement (${email}). Activer l’utilisateur en base ou utiliser PW_* (voir e2e/README.md).`;
-      if (testInfo) testInfo.skip(true, msg);
-      throw new Error(msg);
-    }
+  const race = await Promise.race([
+    page
+      .waitForURL(
+        (url) => expectedPathRegex.test(new URL(url).pathname),
+        { timeout: 240_000 },
+      )
+      .then(() => 'ok' as const),
+    inactive.waitFor({ state: 'visible', timeout: 240_000 }).then(() => 'inactive' as const),
+  ]).catch(() => 'timeout' as const);
 
-    await page.waitForTimeout(400);
+  if (race === 'inactive') {
+    const msg = `Compte inactif sur cet environnement (${email}). Activer l’utilisateur en base ou utiliser PW_* (voir e2e/README.md).`;
+    if (testInfo) testInfo.skip(true, msg);
+    throw new Error(msg);
   }
 
-  throw new Error(`Login timeout pour ${email} — vérifier l’API et les identifiants.`);
+  if (race !== 'ok') {
+    throw new Error(`Login timeout pour ${email} — vérifier l’API et les identifiants.`);
+  }
 }
 
 export async function logout(page: Page) {
