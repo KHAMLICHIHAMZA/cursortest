@@ -66,7 +66,7 @@ malocauto/
 │   │   └── main.ts       # Point d'entrée (port 3000)
 │   └── prisma/           # Schéma Prisma + seed
 │
-├── frontend-web/         # Application Next.js unifiée
+├── frontend-web/         # Seule app Next.js (Next 14 / React 18) — pas de front à la racine
 │   ├── app/
 │   │   ├── admin/        # Pages Super Admin (companies, subscriptions, users, planning, etc.)
 │   │   ├── company/      # Pages Company Admin (agencies, users, analytics, etc.)
@@ -232,6 +232,7 @@ npm run test:e2e            # Tests E2E
 
 - **[Changelog](./CHANGELOG.md)** — Historique des changements (tenir à jour à chaque évolution notable)
 - **[Preuve environnement / prod](./docs/PRODUCTION_READINESS.md)** — Dernière ligne droite : ce qui est « prêt » vs « prouvé »
+- **[Chaîne production](./docs/PRODUCTION.md)** — Backend Render, front, Postgres, variables, domaines, smoke
 - [Détails des Applications](./APPLICATIONS_DETAILS.md) — Vue d'ensemble de l'architecture
 - [Spécifications complètes](./docs/specs.md)
 - [Index dossier `docs/`](./docs/README.md)

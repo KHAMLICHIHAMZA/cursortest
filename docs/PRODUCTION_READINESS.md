@@ -43,4 +43,4 @@ Voir `backend/.env.example`. En prod (souvent Neon + Render) :
 
 ---
 
-**Résumé** : la documentation (`CONTEXT_CHATGPT.md`, README) décrit l’**intention** ; ce fichier et la **CI verte** décrivent la **preuve** pour un environnement donné.
+**Résumé** : la documentation (`CONTEXT_CHATGPT.md`, README) décrit l’**intention** ; ce fichier et la **CI verte** décrivent la **preuve** pour un environnement donné. Pour la **carte** hébergeurs / variables / domaines, voir aussi **[`PRODUCTION.md`](./PRODUCTION.md)**.

@@ -1,186 +1,54 @@
-# ✅ Checklist Préprod - MalocAuto
+# Checklist préprod — MalocAuto
 
-**Date :** 2025-01-26  
-**Statut :** En cours de préparation
+**Dernière révision :** 28 mars 2026  
 
----
+Cette checklist est **alignée** sur le monorepo actuel : une seule app web **`frontend-web/`** (Next 14). Il n’y a plus de dossiers `frontend-admin` ni `frontend-agency`.
 
-## 🧹 Nettoyage Effectué
-
-### ✅ Fichiers Temporaires
-- [x] Fichiers `.log` supprimés
-- [x] Fichiers `.tmp` et `.temp` supprimés
-- [x] Fichiers de cache nettoyés
-- [x] Dossiers de build nettoyés
-
-### ✅ Code Backend
-- [x] `console.log` de debug nettoyés (6 fichiers)
-  - `backend/src/modules/payment/payment.service.ts`
-  - `backend/src/main.ts`
-  - `backend/src/modules/audit/audit.service.ts`
-  - `backend/src/modules/notification/email.service.ts`
-  - `backend/src/modules/notification/whatsapp.service.ts`
-  - `backend/src/services/email.service.ts`
-
-### ✅ Scripts de Test
-- [x] Script de test backend corrigé (`backend/scripts/test-pilote1-api.ts`)
+Pour le **statut global** et l’architecture : **[`STATUT_PREPROD.md`](./STATUT_PREPROD.md)**.  
+Pour la **chaîne hébergement** : **[`docs/PRODUCTION.md`](./docs/PRODUCTION.md)**.  
+Pour la **preuve environnement** : **[`docs/PRODUCTION_READINESS.md`](./docs/PRODUCTION_READINESS.md)**.
 
 ---
 
-## ⚠️ Points d'Attention
+## Avant un déploiement préprod / prod
 
-### Fichiers .env
-- [ ] **backend/.env** - Vérifier qu'il n'est pas commité dans Git
-- [ ] **frontend-web/.env.local** - Vérifier qu'il n'est pas commité dans Git
-- [ ] S'assurer que `.gitignore` contient bien `.env*`
+### Code & CI
 
-### Fichiers .env.example
-- [x] **backend/.env.example** - ✅ Existe
-- [ ] **frontend-web/.env.example** - ⚠️ Manquant (à créer)
+- [ ] Branche `main` avec **CI verte** (GitHub Actions : backend, mobile, frontend-web, job d’intégration smoke dans `ci-full.yml`).
+- [ ] `cd backend && npm run verify:push` OK sur une base dédiée (avant merge critique).
+- [ ] `cd frontend-web && npm run lint && npm run build` OK localement si vous touchez au front.
 
-### .gitignore
-- [ ] Ajouter `*.log` dans `.gitignore` si manquant
+### Secrets & fichiers
 
-### Scripts de Build
-- [x] **backend** - ✅ Script build présent
-- [x] **frontend-web** - ✅ Script build présent
-- [x] **frontend-agency** - ✅ Script build présent
-- [x] **frontend-admin** - ✅ Script build présent
-- [ ] **mobile-agent** - ⚠️ Pas de script build (normal pour Expo)
+- [ ] Aucun `.env` / `.env.local` commité (vérifier `.gitignore`).
+- [ ] Secrets forts pour `JWT_SECRET` et `JWT_REFRESH_SECRET` en prod — voir [`CHECKLIST_SECRETS.md`](./CHECKLIST_SECRETS.md).
+
+### Base de données
+
+- [ ] Migrations Prisma présentes dans le dépôt et appliquées sur l’environnement cible (`migrate deploy`).
+- [ ] Backup / politique de sauvegarde définie chez le fournisseur Postgres.
+
+### Hébergement
+
+- [ ] **API** : variables sur Render (ou équivalent) — voir [`docs/PRODUCTION.md`](./docs/PRODUCTION.md) et [`render.yaml`](./render.yaml).
+- [ ] **Front** : `NEXT_PUBLIC_API_URL` pointant vers l’API publique (`…/api/v1`).
+- [ ] **CORS / URLs front** : `FRONTEND_WEB_URL`, `FRONTEND_URL` cohérents avec le domaine réel.
+
+### Vérifications post-déploiement
+
+- [ ] `GET /api/v1/health` et `GET /api/v1/ready` OK sur l’URL déployée.
+- [ ] Smoke optionnel : `node backend/scripts/smoke-remote-api.mjs` avec `SMOKE_API_BASE`.
+- [ ] Parcours manuel : login web + une action métier.
 
 ---
 
-## 🚀 Tests de Build
+## Builds locaux (référence)
 
-### Backend
 ```bash
-cd backend
-npm run build
-```
-
-### Frontend Web
-```bash
-cd frontend-web
-npm run build
-```
-
-### Frontend Agency
-```bash
-cd frontend-agency
-npm run build
-```
-
-### Frontend Admin
-```bash
-cd frontend-admin
-npm run build
+cd backend && npm run build
+cd ../frontend-web && npm run build
 ```
 
 ---
 
-## 🔐 Sécurité
-
-### Variables d'Environnement
-- [ ] Vérifier que tous les secrets sont dans `.env` (pas dans le code)
-- [ ] Vérifier que les tokens API ne sont pas hardcodés
-- [ ] Vérifier les clés JWT
-- [ ] Vérifier les credentials de base de données
-
-### CORS
-- [ ] Vérifier la configuration CORS pour la production
-- [ ] Limiter les origines autorisées (pas `origin: true`)
-
-### Rate Limiting
-- [ ] Vérifier que le rate limiting est activé
-- [ ] Configurer les limites appropriées
-
----
-
-## 📊 Tests
-
-### Tests Unitaires
-- [x] Backend : 84/84 tests PASS
-- [x] Frontend Web : 150/150 tests PASS
-- [ ] Mobile Agent : Tests à corriger (problèmes de configuration)
-
-### Tests d'Intégration
-- [ ] Backend API : Script corrigé, à exécuter
-- [ ] Frontend Web : Tests unitaires OK
-- [ ] Frontend Admin : Tests manuels requis
-- [ ] Mobile Agent : Tests d'intégration à corriger
-
----
-
-## 📝 Documentation
-
-### Fichiers à Vérifier
-- [ ] README.md à jour
-- [ ] Documentation API (Swagger) complète
-- [ ] Guide de déploiement
-- [ ] Guide de configuration
-
-### Fichiers de Documentation Temporaires
-- [x] Rapports de tests récents conservés (< 7 jours)
-- [ ] Anciens rapports supprimés (> 7 jours)
-
----
-
-## 🗄️ Base de Données
-
-### Migrations
-- [ ] Toutes les migrations sont appliquées
-- [ ] Pas de migrations en attente
-- [ ] Backup de la base de données effectué
-
-### Seed
-- [ ] Données de test appropriées pour la préprod
-- [ ] Pas de données sensibles dans le seed
-
----
-
-## 🌐 Configuration Serveur
-
-### Variables d'Environnement Production
-- [ ] `NODE_ENV=production`
-- [ ] `DATABASE_URL` configuré
-- [ ] `JWT_SECRET` configuré et sécurisé
-- [ ] `FRONTEND_URL` configuré
-- [ ] `FRONTEND_AGENCY_URL` configuré
-- [ ] SMTP configuré
-- [ ] Variables d'API externes configurées
-
-### Ports
-- [ ] Backend : Port configuré (3000 ou autre)
-- [ ] Frontend Web : Port configuré
-- [ ] Frontend Agency : Port configuré
-- [ ] Frontend Admin : Port configuré
-
----
-
-## 📦 Déploiement
-
-### Builds
-- [ ] Tous les builds réussissent sans erreur
-- [ ] Les builds sont optimisés (pas de source maps en prod)
-- [ ] Les assets sont minifiés
-
-### Docker (si applicable)
-- [ ] Dockerfile à jour
-- [ ] docker-compose.yml configuré
-- [ ] Images Docker testées
-
----
-
-## ✅ Validation Finale
-
-- [ ] Tous les tests passent
-- [ ] Tous les builds réussissent
-- [ ] Aucun secret dans le code
-- [ ] Documentation à jour
-- [ ] Configuration production vérifiée
-- [ ] Backup effectué
-
----
-
-**Dernière mise à jour :** 2025-01-26
-
+**Note :** Les anciennes sections listant `frontend-admin` / `frontend-agency` et des comptes de tests figés ont été retirées — la référence de vérité est la **CI** et les commandes ci-dessus.

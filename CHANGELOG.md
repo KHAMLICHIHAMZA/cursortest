@@ -18,10 +18,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 - **Admin** : mot de passe utilisateur en immédiat (`POST /api/v1/users/:id/set-password`), option envoi e-mail ; UI (dialogue) sur liste et fiche utilisateurs.
 - **Documentation** : `AGENTS.md`, `docs/README.md`, `CHANGELOG.md` ; nettoyage de markdown obsolètes à la racine (audit d’unification, rapports ponctuels).
+- **`docs/PRODUCTION.md`** : chaîne prod (Render, front, Neon/Postgres, variables, smoke).
+- **Script** : `backend/scripts/ci-integration-smoke.mjs` pour smoke CI (health, ready, login seed).
 
 ### Documentation
 
 - Mise à jour de `CONTEXT_CHATGPT.md` et `README.md` (ports, API Users, statuts réservation).
+- **`STATUT_PREPROD.md`** réécrit (architecture unifiée `frontend-web` uniquement).
+- **Monorepo** : `package.json` racine = orchestration uniquement (suppression des dépendances Next/React à la racine — éviter divergence avec `frontend-web`).
+
+### CI
+
+- **`ci-full.yml`** : intégration réelle (smoke HTTP) ; workflow **`ci-frontend-web`** invoqué via `workflow_call` ; besoin des trois jobs (backend, mobile, frontend-web) avant le smoke.
 
 ---
 

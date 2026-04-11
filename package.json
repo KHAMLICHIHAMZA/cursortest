@@ -2,7 +2,7 @@
   "name": "malocauto",
   "version": "2.0.0",
   "private": true,
-  "description": "MalocAuto — Application unifiée sur un seul port (8080)",
+  "description": "Orchestration monorepo : scripts dev + proxy. Application Next.js uniquement dans frontend-web/ (Next 14, React 18). Ne pas ajouter next/react à la racine — évite divergence de versions.",
   "scripts": {
     "dev": "concurrently -n backend,web,proxy -c blue,green,cyan \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:proxy\"",
     "dev:proxy": "cd proxy && npm run dev",
@@ -13,16 +13,5 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@tanstack/react-query": "^5.90.21",
-    "js-cookie": "^3.0.5",
-    "lucide-react": "^0.575.0",
-    "next": "^16.1.6",
-    "puppeteer": "^24.37.2",
-    "react": "^19.2.4",
-    "react-hook-form": "^7.72.0",
-    "tailwindcss": "^4.2.0"
   }
 }
