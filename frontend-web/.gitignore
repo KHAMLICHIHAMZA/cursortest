@@ -9,6 +9,8 @@
 /coverage
 /.vitest
 /test-results/
+/playwright-report/
+/blob-report/
 
 # next.js
 /.next/

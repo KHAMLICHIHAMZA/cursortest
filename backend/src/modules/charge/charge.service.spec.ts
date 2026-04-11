@@ -184,6 +184,26 @@ describe("ChargeService", () => {
       expect(result.periodAmortization).toBe(0);
       expect(result.financing.cashVehicles).toBe(0);
     });
+
+    it("SUPER_ADMIN sans companyId ne filtre pas agency.companyId=null sur Vehicle", async () => {
+      mockPrisma.booking.findMany.mockResolvedValue([]);
+      mockPrisma.charge.findMany.mockResolvedValue([]);
+      mockPrisma.vehicle.findMany.mockResolvedValue([]);
+
+      await service.computeKpi(
+        {
+          userId: "sa",
+          role: "SUPER_ADMIN",
+          companyId: null,
+          agencyIds: [],
+        } as any,
+        { startDate: "2026-01-01", endDate: "2026-01-31" },
+      );
+
+      const call = mockPrisma.vehicle.findMany.mock.calls[0][0];
+      expect(call.where).not.toHaveProperty("agency");
+      expect(call.where.deletedAt).toBe(null);
+    });
   });
 
   describe("delete", () => {

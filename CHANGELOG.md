@@ -12,9 +12,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 - …
 
+### Corrections
+
+- **Backend** : `ChargeService.computeKpi` — requête `Vehicle` pour **SUPER_ADMIN** sans `companyId` : ne plus passer `agency: { companyId: null }` (erreur Prisma en prod sur `/charges/kpi`).
+
 ### Documentation
 
+- **`README.md`** : distinction explicite version produit **2.0.0** vs spécifications fonctionnelles **3.0.0** (niveaux de version différents).
 - **`docs/AUDIT_PREPROD_VERS_PROD.md`** : cadre complet préprod → prod (vérité, monorepo, env, Prisma, infra, CI, parcours, sécurité, phases).
+- **`CURRENT_STATUS.md`** : statut officiel préprod (contenu précédemment dans `STATUT_PREPROD.md`) ; **`STATUT_PREPROD.md`** conservé comme alias de redirection.
+- **`docs/archive/`** : guides pilote 2–3 obsolètes, CR préprod, tutoriels et docs Render historiques déplacés depuis la racine ; index dans **`docs/archive/README.md`**.
+- **`TESTS_V2_ET_UNIFICATION.md`** : encadré explicite — recette / UAT sur le front préprod **https://v0-cursortest.vercel.app**.
+- **Préprod Vercel** : URL de recette **https://v0-cursortest.vercel.app** documentée dans **`CURRENT_STATUS.md`**, **`docs/PRODUCTION.md`**, **`PREPROD_CHECKLIST.md`** (tests manuels / UAT à faire sur ce front).
+
+### Maintenance dépôt
+
+- Suppression de **`pnpm-lock.yaml`** à la racine (non utilisé ; le flux officiel est **npm**).
+- Scripts et artefacts de test ponctuels déplacés vers **`scripts/archive/qa-snapshots/`** (racine allégée).
 
 ## [2.0.x] - 2026-03-28
 

@@ -385,7 +385,6 @@ export class ChargeService {
   ): Promise<KpiResult> {
     await enforceAgencyAccess(this.prisma, user, options.agencyId);
 
-    const companyId = user.companyId;
     const start = new Date(options.startDate);
     const end = new Date(options.endDate);
     const totalDays = Math.max(
@@ -411,12 +410,17 @@ export class ChargeService {
     };
     if (options.vehicleId) whereCharge.vehicleId = options.vehicleId;
 
-    const vehicleWhere = {
-      agency: { companyId },
-      ...(options.agencyId ? { agencyId: options.agencyId } : {}),
-      ...(options.vehicleId ? { id: options.vehicleId } : {}),
+    // SUPER_ADMIN n’a pas de companyId : ne pas passer agency: { companyId: null } (erreur Prisma).
+    const vehicleWhere: Prisma.VehicleWhereInput = {
       deletedAt: null,
+      ...(options.vehicleId ? { id: options.vehicleId } : {}),
     };
+    if (user.role === "SUPER_ADMIN") {
+      if (options.agencyId) vehicleWhere.agencyId = options.agencyId;
+    } else {
+      vehicleWhere.agency = { companyId: user.companyId };
+      if (options.agencyId) vehicleWhere.agencyId = options.agencyId;
+    }
 
     // Fetch data
     const [bookings, charges, vehicles] = await Promise.all([
