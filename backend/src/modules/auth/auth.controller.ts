@@ -96,7 +96,8 @@ export class AuthController {
     const currentUser = user?.user;
     if (!currentUser) return user;
     const addressDetails = this.parseAddressDetails(currentUser.address);
-    const missingProfileFields = this.getMissingRequiredProfileFields(currentUser);
+    const missingProfileFields =
+      this.getMissingRequiredProfileFields(currentUser);
     return {
       id: currentUser.id,
       email: currentUser.email,

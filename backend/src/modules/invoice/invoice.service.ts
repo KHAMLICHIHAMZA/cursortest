@@ -618,4 +618,56 @@ export class InvoiceService {
 
     return updatedInvoice;
   }
+
+  /**
+   * Recalcule montants + payload figé à partir du booking (ex. après override des frais de retard).
+   */
+  async syncInvoiceTotalsFromBooking(bookingId: string): Promise<boolean> {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { bookingId, type: InvoiceType.INVOICE },
+    });
+    if (!invoice) {
+      return false;
+    }
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        agency: { include: { company: true } },
+        vehicle: true,
+        client: true,
+      },
+    });
+    if (!booking) {
+      return false;
+    }
+
+    const totalPriceValue = booking.totalPrice
+      ? typeof booking.totalPrice === "number"
+        ? booking.totalPrice
+        : Number(booking.totalPrice)
+      : 0;
+    const lateFeeValue = booking.lateFeeAmount
+      ? typeof booking.lateFeeAmount === "number"
+        ? booking.lateFeeAmount
+        : Number(booking.lateFeeAmount)
+      : 0;
+    const totalAmount = totalPriceValue + lateFeeValue;
+    const issuedAt = invoice.issuedAt;
+    const payload = this.buildInvoicePayload(
+      booking,
+      { subtotal: totalPriceValue, lateFees: lateFeeValue, total: totalAmount },
+      issuedAt,
+    );
+
+    await this.prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        totalAmount,
+        payload: payload as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return true;
+  }
 }

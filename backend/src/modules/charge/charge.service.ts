@@ -211,7 +211,7 @@ export class ChargeService {
 
     const normalizedCostCenter = normalizeCostCenter(dto.costCenter);
     const resolvedCostCenter =
-      scope === "VEHICLE" ? null : (normalizedCostCenter || "AUTRE");
+      scope === "VEHICLE" ? null : normalizedCostCenter || "AUTRE";
     validateCategoryForScope({
       scope,
       costCenter: resolvedCostCenter,
@@ -295,7 +295,9 @@ export class ChargeService {
       | "COMPANY";
 
     const requestedCostCenter =
-      dto.costCenter !== undefined ? normalizeCostCenter(dto.costCenter) : undefined;
+      dto.costCenter !== undefined
+        ? normalizeCostCenter(dto.costCenter)
+        : undefined;
 
     if (dto.scope !== undefined) {
       if (dto.scope === "VEHICLE" && !dto.vehicleId && !charge.vehicleId) {
@@ -323,7 +325,11 @@ export class ChargeService {
     }
     if (nextScope === "VEHICLE" && dto.vehicleId) {
       const vehicle = await this.prisma.vehicle.findFirst({
-        where: { id: dto.vehicleId, agencyId: charge.agencyId, deletedAt: null },
+        where: {
+          id: dto.vehicleId,
+          agencyId: charge.agencyId,
+          deletedAt: null,
+        },
         select: { id: true },
       });
       if (!vehicle) {
@@ -347,9 +353,9 @@ export class ChargeService {
       | "VEHICLE"
       | "AGENCY"
       | "COMPANY";
-    const finalCostCenter = (data.costCenter !== undefined
-      ? data.costCenter
-      : charge.costCenter) as AllowedCostCenter | null;
+    const finalCostCenter = (
+      data.costCenter !== undefined ? data.costCenter : charge.costCenter
+    ) as AllowedCostCenter | null;
     const finalCategory = (data.category || charge.category) as string;
     validateCategoryForScope({
       scope: finalScope,
@@ -657,7 +663,9 @@ export class ChargeService {
       0,
     );
     const equalShare =
-      profitVehicles.length > 0 ? totalSharedCharges / profitVehicles.length : 0;
+      profitVehicles.length > 0
+        ? totalSharedCharges / profitVehicles.length
+        : 0;
 
     return profitVehicles
       .map((v: any, index: number) => {

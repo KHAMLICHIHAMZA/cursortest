@@ -14,6 +14,7 @@ import { InvoiceService } from "../invoice/invoice.service";
 import { OutboxService } from "../../common/services/outbox.service";
 import { ContractService } from "../contract/contract.service";
 import { InAppNotificationService } from "../in-app-notification/in-app-notification.service";
+import { JournalService } from "../journal/journal.service";
 
 describe("BookingService", () => {
   let service: BookingService;
@@ -78,6 +79,11 @@ describe("BookingService", () => {
 
   const mockInvoiceService = {
     generateInvoice: jest.fn(),
+    syncInvoiceTotalsFromBooking: jest.fn().mockResolvedValue(true),
+  };
+
+  const mockJournalService = {
+    appendEntry: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockOutboxService = {
@@ -111,6 +117,7 @@ describe("BookingService", () => {
           provide: InAppNotificationService,
           useValue: mockInAppNotificationService,
         },
+        { provide: JournalService, useValue: mockJournalService },
       ],
     }).compile();
 
@@ -286,6 +293,12 @@ describe("BookingService", () => {
       expect(
         service["isValidStatusTransition"]("IN_PROGRESS", "RETURNED"),
       ).toBe(true);
+      expect(
+        service["isValidStatusTransition"]("PICKUP_LATE", "IN_PROGRESS"),
+      ).toBe(true);
+      expect(service["isValidStatusTransition"]("PICKUP_LATE", "NO_SHOW")).toBe(
+        true,
+      );
     });
 
     it("should return false for invalid transitions", () => {

@@ -163,7 +163,9 @@ export class BookingController {
   @Post(":id/checkin")
   @RequirePermission(UserAgencyPermission.WRITE)
   @Permissions("bookings:update")
-  @ApiOperation({ summary: "Check-in a booking (CONFIRMED -> IN_PROGRESS)" })
+  @ApiOperation({
+    summary: "Check-in (CONFIRMED ou PICKUP_LATE → IN_PROGRESS)",
+  })
   async checkIn(
     @Param("id") id: string,
     @Body() checkInDto: CheckInDto,
@@ -199,7 +201,8 @@ export class BookingController {
   @RequirePermission(UserAgencyPermission.WRITE)
   @Permissions("bookings:update")
   @ApiOperation({
-    summary: "Override late fee (Agency Manager only, with justification)",
+    summary:
+      "Override late fee (AGENCY_MANAGER, COMPANY_ADMIN, SUPER_ADMIN — avec justification)",
   })
   async overrideLateFee(
     @Param("id") id: string,

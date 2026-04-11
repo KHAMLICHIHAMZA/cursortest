@@ -301,9 +301,7 @@ export class UserService {
     }
 
     let targetCompanyId =
-      companyId && String(companyId).trim() !== ""
-        ? companyId
-        : user.companyId;
+      companyId && String(companyId).trim() !== "" ? companyId : user.companyId;
 
     if (user.role === "COMPANY_ADMIN") {
       if (companyId && companyId !== user.companyId) {

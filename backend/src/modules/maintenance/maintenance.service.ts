@@ -182,7 +182,7 @@ export class MaintenanceService {
           vehicleId,
           deletedAt: null,
           status: {
-            in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+            in: ["PENDING", "CONFIRMED", "PICKUP_LATE", "IN_PROGRESS", "LATE"],
           },
         },
       });

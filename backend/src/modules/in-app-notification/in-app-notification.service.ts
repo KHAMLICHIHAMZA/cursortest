@@ -315,7 +315,9 @@ export class InAppNotificationService {
         },
       }));
 
-      const retryResult = await (this.prisma as any).inAppNotification.createMany({
+      const retryResult = await (
+        this.prisma as any
+      ).inAppNotification.createMany({
         data: retryData,
       });
       return { count: retryResult.count };

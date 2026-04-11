@@ -177,6 +177,7 @@ export class FineService {
             status: {
               in: [
                 BookingStatus.CONFIRMED,
+                BookingStatus.PICKUP_LATE,
                 BookingStatus.IN_PROGRESS,
                 BookingStatus.RETURNED,
               ],

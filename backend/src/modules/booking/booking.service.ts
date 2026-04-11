@@ -20,6 +20,7 @@ import { BusinessEventType, DocumentType, AuditAction } from "@prisma/client";
 import { OutboxService } from "../../common/services/outbox.service";
 import { ContractService } from "../contract/contract.service";
 import { InAppNotificationService } from "../in-app-notification/in-app-notification.service";
+import { JournalService } from "../journal/journal.service";
 import { SAAS_SETTINGS_RULE_KEYS } from "../saas-settings/saas-settings.types";
 
 @Injectable()
@@ -43,6 +44,7 @@ export class BookingService {
     private outboxService: OutboxService,
     private contractService: ContractService,
     private inAppNotificationService: InAppNotificationService,
+    private journalService: JournalService,
   ) {}
 
   private async getGlobalMaintenanceAlertIntervalKm(): Promise<number> {
@@ -173,7 +175,9 @@ export class BookingService {
 
     if (!recipients.length) return;
 
-    const existingNotifications = await (this.prisma as any).inAppNotification.findMany({
+    const existingNotifications = await (
+      this.prisma as any
+    ).inAppNotification.findMany({
       where: {
         bookingId,
         type: "CHECK_OUT_REMINDER",
@@ -196,20 +200,19 @@ export class BookingService {
       recipients.map((recipient) =>
         alreadyNotifiedUserIds.has(recipient.id)
           ? Promise.resolve(null)
-          :
-        this.inAppNotificationService.createNotification({
-          userId: recipient.id,
-          companyId,
-          agencyId,
-          type: "CHECK_OUT_REMINDER",
-          title,
-          message,
-          actionUrl: `/agency/bookings/${bookingId}`,
-          bookingId,
-          metadata: {
-            event: "FINANCIAL_CLOSURE_PENDING",
-          },
-        }),
+          : this.inAppNotificationService.createNotification({
+              userId: recipient.id,
+              companyId,
+              agencyId,
+              type: "CHECK_OUT_REMINDER",
+              title,
+              message,
+              actionUrl: `/agency/bookings/${bookingId}`,
+              bookingId,
+              metadata: {
+                event: "FINANCIAL_CLOSURE_PENDING",
+              },
+            }),
       ),
     );
   }
@@ -673,10 +676,10 @@ export class BookingService {
       throw new BadRequestException("Réservation introuvable");
     }
 
-    // Vérifier que le booking est en statut CONFIRMED
-    if (booking.status !== "CONFIRMED") {
+    // Check-in : confirmée ou retard au départ (pickup)
+    if (booking.status !== "CONFIRMED" && booking.status !== "PICKUP_LATE") {
       throw new BadRequestException(
-        `La réservation doit être CONFIRMÉE pour effectuer le check-in. Statut actuel : ${booking.status}`,
+        `La réservation doit être CONFIRMÉE ou en retard au départ pour effectuer le check-in. Statut actuel : ${booking.status}`,
       );
     }
 
@@ -883,7 +886,7 @@ export class BookingService {
       "Booking",
       id,
       BusinessEventType.BOOKING_STATUS_CHANGED,
-      { status: "CONFIRMED" },
+      { status: booking.status },
       {
         status: "IN_PROGRESS",
         odometerStart: checkInDto.odometerStart,
@@ -974,28 +977,33 @@ export class BookingService {
     // ============================================
     // CALCUL AUTOMATIQUE DES FRAIS DE RETARD (R4)
     // ============================================
-    // Règle: Calcul automatique basé sur le prix journalier
-    // ≤ 1h → 25%, ≤ 2h → 50%, > 4h → 100%
+    // Tolérance 1 h sans frais, puis barème sur le retard effectif (hors 1ère heure).
+    const GRACE_RETURN_HOURS = 1;
     const calculateLateFee = (booking: any, actualReturnDate: Date): number => {
       const expectedEndDate = new Date(booking.endDate);
       const delayMs = actualReturnDate.getTime() - expectedEndDate.getTime();
       const delayHours = delayMs / (1000 * 60 * 60);
 
       if (delayHours <= 0) {
-        return 0; // Pas de retard
+        return 0;
+      }
+
+      const effectiveDelayHours = delayHours - GRACE_RETURN_HOURS;
+      if (effectiveDelayHours <= 0) {
+        return 0;
       }
 
       const dailyRate = booking.vehicle?.dailyRate || 0;
       let lateFeeRate = 0;
 
-      if (delayHours <= 1) {
-        lateFeeRate = 0.25; // 25%
-      } else if (delayHours <= 2) {
-        lateFeeRate = 0.5; // 50%
-      } else if (delayHours <= 4) {
-        lateFeeRate = 0.75; // 75% (interpolation)
+      if (effectiveDelayHours <= 1) {
+        lateFeeRate = 0.25;
+      } else if (effectiveDelayHours <= 2) {
+        lateFeeRate = 0.5;
+      } else if (effectiveDelayHours <= 4) {
+        lateFeeRate = 0.75;
       } else {
-        lateFeeRate = 1.0; // 100%
+        lateFeeRate = 1.0;
       }
 
       return dailyRate * lateFeeRate;
@@ -1174,6 +1182,7 @@ export class BookingService {
       DRAFT: ["PENDING", "CANCELLED"],
       PENDING: ["CONFIRMED", "CANCELLED"],
       CONFIRMED: ["IN_PROGRESS", "CANCELLED", "NO_SHOW"],
+      PICKUP_LATE: ["IN_PROGRESS", "CANCELLED", "NO_SHOW"],
       IN_PROGRESS: ["RETURNED", "LATE"],
       LATE: ["RETURNED"],
       RETURNED: [],
@@ -1194,8 +1203,14 @@ export class BookingService {
       throw new BadRequestException("Réservation introuvable");
     }
 
-    const { startDate, endDate, status, totalPrice, bookingNumber } =
-      updateBookingDto as any;
+    const {
+      startDate,
+      endDate,
+      status,
+      totalPrice,
+      bookingNumber,
+      extensionReason,
+    } = updateBookingDto as any;
 
     // V2: bookingNumber is locked once an invoice exists (InvoiceIssued)
     if (bookingNumber !== undefined) {
@@ -1311,6 +1326,7 @@ export class BookingService {
     await this.planningService.deleteBookingEvents(booking.id);
     if (
       updatedBooking.status === "CONFIRMED" ||
+      updatedBooking.status === "PICKUP_LATE" ||
       updatedBooking.status === "IN_PROGRESS"
     ) {
       await this.planningService.createBookingEvent(
@@ -1346,12 +1362,20 @@ export class BookingService {
         );
       }
     } else if (
-      updatedBooking.status === "CONFIRMED" ||
-      updatedBooking.status === "IN_PROGRESS"
+      updatedBooking.status === "IN_PROGRESS" ||
+      updatedBooking.status === "LATE"
     ) {
       await this.prisma.vehicle.update({
         where: { id: booking.vehicleId },
         data: { status: "RENTED" },
+      });
+    } else if (
+      updatedBooking.status === "CONFIRMED" ||
+      updatedBooking.status === "PICKUP_LATE"
+    ) {
+      await this.prisma.vehicle.update({
+        where: { id: booking.vehicleId },
+        data: { status: "RESERVED" },
       });
     }
 
@@ -1375,8 +1399,92 @@ export class BookingService {
         // Error already logged in service
       });
 
+    if (startDate || endDate) {
+      this.tryAppendPastPeriodJournal({
+        agencyId: updatedBooking.agencyId,
+        companyId: (updatedBooking as any).companyId,
+        bookingId: updatedBooking.id,
+        bookingNumber: (updatedBooking as any).bookingNumber,
+        vehicleId: updatedBooking.vehicleId,
+        userId,
+        start: updatedBooking.startDate,
+        end: updatedBooking.endDate,
+        context: "update",
+      });
+    }
+
+    if (extensionReason && (startDate || endDate)) {
+      this.journalService
+        .appendEntry({
+          agencyId: updatedBooking.agencyId,
+          companyId: (updatedBooking as any).companyId,
+          type: "SYSTEM_EVENT",
+          title: "Modification des dates (motif agence)",
+          content: `Motif : ${extensionReason}. Période : ${updatedBooking.startDate.toISOString()} → ${updatedBooking.endDate.toISOString()}.`,
+          bookingId: updatedBooking.id,
+          bookingNumber: (updatedBooking as any).bookingNumber,
+          vehicleId: updatedBooking.vehicleId,
+          userId,
+          metadata: { kind: "DATE_CHANGE_REASON" },
+        })
+        .catch(() => {});
+    }
+
     // Remove audit fields from response
     return this.commonAuditService.removeAuditFields(updatedBooking);
+  }
+
+  /**
+   * Journal « dossier » : période avec date de début dans le passé (saisie historique / correction).
+   */
+  private tryAppendPastPeriodJournal(params: {
+    agencyId: string;
+    companyId: string;
+    bookingId: string;
+    bookingNumber: string;
+    vehicleId: string;
+    userId: string | undefined;
+    start: Date;
+    end: Date;
+    context: "create" | "update";
+  }): void {
+    void this.appendPastPeriodJournal(params).catch(() => {});
+  }
+
+  private async appendPastPeriodJournal(params: {
+    agencyId: string;
+    companyId: string;
+    bookingId: string;
+    bookingNumber: string;
+    vehicleId: string;
+    userId: string | undefined;
+    start: Date;
+    end: Date;
+    context: "create" | "update";
+  }): Promise<void> {
+    if (params.start.getTime() >= Date.now()) return;
+
+    const title =
+      params.context === "create"
+        ? "Réservation avec date de début passée"
+        : "Modification : date de début dans le passé";
+
+    const content =
+      `Réf. ${params.bookingNumber}. Début ${params.start.toISOString()}, fin ${params.end.toISOString()}. ` +
+      `Traçabilité saisie ou correction (hors flux temps réel).`;
+
+    await this.journalService.appendEntry({
+      agencyId: params.agencyId,
+      companyId: params.companyId,
+      type: "SYSTEM_EVENT",
+      title,
+      content,
+      bookingId: params.bookingId,
+      bookingNumber: params.bookingNumber,
+      vehicleId: params.vehicleId,
+      userId: params.userId,
+      metadata: { kind: "PAST_PERIOD_BOOKING", context: params.context },
+    });
   }
 
   /**
@@ -1863,7 +1971,7 @@ export class BookingService {
       throw new BadRequestException("Réservation introuvable");
     }
 
-    // Vérifier que l'utilisateur est Agency Manager ou SUPER_ADMIN
+    // Vérifier que l'utilisateur est gestionnaire d'agence, admin société ou SUPER_ADMIN
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
@@ -1871,10 +1979,12 @@ export class BookingService {
 
     if (
       !user ||
-      (user.role !== "AGENCY_MANAGER" && user.role !== "SUPER_ADMIN")
+      (user.role !== "AGENCY_MANAGER" &&
+        user.role !== "COMPANY_ADMIN" &&
+        user.role !== "SUPER_ADMIN")
     ) {
       throw new ForbiddenException(
-        "Seuls les gestionnaires d'agence ou SUPER_ADMIN peuvent modifier les frais de retard",
+        "Seuls les gestionnaires d'agence, les administrateurs société ou SUPER_ADMIN peuvent modifier les frais de retard",
       );
     }
 
@@ -1923,6 +2033,14 @@ export class BookingService {
       userId,
       booking.agency.companyId,
     );
+
+    try {
+      await this.invoiceService.syncInvoiceTotalsFromBooking(id);
+    } catch (err: any) {
+      this.logger.warn(
+        `Synchronisation facture après override frais: ${err?.message || err}`,
+      );
+    }
 
     return {
       message: "Frais de retard modifiés avec succès",

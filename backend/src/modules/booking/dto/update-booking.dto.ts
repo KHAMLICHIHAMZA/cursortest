@@ -46,4 +46,11 @@ export class UpdateBookingDto {
       "Le numéro de réservation doit être alphanumérique (A-Z, 0-9) sans espaces",
   })
   bookingNumber?: string;
+
+  /** Motif saisi par l’agence (ex. prolongation après appel client — retard avion). Journalisé si des dates sont modifiées. */
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  extensionReason?: string;
 }

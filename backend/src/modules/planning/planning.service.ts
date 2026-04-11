@@ -29,6 +29,7 @@ export class PlanningService {
     vehicleId: string,
     startDate: Date,
     endDate: Date,
+    excludeBookingId?: string,
   ): Promise<boolean> {
     const maintenanceDurationHours = 4;
 
@@ -37,8 +38,10 @@ export class PlanningService {
       where: {
         vehicleId,
         deletedAt: null,
+        id: excludeBookingId ? { not: excludeBookingId } : undefined,
         status: {
-          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+          // LATE = location en cours avec retard (véhicule toujours indisponible pour une autre loc)
+          in: ["PENDING", "CONFIRMED", "PICKUP_LATE", "IN_PROGRESS", "LATE"],
         },
         OR: [
           {
@@ -98,13 +101,27 @@ export class PlanningService {
     const blockingEvents = await this.prisma.planningEvent.findMany({
       where: {
         vehicleId,
-        OR: [
+        AND: [
           {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: { gte: startDate } },
+            OR: [
+              {
+                AND: [
+                  { startDate: { lte: endDate } },
+                  { endDate: { gte: startDate } },
+                ],
+              },
             ],
           },
+          ...(excludeBookingId
+            ? [
+                {
+                  OR: [
+                    { bookingId: null },
+                    { bookingId: { not: excludeBookingId } },
+                  ],
+                },
+              ]
+            : []),
         ],
       },
     });
@@ -151,7 +168,7 @@ export class PlanningService {
         deletedAt: null,
         id: excludeBookingId ? { not: excludeBookingId } : undefined,
         status: {
-          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+          in: ["PENDING", "CONFIRMED", "PICKUP_LATE", "IN_PROGRESS", "LATE"],
         },
         OR: [
           {
@@ -225,17 +242,23 @@ export class PlanningService {
       }
     });
 
-    // Conflits avec événements de planning
+    // Conflits avec événements de planning (hors événements de CETTE réservation en cours d’édition)
     const eventConflicts = await this.prisma.planningEvent.findMany({
       where: {
         vehicleId,
-        OR: [
-          {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: { gte: startDate } },
-            ],
-          },
+        AND: [
+          { startDate: { lte: endDate } },
+          { endDate: { gte: startDate } },
+          ...(excludeBookingId
+            ? [
+                {
+                  OR: [
+                    { bookingId: null },
+                    { bookingId: { not: excludeBookingId } },
+                  ],
+                },
+              ]
+            : []),
         ],
       },
     });
@@ -265,7 +288,7 @@ export class PlanningService {
         vehicleId,
         deletedAt: null,
         status: {
-          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+          in: ["PENDING", "CONFIRMED", "PICKUP_LATE", "IN_PROGRESS", "LATE"],
         },
         endDate: {
           gte: fromDate,

@@ -230,17 +230,32 @@ export class PlanningController {
       OTHER: "#6B7280",
     };
 
+    const bookingStatusLabel: Record<string, string> = {
+      DRAFT: "Brouillon",
+      PENDING: "En attente",
+      CONFIRMED: "Confirmée",
+      PICKUP_LATE: "Retard au départ",
+      IN_PROGRESS: "En cours",
+      EXTENDED: "Prolongée",
+      LATE: "En retard",
+      RETURNED: "Terminée",
+      NO_SHOW: "No-show",
+      CANCELLED: "Annulée",
+    };
+
     // Bookings
     bookings.forEach((booking) => {
       const bookingColor = typeToColor.BOOKING;
       const bookingNumber =
         (booking as any).bookingNumber || booking.id.slice(-6).toUpperCase();
+      const statusFr =
+        bookingStatusLabel[booking.status] || String(booking.status);
 
       events.push({
         id: `booking-${booking.id}`,
         resourceId:
           vehicleIdToCanonicalId.get(booking.vehicleId) || booking.vehicleId,
-        title: `#${bookingNumber} ${booking.client.name} - ${booking.vehicle.brand} ${booking.vehicle.model}`,
+        title: `#${bookingNumber} · ${statusFr} · ${booking.client.name} — ${booking.vehicle.brand} ${booking.vehicle.model}`,
         start: booking.startDate.toISOString(),
         end: booking.endDate.toISOString(),
         backgroundColor: bookingColor,
@@ -359,12 +374,14 @@ export class PlanningController {
       dto.vehicleId,
       startDate,
       endDate,
+      dto.excludeBookingId,
     );
 
     const conflicts = await this.planningService.detectConflicts(
       dto.vehicleId,
       startDate,
       endDate,
+      dto.excludeBookingId,
     );
 
     return {

@@ -77,7 +77,9 @@ describe("ModuleService", () => {
 
     it("should auto-activate missing dependencies", async () => {
       mockPrismaService.company.findUnique.mockResolvedValue({ id: companyId });
-      mockPrismaService.subscription.findUnique.mockResolvedValue({ status: "ACTIVE" });
+      mockPrismaService.subscription.findUnique.mockResolvedValue({
+        status: "ACTIVE",
+      });
       mockPrismaService.moduleDependency.findMany.mockResolvedValue([
         { moduleCode, dependsOnCode: ModuleCode.BOOKINGS },
       ]);
@@ -108,7 +110,9 @@ describe("ModuleService", () => {
 
     it("should activate company module successfully", async () => {
       mockPrismaService.company.findUnique.mockResolvedValue({ id: companyId });
-      mockPrismaService.subscription.findUnique.mockResolvedValue({ status: "ACTIVE" });
+      mockPrismaService.subscription.findUnique.mockResolvedValue({
+        status: "ACTIVE",
+      });
       mockPrismaService.moduleDependency.findMany.mockResolvedValue([]);
       mockPrismaService.companyModule.findUnique.mockResolvedValue({
         companyId,
