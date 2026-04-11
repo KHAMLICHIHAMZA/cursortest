@@ -46,6 +46,7 @@
     "status": {
       "PENDING": "Kaystenna",
       "CONFIRMED": "Makkda",
+      "PICKUP_LATE": "Takhir f depart",
       "ACTIVE": "active",
       "COMPLETED": "Kmlat",
       "CANCELLED": "tannulate"

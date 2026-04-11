@@ -18,11 +18,29 @@ import { syncService } from './sync.service';
 // Helper to map backend status to mobile status
 const mapBookingStatus = (status: string): BookingStatus => {
   const statusMap: Record<string, BookingStatus> = {
-    'IN_PROGRESS': 'ACTIVE',
-    'RETURNED': 'COMPLETED',
-    'COMPLETED': 'COMPLETED', // Backend might return COMPLETED directly
+    IN_PROGRESS: 'ACTIVE',
+    LATE: 'ACTIVE',
+    RETURNED: 'COMPLETED',
+    COMPLETED: 'COMPLETED',
+    PICKUP_LATE: 'PICKUP_LATE',
+    DRAFT: 'PENDING',
+    NO_SHOW: 'CANCELLED',
+    EXTENDED: 'ACTIVE',
   };
-  return (statusMap[status] || status) as BookingStatus;
+  if (statusMap[status]) {
+    return statusMap[status];
+  }
+  if (
+    status === 'PENDING' ||
+    status === 'CONFIRMED' ||
+    status === 'CANCELLED' ||
+    status === 'ACTIVE' ||
+    status === 'COMPLETED' ||
+    status === 'PICKUP_LATE'
+  ) {
+    return status as BookingStatus;
+  }
+  return 'PENDING';
 };
 
 const hydrateCheckInData = <T extends Record<string, any>>(booking: T): T => {

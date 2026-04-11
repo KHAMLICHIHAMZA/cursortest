@@ -7,12 +7,13 @@ describe('Type Definitions', () => {
       const statuses: BookingStatus[] = [
         'PENDING',
         'CONFIRMED',
+        'PICKUP_LATE',
         'ACTIVE',
         'COMPLETED',
         'CANCELLED',
       ];
       
-      expect(statuses.length).toBe(5);
+      expect(statuses.length).toBe(6);
       expect(statuses).toContain('PENDING');
       expect(statuses).toContain('ACTIVE');
     });

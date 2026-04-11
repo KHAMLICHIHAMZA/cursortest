@@ -3,7 +3,7 @@
  * 
  * IMPORTANT (Spécifications MALOC) :
  * - Cet écran affiche les MISSIONS dérivées des bookings (pas les bookings directement)
- * - Les missions sont calculées à la volée : CONFIRMED → CHECK_IN, ACTIVE → CHECK_OUT
+ * - Missions dérivées : CONFIRMED / PICKUP_LATE → CHECK_IN, ACTIVE → CHECK_OUT
  * - Aucune entité Task n'est persistée en base
  * - L'agent voit UNIQUEMENT ses missions avec infos minimales nécessaires à l'exécution
  * - Navigation directe vers CheckInScreen/CheckOutScreen depuis le bouton "DÉMARRER LA MISSION"

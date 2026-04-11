@@ -1,4 +1,10 @@
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type BookingStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PICKUP_LATE'
+  | 'ACTIVE'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
 export type FuelLevel = 'EMPTY' | 'QUARTER' | 'HALF' | 'THREE_QUARTERS' | 'FULL';
 
@@ -117,7 +123,7 @@ export interface CheckOutInput {
  * IMPORTANT (Spécifications MALOC) :
  * - Les tâches sont DÉRIVÉES des bookings, jamais persistées en base
  * - Calculées à la volée depuis les statuts de booking
- * - CONFIRMED → Tâche "Livraison / Check-in"
+ * - CONFIRMED ou PICKUP_LATE → Tâche "Livraison / Check-in"
  * - ACTIVE → Tâche "Récupération / Check-out"
  * - COMPLETED / CANCELLED → Aucune tâche
  * 

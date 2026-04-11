@@ -30,7 +30,8 @@ export const BookingDetailsScreen: React.FC = () => {
     queryFn: () => bookingService.getBooking(bookingId),
   });
 
-  const canCheckIn = booking?.status === 'CONFIRMED';
+  const canCheckIn =
+    booking?.status === 'CONFIRMED' || booking?.status === 'PICKUP_LATE';
   const canCheckOut = booking?.status === 'ACTIVE';
 
   const handleCheckIn = () => {
@@ -231,6 +232,8 @@ const getStatusColor = (status: BookingStatus): string => {
       return '#FFA500';
     case 'CONFIRMED':
       return '#007AFF';
+    case 'PICKUP_LATE':
+      return '#FF9500';
     case 'ACTIVE':
       return '#34C759';
     case 'COMPLETED':

@@ -67,6 +67,7 @@
     "status": {
       "PENDING": "En attente",
       "CONFIRMED": "Confirmée",
+      "PICKUP_LATE": "Retard au départ",
       "ACTIVE": "ACTIVE",
       "COMPLETED": "TERMINÉE",
       "CANCELLED": "Annulée"

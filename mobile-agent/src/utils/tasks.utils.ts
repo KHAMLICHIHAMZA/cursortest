@@ -16,7 +16,7 @@ import { Booking, AgentTask, TaskType } from '../types';
  * Calcule les tâches agents depuis une liste de bookings
  * 
  * Logique de dérivation (selon spécifications) :
- * - Booking CONFIRMED → Tâche "Livraison / Check-in"
+ * - Booking CONFIRMED ou PICKUP_LATE → Tâche "Livraison / Check-in"
  * - Booking ACTIVE → Tâche "Récupération / Check-out"
  * - Booking COMPLETED → Tâche en mode consultation (si includeCompleted = true)
  * - Booking CANCELLED → Aucune tâche
@@ -29,8 +29,8 @@ export function getAgentTasks(bookings: Booking[] | null | undefined, includeCom
   const tasks: AgentTask[] = [];
 
   for (const booking of bookings || []) {
-    // Booking CONFIRMED → Tâche "Livraison / Check-in"
-    if (booking.status === 'CONFIRMED') {
+    // Booking CONFIRMED ou PICKUP_LATE (retard au départ) → Tâche "Livraison / Check-in"
+    if (booking.status === 'CONFIRMED' || booking.status === 'PICKUP_LATE') {
       tasks.push({
         id: booking.id, // Utilise booking.id comme identifiant
         type: 'CHECK_IN',

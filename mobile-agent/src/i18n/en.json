@@ -49,6 +49,7 @@
     "status": {
       "PENDING": "Pending",
       "CONFIRMED": "Confirmed",
+      "PICKUP_LATE": "Late pickup",
       "ACTIVE": "Active",
       "COMPLETED": "Completed",
       "CANCELLED": "Cancelled"
