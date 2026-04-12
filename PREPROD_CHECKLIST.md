@@ -4,7 +4,7 @@
 
 Cette checklist est **alignée** sur le monorepo actuel : une seule app web **`frontend-web/`** (Next 14). Il n’y a plus de dossiers `frontend-admin` ni `frontend-agency`.
 
-Pour le **statut global** et l’architecture : **[`STATUT_PREPROD.md`](./STATUT_PREPROD.md)**.  
+Pour le **statut global** et l’architecture : **[`CURRENT_STATUS.md`](./CURRENT_STATUS.md)** (alias : [`STATUT_PREPROD.md`](./STATUT_PREPROD.md)).  
 Pour la **chaîne hébergement** : **[`docs/PRODUCTION.md`](./docs/PRODUCTION.md)**.  
 Pour la **preuve environnement** : **[`docs/PRODUCTION_READINESS.md`](./docs/PRODUCTION_READINESS.md)**.
 
@@ -31,14 +31,14 @@ Pour la **preuve environnement** : **[`docs/PRODUCTION_READINESS.md`](./docs/PRO
 ### Hébergement
 
 - [ ] **API** : variables sur Render (ou équivalent) — voir [`docs/PRODUCTION.md`](./docs/PRODUCTION.md) et [`render.yaml`](./render.yaml).
-- [ ] **Front** : `NEXT_PUBLIC_API_URL` pointant vers l’API publique (`…/api/v1`).
-- [ ] **CORS / URLs front** : `FRONTEND_WEB_URL`, `FRONTEND_URL` cohérents avec le domaine réel.
+- [ ] **Front préprod (Vercel)** : déploiement **https://v0-cursortest.vercel.app** — `NEXT_PUBLIC_API_URL` pointant vers l’API publique (`…/api/v1`).
+- [ ] **CORS / URLs front** : `FRONTEND_WEB_URL`, `FRONTEND_URL` cohérents avec le domaine réel (inclure l’origine Vercel préprod si l’API filtre par origine).
 
 ### Vérifications post-déploiement
 
-- [ ] `GET /api/v1/health` et `GET /api/v1/ready` OK sur l’URL déployée.
-- [ ] Smoke optionnel : `node backend/scripts/smoke-remote-api.mjs` avec `SMOKE_API_BASE`.
-- [ ] Parcours manuel : login web + une action métier.
+- [ ] `GET /api/v1/health` et `GET /api/v1/ready` OK sur l’**URL API** déployée.
+- [ ] Smoke optionnel : `node backend/scripts/smoke-remote-api.mjs` avec `SMOKE_API_BASE` (base **API**, pas le front Vercel).
+- [ ] **Parcours manuel / UAT sur le front préprod :** **https://v0-cursortest.vercel.app** — login + au moins une action métier (référence recette : [`CURRENT_STATUS.md`](./CURRENT_STATUS.md)).
 
 ---
 

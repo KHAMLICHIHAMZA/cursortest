@@ -8,6 +8,7 @@ Ce dossier regroupe surtout des **livrabes datés** (MOA, MOE, captures, analyse
 |---------|---------|
 | [`../README.md`](../README.md) | Installation, comptes test, liens utiles |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Historique des changements — **à mettre à jour** quand le produit ou le déploiement évolue |
+| [`../CURRENT_STATUS.md`](../CURRENT_STATUS.md) | Statut préprod aligné sur le dépôt (alias `STATUT_PREPROD.md`) |
 | [`../CONTEXT_CHATGPT.md`](../CONTEXT_CHATGPT.md) | **Contexte complet pour assistants IA** (architecture, RBAC, modules, commandes) |
 | [`../AGENTS.md`](../AGENTS.md) | Règles courtes pour agents (Cursor, etc.) |
 | [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) | **Prêt technique vs prêt prouvé** (checklist environnement réel) |

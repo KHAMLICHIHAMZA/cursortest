@@ -1,5 +1,7 @@
 # 🧪 Guide Pilote 3 - Frontend Admin (Super Admin)
 
+> **Archive / contexte** — L’admin vit aujourd’hui dans **`frontend-web/`** (routes `/admin/*`), pas dans un dépôt séparé. Ce guide reste utile comme **liste de tests manuels**.
+
 **Pilote :** Administrateur Système / QA Admin  
 **Application :** Next.js Admin Application  
 **Durée estimée :** 3-4 heures

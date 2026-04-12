@@ -4,6 +4,14 @@ Ce document décrit **la cible** d’architecture hébergée et les **points de 
 
 **Dernière mise à jour :** 28 mars 2026.
 
+### Préprod front documentée
+
+| Composant | URL |
+|-----------|-----|
+| Frontend Next.js (Vercel) | **https://v0-cursortest.vercel.app** |
+
+**Recette / UAT :** exécuter les tests manuels et checklists **sur ce front**. Variables Vercel : `NEXT_PUBLIC_API_URL` → base publique de l’API (`…/api/v1`). Smoke HTTP sur l’API : variable **`SMOKE_API_BASE`**, distincte (voir §2).
+
 ---
 
 ## 1. Architecture logique
@@ -67,7 +75,7 @@ Optionnel : `SMOKE_JWT` + `SMOKE_COMPANY_ID` pour valider un `GET /companies/:id
 
 La racine du monorepo **ne contient pas** l’application Next : seulement orchestration (`concurrently`, proxy). Voir [`package.json`](../package.json).
 
-**Domaine :** à configurer chez l’hébergeur front (ex. Vercel) + variable `NEXT_PUBLIC_API_URL` pointant vers l’API Render (ou CDN API).
+**Domaine préprod actuel :** **https://v0-cursortest.vercel.app** — y pointer les tests de recette ; aligner CORS / `FRONTEND_*` côté API sur cette origine si besoin.
 
 ---
 
@@ -103,4 +111,4 @@ La racine du monorepo **ne contient pas** l’application Next : seulement orche
 | [`GITHUB_BRANCH_PROTECTION.md`](./GITHUB_BRANCH_PROTECTION.md) | Protection `main` |
 | [`../CHECKLIST_SECRETS.md`](../CHECKLIST_SECRETS.md) | Audit secrets |
 | [`../render.yaml`](../render.yaml) | Blueprint Render API |
-| [`../STATUT_PREPROD.md`](../STATUT_PREPROD.md) | Statut préprod aligné repo |
+| [`../CURRENT_STATUS.md`](../CURRENT_STATUS.md) | Statut préprod aligné repo (alias `STATUT_PREPROD.md`) |

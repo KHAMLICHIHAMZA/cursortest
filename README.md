@@ -7,6 +7,8 @@ Plateforme SaaS multi-tenant pour la gestion complète de location de véhicules
 
 Les packages `backend/`, `frontend-web/` et `mobile-agent/` ont chacun un **`package.json`** avec une version npm **indépendante** : elles ne sont pas synchronisées automatiquement avec la version « produit » ci-dessus. Voir **[`CHANGELOG.md`](./CHANGELOG.md)** pour l’historique des changements notables.
 
+**Spécifications fonctionnelles** ([`SPECIFICATIONS_FONCTIONNELLES.md`](./SPECIFICATIONS_FONCTIONNELLES.md)) : version **3.0.0** — document métier / périmètre fonctionnel ; c’est un **niveau de version distinct** de la version produit **2.0.0** (communication) et des versions npm des sous-packages.
+
 ---
 
 ## Prêt technique vs prêt prouvé (environnement)
@@ -94,7 +96,7 @@ malocauto/
 
 - Node.js 18+
 - PostgreSQL 14+
-- npm 9+
+- npm 9+ (gestionnaire **npm** ; le dépôt utilise `package-lock.json` à la racine et dans les packages applicatifs)
 
 ### 1. Backend
 
@@ -231,9 +233,11 @@ npm run test:e2e            # Tests E2E
 ### Principale
 
 - **[Changelog](./CHANGELOG.md)** — Historique des changements (tenir à jour à chaque évolution notable)
+- **[Statut préprod / alignement repo](./CURRENT_STATUS.md)** — Référence courte ; alias [`STATUT_PREPROD.md`](./STATUT_PREPROD.md) ; **front préprod (tests recette / UAT) :** [v0-cursortest.vercel.app](https://v0-cursortest.vercel.app)
 - **[Preuve environnement / prod](./docs/PRODUCTION_READINESS.md)** — Dernière ligne droite : ce qui est « prêt » vs « prouvé »
 - **[Chaîne production](./docs/PRODUCTION.md)** — Backend Render, front, Postgres, variables, domaines, smoke
 - **[Audit préprod → prod](./docs/AUDIT_PREPROD_VERS_PROD.md)** — Source de vérité, matrice env, phases, parcours métier
+- **[Index opérations / statut](./docs/ops/README.md)** — Liens vers statut, audit, prod, readiness, checklist
 - [Détails des Applications](./APPLICATIONS_DETAILS.md) — Vue d'ensemble de l'architecture
 - [Spécifications complètes](./docs/specs.md)
 - [Index dossier `docs/`](./docs/README.md)
@@ -254,7 +258,7 @@ npm run test:e2e            # Tests E2E
 - [PILOTE 1 - Backend API](./GUIDE_PILOTE_1_BACKEND.md)
 - [PILOTE 4 - Mobile Agent](./GUIDE_PILOTE_4_MOBILE_AGENT.md)
 
-> **Note :** Les guides PILOTE 2 (Frontend Agency) et PILOTE 3 (Frontend Admin) sont obsolètes — ces apps ont été fusionnées dans `frontend-web`. L’audit d’unification papier a été retiré du dépôt (travail terminé).
+> **Note :** Les guides PILOTE 2 (Agency) et PILOTE 3 (Admin) sont **archivés** sous [`docs/archive/`](./docs/archive/) — le front correspondant est **`frontend-web`**. L’audit d’unification papier a été retiré du dépôt (travail terminé).
 
 ---
 

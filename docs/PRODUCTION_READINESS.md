@@ -30,7 +30,7 @@ Objectif : **aucun merge sur `main`** sans pipeline vert (voir [protection de br
 - [ ] **Base** : `prisma migrate deploy` appliqué (souvent au démarrage Render si `start` inclut migrate — vérifier les logs du dernier déploiement).
 - [ ] **Auth** : connexion avec un compte **non seed** de test si la prod n’utilise pas les comptes seed.
 - [ ] **E-mail** (si fonctionnalité concernée) : **un** e-mail réel reçu (reset, bienvenue, mot de passe admin) — pas seulement « SMTP configuré ».
-- [ ] **Frontend** : page login + un parcours critique (ex. liste réservations ou admin users) sans erreur console bloquante.
+- [ ] **Frontend** : page login + un parcours critique (ex. liste réservations ou admin users) sans erreur console bloquante — sur le **déploiement préprod** [**https://v0-cursortest.vercel.app**](https://v0-cursortest.vercel.app) (voir [`CURRENT_STATUS.md`](../CURRENT_STATUS.md)).
 - [ ] **Secrets** : repasser la [checklist secrets](../CHECKLIST_SECRETS.md) pour les variables **effectivement** définies chez l’hébergeur (Render, Vercel, Neon, etc.).
 
 ## 4. Variables d’environnement critiques (rappel)

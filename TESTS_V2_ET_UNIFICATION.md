@@ -1,7 +1,19 @@
 # 🧪 PLAN DE TESTS — V2 + Unification Frontend
 
 **Date** : 8 Février 2026  
+**Dernière mise à jour doc (environnement recette)** : 28 mars 2026  
 **Contexte** : Ce document recense tous les tests à effectuer après l'implémentation V2 et l'unification des 3 frontends en une seule application Next.js.
+
+### Environnement cible pour la recette / UAT
+
+**Exécuter cette checklist sur le déploiement préprod Vercel**, pas uniquement en local :
+
+| | URL |
+|---|-----|
+| **Front web (référence recette)** | **https://v0-cursortest.vercel.app** |
+
+Les routes des tableaux ci-dessous (`/login`, `/admin`, etc.) sont à vérifier **avec ce domaine en préfixe** (ex. `https://v0-cursortest.vercel.app/login`).  
+Pour le statut global et les variables : [`CURRENT_STATUS.md`](./CURRENT_STATUS.md), [`docs/PRODUCTION.md`](./docs/PRODUCTION.md).
 
 ---
 

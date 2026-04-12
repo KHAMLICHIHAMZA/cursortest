@@ -20,7 +20,7 @@ MALOC/
 
 > Les anciens `frontend-admin` et `frontend-agency` (Vite) ont ete supprimes lors de l'unification vers `frontend-web`.
 
-> **Racine `package.json`** : orchestration uniquement (`concurrently`, proxy). **Pas** de dépendances Next/React à la racine — le front est **exclusivement** dans `frontend-web/` (Next 14, React 18). Voir `docs/PRODUCTION.md` et `STATUT_PREPROD.md`.
+> **Racine `package.json`** : orchestration uniquement (`concurrently`, proxy). **Pas** de dépendances Next/React à la racine — le front est **exclusivement** dans `frontend-web/` (Next 14, React 18). Voir `docs/PRODUCTION.md` et `CURRENT_STATUS.md`.
 
 ### Stack technique
 - **Backend** : NestJS, Prisma ORM, PostgreSQL, JWT (access + refresh tokens), PDFKit

@@ -15,11 +15,11 @@
 |----------|--------|------|
 | 1 | **Code** (`main`) | Comportement réel |
 | 2 | **`backend/prisma/schema.prisma` + `migrations/`** | Schéma et historique DB |
-| 3 | **`STATUT_PREPROD.md`**, **`docs/PRODUCTION.md`**, **`docs/PRODUCTION_READINESS.md`** | Statut préprod, chaîne hébergement, preuve environnement |
+| 3 | **`CURRENT_STATUS.md`**, **`docs/PRODUCTION.md`**, **`docs/PRODUCTION_READINESS.md`** | Statut préprod, chaîne hébergement, preuve environnement |
 | 4 | **`CONTEXT_CHATGPT.md`**, **`README.md`** | Contexte large pour l’équipe / IA |
 | 5 | Specs dans **`docs/specs.md`**, **`SPECIFICATIONS_FONCTIONNELLES.md`** | Intention fonctionnelle — en cas de doute, le code prime |
 
-**Ne pas** prendre comme vérité opérationnelle : tutoriels ou dossiers datés type `docs/*_2026-03-07*.md`, `TUTORIEL_LANCEMENT_SAAS.md`, `REPONSES_QUESTIONS_V1.md` — utiles en **archive / contexte**, pas pour des commandes de déploiement.
+**Ne pas** prendre comme vérité opérationnelle : tutoriels ou dossiers datés type `docs/*_2026-03-07*.md`, `docs/archive/TUTORIEL_LANCEMENT_SAAS.md`, `docs/archive/REPONSES_QUESTIONS_V1.md` — utiles en **archive / contexte**, pas pour des commandes de déploiement.
 
 ---
 
@@ -27,7 +27,7 @@
 
 | # | Thème | Statut dépôt | Fichiers / actions |
 |---|--------|--------------|-------------------|
-| 1 | Vérité projet | **Partiel → bon** | `STATUT_PREPROD.md` réécrit ; tag `preprod-stable` recommandé ; vieux fronts retirés des docs clés |
+| 1 | Vérité projet | **Partiel → bon** | `CURRENT_STATUS.md` (ex-`STATUT_PREPROD`) ; tag `preprod-stable` recommandé ; vieux fronts retirés des docs clés |
 | 2 | Monorepo | **Fait** | Racine `package.json` = orchestration uniquement ; Next/React **uniquement** dans `frontend-web/` |
 | 3 | Variables d’environnement | **Base solide** | `backend/.env.example`, `frontend-web/.env.example`, `mobile-agent/.env.example` — matrice § Variables ci-dessous |
 | 4 | Prisma / DB | **À valider sur vos données** | CI + `verify:push` ; plan rollback : documenter procédure manuelle (backup + `migrate resolve` si besoin) |
@@ -44,7 +44,7 @@
 
 ## 1. Figer la vérité du projet
 
-**Fait dans le repo :** architecture unifiée documentée ; `STATUT_PREPROD.md` aligné.
+**Fait dans le repo :** architecture unifiée documentée ; `CURRENT_STATUS.md` aligné.
 
 **À faire vous-même :**
 
@@ -203,7 +203,7 @@ Hors dépôt technique — vous avez déjà des livrables dans `docs/` (présent
 
 ### Phase A — Cette semaine (fondations)
 
-- [ ] Doc de vérité lue par l’équipe (`STATUT_PREPROD`, ce fichier, `PRODUCTION.md`).
+- [ ] Doc de vérité lue par l’équipe (`CURRENT_STATUS.md`, ce fichier, `PRODUCTION.md`).
 - [ ] Tag `preprod-stable` poussé.
 - [ ] Variables par service recopiées sur les hébergeurs (matrice §3).
 - [ ] `migrate deploy` validé sur copie de données réalistes.
@@ -229,7 +229,7 @@ Hors dépôt technique — vous avez déjà des livrables dans `docs/` (présent
 
 | Fichier | Usage |
 |---------|--------|
-| [`STATUT_PREPROD.md`](../STATUT_PREPROD.md) | Statut préprod aligné repo |
+| [`CURRENT_STATUS.md`](../CURRENT_STATUS.md) | Statut préprod aligné repo |
 | [`PRODUCTION.md`](PRODUCTION.md) | Chaîne hébergement |
 | [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) | Prêt technique vs prouvé |
 | [`GITHUB_BRANCH_PROTECTION.md`](GITHUB_BRANCH_PROTECTION.md) | Protection `main` |

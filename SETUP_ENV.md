@@ -109,7 +109,7 @@ test -f .env && echo "OK" || echo "Manquant"
 ## 📚 Suite
 
 Une fois le fichier `.env` configuré, continuez avec :
-- [TUTORIEL_LANCEMENT_SAAS.md](./TUTORIEL_LANCEMENT_SAAS.md) - Section "Base de Données"
+- [TUTORIEL_LANCEMENT_SAAS.md](./docs/archive/TUTORIEL_LANCEMENT_SAAS.md) — Section « Base de données » (archive)
 
 
 

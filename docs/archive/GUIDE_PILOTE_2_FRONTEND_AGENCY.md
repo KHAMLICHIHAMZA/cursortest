@@ -1,5 +1,7 @@
 # 🧪 Guide Pilote 2 - Frontend Web (Agency)
 
+> **Archive / contexte** — L’application agence vit aujourd’hui dans **`frontend-web/`** (routes `/agency/*`), pas dans un dépôt séparé. Ce guide reste utile comme **liste de tests manuels** ; ne pas l’interpréter comme une architecture à trois frontends.
+
 **Pilote :** Développeur Frontend / QA Frontend  
 **Application :** Next.js Agency Application  
 **Durée estimée :** 4-6 heures
