@@ -15,6 +15,7 @@ describe("AuthService", () => {
   const mockPrismaService: any = {
     user: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     refreshToken: {
       findUnique: jest.fn(),
@@ -28,6 +29,8 @@ describe("AuthService", () => {
 
   const mockJwtService = {
     sign: jest.fn(),
+    /** Utilisé par refreshToken pour exclure les JWT d’impersonation. */
+    decode: jest.fn().mockReturnValue(null),
   };
 
   const mockConfigService = {
@@ -67,7 +70,7 @@ describe("AuthService", () => {
 
   describe("login", () => {
     it("should throw UnauthorizedException if user not found", async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
 
       await expect(
         service.login({ email: "test@example.com", password: "password" }),
@@ -76,7 +79,7 @@ describe("AuthService", () => {
 
     it("should throw UnauthorizedException if password is incorrect", async () => {
       const hashedPassword = await bcrypt.hash("correctPassword", 10);
-      mockPrismaService.user.findUnique.mockResolvedValue({
+      mockPrismaService.user.findFirst.mockResolvedValue({
         id: "1",
         email: "test@example.com",
         password: hashedPassword,
@@ -90,6 +93,34 @@ describe("AuthService", () => {
       await expect(
         service.login({ email: "test@example.com", password: "wrongPassword" }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("should accept password with surrounding whitespace (matches trimmed hash)", async () => {
+      const plain = "correctPassword";
+      const hashedPassword = await bcrypt.hash(plain, 10);
+      mockPrismaService.user.findFirst.mockResolvedValue({
+        id: "1",
+        email: "test@example.com",
+        password: hashedPassword,
+        name: "Test User",
+        role: "AGENT",
+        isActive: true,
+        companyId: null,
+        company: null,
+        userAgencies: [],
+      });
+      mockJwtService.sign.mockReturnValue("mock-token");
+      mockPrismaService.refreshToken.create.mockResolvedValue({
+        id: "1",
+        token: "refresh-token",
+      });
+
+      const result = await service.login({
+        email: "test@example.com",
+        password: `  ${plain}  `,
+      });
+
+      expect(result).toHaveProperty("access_token");
     });
 
     it("should return access and refresh tokens on successful login", async () => {
@@ -106,7 +137,7 @@ describe("AuthService", () => {
         userAgencies: [],
       };
 
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
       mockJwtService.sign.mockReturnValue("mock-token");
       mockPrismaService.refreshToken.create.mockResolvedValue({
         id: "1",
@@ -121,9 +152,11 @@ describe("AuthService", () => {
       expect(result).toHaveProperty("access_token");
       expect(result).toHaveProperty("refresh_token");
       expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith(
+      expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { email: "test@example.com" },
+          where: {
+            email: { equals: "test@example.com", mode: "insensitive" },
+          },
           select: expect.objectContaining({
             email: true,
             password: true,
@@ -163,25 +196,35 @@ describe("AuthService", () => {
     });
 
     it("should return new tokens on successful refresh", async () => {
-      const mockToken = {
+      const mockStoredRefresh = {
         id: "1",
         token: "old-refresh-token",
         revoked: false,
         expiresAt: new Date(Date.now() + 1000000),
         userId: "1",
-        user: {
-          id: "1",
-          email: "test@example.com",
-          isActive: true,
-          companyId: null,
-          company: null,
-          userAgencies: [],
-        },
       };
 
-      mockPrismaService.refreshToken.findUnique.mockResolvedValue(mockToken);
+      const sessionUser = {
+        id: "1",
+        email: "test@example.com",
+        name: "Test User",
+        phone: null,
+        address: null,
+        dateOfBirth: null,
+        role: "AGENT",
+        companyId: null,
+        isActive: true,
+        company: null,
+        userAgencies: [],
+      };
+
+      mockPrismaService.refreshToken.findUnique.mockResolvedValue(
+        mockStoredRefresh,
+      );
+      mockPrismaService.user.findUnique.mockResolvedValue(sessionUser);
+      mockJwtService.decode.mockReturnValue(null);
       mockJwtService.sign.mockReturnValue("new-token");
-      mockPrismaService.refreshToken.update.mockResolvedValue(mockToken);
+      mockPrismaService.refreshToken.update.mockResolvedValue(mockStoredRefresh);
       mockPrismaService.refreshToken.create.mockResolvedValue({
         id: "2",
         token: "new-refresh-token",
@@ -193,6 +236,12 @@ describe("AuthService", () => {
 
       expect(result).toHaveProperty("accessToken");
       expect(result).toHaveProperty("refreshToken");
+      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "1" },
+        }),
+      );
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
       expect(mockPrismaService.refreshToken.update).toHaveBeenCalled();
       expect(mockPrismaService.refreshToken.create).toHaveBeenCalled();
     });

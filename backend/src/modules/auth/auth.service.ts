@@ -53,10 +53,18 @@ export class AuthService {
   }
 
   private async loginInternal(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const emailTrimmed = loginDto.email.trim();
+    /** Aligné sur adminSetPassword / changePassword : le hash est toujours celui du mot de passe trimé. */
+    const password =
+      typeof loginDto.password === "string"
+        ? loginDto.password.trim()
+        : loginDto.password;
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    // Insensible à la casse : évite « mot de passe incorrect » si l’e-mail en base diffère (ex. Outlook vs saisie).
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: emailTrimmed, mode: "insensitive" },
+      },
       select: userLoginSelect,
     });
 
