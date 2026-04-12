@@ -102,7 +102,11 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-4"
+              aria-busy={isLoading}
+            >
               {isProductionApiUrlPointingToLocalhost() && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
                   Configuration API invalide en production :{' '}
@@ -146,6 +150,7 @@ export default function LoginPage() {
                 placeholder="votre@email.com"
                 required
                 autoComplete="email"
+                disabled={isLoading}
               />
             </div>
 
@@ -164,6 +169,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
+                disabled={isLoading}
               />
             </div>
 
@@ -172,9 +178,21 @@ export default function LoginPage() {
                 variant="primary"
                 className="w-full"
                 isLoading={isLoading}
+                loadingLabel="Connexion en cours…"
               >
                 Se connecter
               </Button>
+
+              {isLoading && (
+                <p
+                  className="text-xs text-text-muted text-center leading-relaxed"
+                  role="status"
+                  aria-live="polite"
+                >
+                  Le serveur peut mettre quelques secondes — parfois jusqu&apos;à une
+                  minute après une période sans activité. Ne fermez pas cet onglet.
+                </p>
+              )}
 
               <div className="text-center">
                 <button

@@ -87,6 +87,11 @@ export function getLoginErrorMessage(error: unknown): string {
 
   const status = Number(err.response.status);
   if (status === 401 || status === 403) {
+    const data = err.response?.data as { message?: unknown; error?: unknown } | undefined;
+    const msg = data?.message;
+    if (typeof msg === 'string' && msg.trim()) {
+      return msg.trim();
+    }
     return getApiErrorMessage(
       error,
       'Identifiants incorrects ou compte / société inactif.',
