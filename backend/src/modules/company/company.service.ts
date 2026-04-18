@@ -45,6 +45,35 @@ export class CompanyService {
       .replace(/(^-|-$)/g, "");
   }
 
+  /**
+   * Le slug est @unique sur toute la table (y compris sociétés soft-deleted).
+   * Une ancienne ligne supprimée garde son slug → create() échouait avec P2002
+   * si le nom générait le même slug. On réserve un slug libre (suffixe aléatoire si besoin).
+   */
+  private async resolveUniqueCompanySlug(baseSlug: string): Promise<string> {
+    const activeSameSlug = await this.prisma.company.findFirst({
+      where: { slug: baseSlug, deletedAt: null },
+    });
+    if (activeSameSlug) {
+      throw new BadRequestException("Une société avec ce nom existe déjà");
+    }
+
+    let candidate = baseSlug;
+    for (let i = 0; i < 32; i++) {
+      const row = await this.prisma.company.findFirst({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+      if (!row) {
+        return candidate;
+      }
+      candidate = `${baseSlug}-${randomBytes(3).toString("hex")}`;
+    }
+    throw new BadRequestException(
+      "Impossible de générer un identifiant unique pour cette société. Réessayez.",
+    );
+  }
+
   private generateResetToken(): string {
     return randomBytes(32).toString("hex");
   }
@@ -571,16 +600,7 @@ export class CompanyService {
       throw new BadRequestException("Les champs légaux sont requis");
     }
 
-    const slug = this.generateSlug(name);
-
-    // Check if slug already exists (exclure les companies supprimées)
-    const existingCompany = await this.prisma.company.findFirst({
-      where: { slug, deletedAt: null },
-    });
-
-    if (existingCompany) {
-      throw new BadRequestException("Une société avec ce nom existe déjà");
-    }
+    const slug = await this.resolveUniqueCompanySlug(this.generateSlug(name));
 
     // Check identifiant légal (exclure les companies supprimées)
     const existingLegalId = await this.prisma.company.findFirst({
