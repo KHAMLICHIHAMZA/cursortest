@@ -65,7 +65,76 @@ MalocAuto est une plateforme SaaS multi-tenant de gestion de location de vehicul
 
 ## 2. Analyse de la base de donnees
 
-### 2.1 Statistiques
+### 2.1 Statistiques (Tests Live - 26/04/2026)
+
+| Entite | Count | Notes |
+|--------|-------|-------|
+| **Companies** | 11 | Tenants actifs |
+| **Agencies** | 8 | Agences operationnelles |
+| **Users** | 15 | 10 actifs |
+| **Vehicles** | 16 | 12 disponibles, 4 en location |
+| **Clients** | 14 | - |
+| **Bookings** | 37 | Voir distribution statuts |
+| **Invoices** | 2 | - |
+| **Contracts** | 6 | - |
+| **Charges** | 3 | - |
+| **Fines** | 2 | - |
+| **Maintenances** | 1 | - |
+| **GPS Snapshots** | 0 | Module non utilise |
+
+### 2.2 Tests d'integrite des donnees
+
+| Test | Resultat | Status |
+|------|----------|--------|
+| Orphan Agencies (sans Company) | 0 | OK |
+| Orphan Vehicles (sans Agency) | 0 | OK |
+| Orphan Bookings (sans Vehicle) | 0 | OK |
+| Orphan Bookings (sans Client) | 0 | OK |
+| Bookings avec dates inversees | 0 | OK |
+| Vehicles avec tarif negatif | 0 | OK |
+| Users sans role | 0 | OK |
+| Companies sans abonnement actif | 6 | ATTENTION |
+
+### 2.3 Distribution des statuts Booking
+
+| Status | Count | % |
+|--------|-------|---|
+| LATE | 16 | 43.24% |
+| NO_SHOW | 13 | 35.14% |
+| RETURNED | 4 | 10.81% |
+| CANCELLED | 1 | 2.70% |
+| IN_PROGRESS | 1 | 2.70% |
+| PENDING | 1 | 2.70% |
+| DRAFT | 1 | 2.70% |
+
+> **Alerte**: 78% des bookings sont en statut problematique (LATE + NO_SHOW). Verifier la logique de mise a jour automatique des statuts.
+
+### 2.4 Vehicules et tarification
+
+| Status | Count | Tarif moyen/jour |
+|--------|-------|------------------|
+| AVAILABLE | 12 | 130.58 MAD |
+| RENTED | 4 | 269.75 MAD |
+
+### 2.5 Indexes verifies (37 indexes)
+
+| Table | Indexes | Optimise |
+|-------|---------|----------|
+| Booking | 10 | startDate, endDate, status, vehicleId, clientId, agencyId, companyId, deletedAt |
+| Client | 4 | agencyId, deletedAt, isCompliant |
+| Invoice | 11 | agencyId, bookingId, companyId, status, type, year, sequence, invoiceNumber |
+| User | 6 | companyId, email (unique), role, deletedAt |
+| Vehicle | 6 | agencyId, registrationNumber (unique actif), status, deletedAt |
+
+### 2.6 Row Level Security (RLS)
+
+| Status | Details |
+|--------|---------|
+| **NON ACTIVE** | Aucune policy RLS detectee |
+
+> **Recommandation CRITIQUE**: Activer RLS pour isolation multi-tenant au niveau base de donnees.
+
+### 2.7 Statistiques schema
 
 | Metrique | Valeur |
 |----------|--------|
