@@ -3,6 +3,25 @@
 > **Date**: 26 avril 2026
 > **Version analysee**: 2.0.0 (Backend) / 1.0.0 (Frontend)
 > **Analyste**: v0 Agent Mode
+> **Derniere modification**: Ajout BookingScheduler (branche v0/)
+
+---
+
+## Modifications apportees (cette session)
+
+| Fichier | Action | Description |
+|---------|--------|-------------|
+| `backend/src/modules/booking/booking.scheduler.ts` | CREE | Scheduler pour mise a jour auto des statuts LATE/NO_SHOW |
+| `backend/src/modules/booking/booking.scheduler.spec.ts` | CREE | Tests unitaires du scheduler (8 tests) |
+| `backend/src/modules/booking/booking.module.ts` | MODIFIE | Import du BookingScheduler |
+
+### BookingScheduler - Details
+
+| Cron Job | Horaire | Logique |
+|----------|---------|---------|
+| `markNoShowBookings` | 6h | PENDING/CONFIRMED + startDate passee + pas de checkIn → NO_SHOW + libere vehicule |
+| `markLateBookings` | 7h | IN_PROGRESS/EXTENDED + endDate passee + pas de checkOut → LATE (vehicule reste RENTED) |
+| `alertUpcomingReturns` | 8h | Log des retours prevus J-1 (prep pour notifications V2) |
 
 ---
 

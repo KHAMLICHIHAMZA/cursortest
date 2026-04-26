@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BookingController } from "./booking.controller";
 import { BookingService } from "./booking.service";
+import { BookingScheduler } from "./booking.scheduler";
 import { PrismaModule } from "../../common/prisma/prisma.module";
 import { PlanningModule } from "../planning/planning.module";
 import { BusinessEventLogModule } from "../business-event-log/business-event-log.module";
@@ -22,7 +23,7 @@ import { InAppNotificationModule } from "../in-app-notification/in-app-notificat
     InAppNotificationModule,
   ],
   controllers: [BookingController],
-  providers: [BookingService],
-  exports: [BookingService],
+  providers: [BookingService, BookingScheduler],
+  exports: [BookingService, BookingScheduler],
 })
 export class BookingModule {}
