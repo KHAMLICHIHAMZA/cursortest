@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -105,6 +105,8 @@ export function MainLayout({ children }: MainLayoutProps) {
   /** Barre visible sur viewports lg+ (préférence persistée). */
   const [sidebarDesktopExpanded, setSidebarDesktopExpanded] = useState(true);
   const isLg = useMediaQuery('(min-width: 1024px)');
+  /** Ne pas exécuter la 1re persistance : même cycle que la lecture, elle réécrirait `1` par-dessus un `0` en stockage. */
+  const skipNextSidebarLocalPersist = useRef(true);
 
   useEffect(() => {
     try {
@@ -117,6 +119,10 @@ export function MainLayout({ children }: MainLayoutProps) {
   }, []);
 
   useEffect(() => {
+    if (skipNextSidebarLocalPersist.current) {
+      skipNextSidebarLocalPersist.current = false;
+      return;
+    }
     try {
       localStorage.setItem('maloc-sidebar-expanded', sidebarDesktopExpanded ? '1' : '0');
     } catch {
