@@ -220,20 +220,65 @@ Le backend est organise en 25+ modules NestJS:
 | **module** | Gestion modules SaaS | 1 spec |
 | **journal** | Journal d'activite | 1 spec |
 
-### 3.2 Couverture de tests
+### 3.2 Couverture de tests complete
 
-| Type | Fichiers | Status |
-|------|----------|--------|
-| **Unit tests** | 23 fichiers `.spec.ts` | Present |
-| **Integration tests** | 2 fichiers (`auth`, `booking`) | Present |
-| **E2E tests** | Config jest-e2e.json | Configure |
+**BACKEND (NestJS + Jest):**
 
-**Tests disponibles:**
+| Categorie | Fichiers | Details |
+|-----------|----------|---------|
+| **Guards** | 4 specs | require-active-agency, require-active-company, require-module, require-permission |
+| **Services metier** | 15 specs | auth, billing, booking, charge, contract (x2), gps (x2), in-app-notification, invoice (x2), journal, module, notification (x2), plan, subscription |
+| **Services communs** | 2 specs | outbox.processor, outbox.service |
+| **Integration** | 2 specs | auth.integration, booking.integration |
+| **Total Backend** | 23 fichiers | - |
+
+**FRONTEND WEB (Vitest + Testing Library):**
+
+| Categorie | Fichiers | Details |
+|-----------|----------|---------|
+| **Components** | 4 tests | badge, button, form-card, stat-card |
+| **Hooks** | 2 tests | use-debounce, use-optimized-query |
+| **Utils** | 2 tests | cn, image-url |
+| **Validations** | 8 tests | agency, booking, client, company, fine, maintenance, user, vehicle |
+| **Total Frontend** | 16 fichiers | - |
+
+**MOBILE AGENT (Jest + Testing Library RN):**
+
+| Categorie | Fichiers | Details |
+|-----------|----------|---------|
+| **Components** | 4 tests | Button, Input, PhotoPicker, SignaturePad |
+| **Screens** | 2 tests | LoginScreen, BookingsScreen |
+| **Services** | 4 tests | auth.service, booking.service, integration, loginSchema |
+| **Types/Utils** | 2 tests | types, validation |
+| **Zod Validation** | 1 test | zod-validation |
+| **Total Mobile** | 13 fichiers | - |
+
+**E2E (Maestro - Mobile):**
+- `.maestro/login.yaml` - Test de login complet
+- `.maestro/bookings-flow.yaml` - Test du flux de reservations
+- `.maestro/checkin-flow.yaml` - Test du flux de check-in
+
+**Commandes de test:**
 ```bash
+# Backend
+cd backend
 npm test                # Tests unitaires
-npm run test:e2e        # Tests E2E
+npm run test:e2e        # Tests integration
 npm run test:cov        # Couverture
+
+# Frontend
+cd frontend-web
+npm test                # Mode watch
+npm run test:run        # Run once
+npm run test:coverage   # Couverture
+
+# Mobile
+cd mobile-agent
+npm test                # Tests unitaires
+npm run test:e2e        # Tests Maestro (simulateur requis)
 ```
+
+**Total: 54 fichiers de tests**
 
 ### 3.3 Guards et securite
 
