@@ -22,6 +22,8 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
 import Cookies from 'js-cookie';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 
 export default function CompanyUsersPage() {
   const router = useRouter();
@@ -148,13 +150,18 @@ export default function CompanyUsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Agences</TableHead>
+                    <TableHead>Créé le</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((userItem) => (
-                    <TableRow key={userItem.id}>
+                    <TableRowLink
+                      key={userItem.id}
+                      href={`/company/users/${userItem.id}`}
+                      aria-label={`Ouvrir fiche ${userItem.name || userItem.email}`}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -170,12 +177,15 @@ export default function CompanyUsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{userItem.userAgencies?.length || 0} agence(s)</TableCell>
+                      <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                        {formatDateTimeFr(userItem.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <Badge status={userItem.isActive ? 'active' : 'inactive'}>
                           {userItem.isActive ? 'Actif' : 'Inactif'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           {!(user?.role === 'COMPANY_ADMIN' && userItem.role === 'COMPANY_ADMIN' && userItem.id !== user?.id) && (
                           <Button
@@ -236,7 +246,7 @@ export default function CompanyUsersPage() {
                           )}
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))}
                 </TableBody>
               </Table>

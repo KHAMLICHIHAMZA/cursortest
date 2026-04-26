@@ -285,6 +285,10 @@ export default function EditBookingPage() {
   
   // Vérifier si l'utilisateur est Agency Manager pour l'override des frais
   const isAgencyManager = user?.role === 'AGENCY_MANAGER' || user?.role === 'COMPANY_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isTerminalBooking =
+    currentStatus === 'RETURNED' || currentStatus === 'CANCELLED';
+  const canEditCoreFields = !isTerminalBooking || isAgencyManager;
+  const pageTitle = isTerminalBooking ? 'Détail de la réservation' : 'Modifier la réservation';
   
   // États pour l'override des frais de retard
   const [overrideLateFeeDialog, setOverrideLateFeeDialog] = useState<{ isOpen: boolean }>({ isOpen: false });
@@ -384,7 +388,16 @@ export default function EditBookingPage() {
           </Link>
 
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-text">Modifier la réservation</h1>
+            <div>
+              <h1 className="text-3xl font-bold text-text">{pageTitle}</h1>
+              {isTerminalBooking && (
+                <p className="text-sm text-text-muted mt-2 max-w-xl">
+                  {canEditCoreFields
+                    ? 'Le parcours (statut) est fini. Vous pouvez encore ajuster le dossier ici, les frais ou la clôture financière dans le panneau de droite.'
+                    : 'Cette location est terminée. Consultation du dossier uniquement (plus d’enregistrement des dates / montant sur cette fiche).'}
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[currentStatus]}`}>
                 {statusLabel}
@@ -458,6 +471,7 @@ export default function EditBookingPage() {
                     <Input
                       id="startDate"
                       type="datetime-local"
+                      disabled={!canEditCoreFields}
                       {...register('startDate')}
                     />
                     {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate.message}</p>}
@@ -473,6 +487,7 @@ export default function EditBookingPage() {
                     <Input
                       id="endDate"
                       type="datetime-local"
+                      disabled={!canEditCoreFields}
                       {...register('endDate')}
                     />
                     {errors.endDate && <p className="text-red-500 text-sm mt-1">{errors.endDate.message}</p>}
@@ -500,6 +515,7 @@ export default function EditBookingPage() {
                     rows={3}
                     placeholder="Ex. prolongation après appel client — retard avion…"
                     className="w-full min-h-[80px]"
+                    disabled={!canEditCoreFields}
                     {...register('extensionReason')}
                   />
                   <p className="text-xs text-text-muted mt-1">
@@ -516,6 +532,7 @@ export default function EditBookingPage() {
                     type="number"
                     step="0.01"
                     min="0"
+                    disabled={!canEditCoreFields}
                     {...register('totalAmount', { valueAsNumber: true })}
                   />
                   {errors.totalAmount && <p className="text-red-500 text-sm mt-1">{errors.totalAmount.message}</p>}
@@ -528,6 +545,7 @@ export default function EditBookingPage() {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
+                        disabled={!canEditCoreFields}
                         {...register('depositRequired')}
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                       />
@@ -545,26 +563,29 @@ export default function EditBookingPage() {
                         type="number"
                         step="0.01"
                         min="0"
+                        disabled={!canEditCoreFields}
                         {...register('depositAmount', { valueAsNumber: true })}
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => router.back()}
-                    disabled={isSubmitting || updateMutation.isPending}
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" variant="primary" disabled={isSubmitting || updateMutation.isPending || isInvalidDateRange}>
-                    <Save className="w-4 h-4 mr-2" />
-                    {isSubmitting || updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-                  </Button>
-                </div>
+                {canEditCoreFields && (
+                  <div className="flex items-center gap-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => router.back()}
+                      disabled={isSubmitting || updateMutation.isPending}
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={isSubmitting || updateMutation.isPending || isInvalidDateRange}>
+                      <Save className="w-4 h-4 mr-2" />
+                      {isSubmitting || updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                    </Button>
+                  </div>
+                )}
               </form>
             </div>
 
@@ -721,7 +742,13 @@ export default function EditBookingPage() {
                   <div className="border-t border-border pt-3 mt-3">
                     <p className="text-text-muted">Montant total</p>
                     <p className="text-text font-bold text-lg">
-                      {(booking.totalPrice || 0) + (booking.lateFeeAmount || 0)} MAD
+                      {(
+                        booking.status === 'RETURNED'
+                          ? Number(booking.totalPrice || 0)
+                          : Number(booking.totalPrice || 0) +
+                            Number(booking.lateFeeAmount || 0)
+                      ).toFixed(2)}{' '}
+                      MAD
                     </p>
                   </div>
                   {isAgencyManager && (booking.status === 'RETURNED' || booking.status === 'LATE') && (

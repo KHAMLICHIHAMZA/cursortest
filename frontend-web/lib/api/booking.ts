@@ -7,6 +7,8 @@ export interface Booking {
   clientId: string;
   startDate: string;
   endDate: string;
+  createdAt?: string;
+  updatedAt?: string;
   totalAmount?: number;
   totalPrice?: number; // Alias for totalAmount
   status: string;

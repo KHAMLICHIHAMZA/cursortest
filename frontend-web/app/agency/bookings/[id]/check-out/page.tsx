@@ -111,7 +111,7 @@ export default function BookingCheckOutPage() {
     onSuccess: async () => {
       toast.success('Check-out enregistré');
       await queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
-      router.push(`/agency/bookings/${bookingId}`);
+      router.push('/agency/bookings');
     },
     onError: (err: unknown) => {
       const ax = err as { response?: { data?: { message?: string } }; message?: string };

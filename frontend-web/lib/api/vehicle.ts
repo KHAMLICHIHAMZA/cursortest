@@ -11,6 +11,8 @@ export interface Vehicle {
   depositAmount?: number;
   status: 'AVAILABLE' | 'RENTED' | 'MAINTENANCE' | 'UNAVAILABLE';
   agencyId: string;
+  createdAt?: string;
+  updatedAt?: string;
   imageUrl?: string;
   horsepower?: number;
   fuel?: string;

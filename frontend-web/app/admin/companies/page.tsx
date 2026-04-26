@@ -16,6 +16,8 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 
 export default function CompaniesPage() {
   const queryClient = useQueryClient();
@@ -141,13 +143,18 @@ export default function CompaniesPage() {
                     <TableHead>Téléphone</TableHead>
                     <TableHead>Agences</TableHead>
                     <TableHead>Utilisateurs</TableHead>
+                    <TableHead>Créé le</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {companies.map((company) => (
-                    <TableRow key={company.id}>
+                    <TableRowLink
+                      key={company.id}
+                      href={`/admin/companies/${company.id}`}
+                      aria-label={`Ouvrir entreprise ${company.name}`}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Building2 className="w-5 h-5 text-primary" />
@@ -157,12 +164,15 @@ export default function CompaniesPage() {
                       <TableCell className="text-text-muted">{company.phone || '-'}</TableCell>
                       <TableCell>{company._count?.agencies || 0}</TableCell>
                       <TableCell>{company._count?.users || 0}</TableCell>
+                      <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                        {formatDateTimeFr(company.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <Badge status={company.isActive ? 'active' : 'inactive'}>
                           {company.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
@@ -202,7 +212,7 @@ export default function CompaniesPage() {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))}
                 </TableBody>
               </Table>

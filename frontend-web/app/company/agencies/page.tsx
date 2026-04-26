@@ -20,6 +20,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 import { toast } from '@/components/ui/toast';
 import Cookies from 'js-cookie';
 
@@ -135,12 +137,17 @@ export default function CompanyAgenciesPage() {
                     <TableHead>Téléphone</TableHead>
                     <TableHead>Adresse</TableHead>
                     <TableHead>Véhicules</TableHead>
+                    <TableHead>Créée le</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAgencies.map((agency) => (
-                    <TableRow key={agency.id}>
+                    <TableRowLink
+                      key={agency.id}
+                      href={`/company/agencies/${agency.id}`}
+                      aria-label={`Ouvrir agence ${agency.name}`}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <MapPin className="w-5 h-5 text-primary" />
@@ -150,7 +157,10 @@ export default function CompanyAgenciesPage() {
                       <TableCell className="text-text-muted">{agency.phone || '-'}</TableCell>
                       <TableCell className="text-text-muted">{agency.address || '-'}</TableCell>
                       <TableCell>{agency._count?.vehicles || 0}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                        {formatDateTimeFr(agency.createdAt)}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Link href={`/company/agencies/${agency.id}`}>
                             <Button
@@ -178,7 +188,7 @@ export default function CompanyAgenciesPage() {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))}
                 </TableBody>
               </Table>

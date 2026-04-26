@@ -13,9 +13,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 
 interface Invoice {
   id: string;
+  bookingId: string;
   invoiceNumber: string;
   type: 'INVOICE' | 'CREDIT_NOTE';
   status: 'ISSUED' | 'PAID' | 'CANCELLED';
@@ -69,14 +72,6 @@ export default function InvoicesPage() {
       case 'CANCELLED': return 'Annulée';
       default: return status;
     }
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-MA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
   };
 
   const formatAmount = (amount: number) => {
@@ -186,42 +181,60 @@ export default function InvoicesPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
-                      <TableCell>
-                        <Badge status={invoice.type === 'CREDIT_NOTE' ? 'pending' : 'confirmed'}>
-                          {invoice.type === 'CREDIT_NOTE' ? 'Avoir' : 'Facture'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{invoice.booking?.bookingNumber || '-'}</TableCell>
-                      <TableCell>{invoice.booking?.client?.name || '-'}</TableCell>
-                      <TableCell>
-                        {invoice.booking?.vehicle
-                          ? `${invoice.booking.vehicle.brand} ${invoice.booking.vehicle.model}`
-                          : '-'}
-                      </TableCell>
-                      <TableCell className={invoice.totalAmount < 0 ? 'text-red-600' : ''}>
-                        {formatAmount(invoice.totalAmount)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge status={getStatusKey(invoice.status)}>
-                          {getStatusLabel(invoice.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadPdf(invoice.id, invoice.invoiceNumber)}
-                          disabled={downloadingId === invoice.id}
+                  filteredInvoices.map((invoice) => {
+                    const bookingHref = invoice.bookingId
+                      ? `/agency/bookings/${invoice.bookingId}`
+                      : null;
+                    const cells = (
+                      <>
+                        <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
+                        <TableCell>
+                          <Badge status={invoice.type === 'CREDIT_NOTE' ? 'pending' : 'confirmed'}>
+                            {invoice.type === 'CREDIT_NOTE' ? 'Avoir' : 'Facture'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{invoice.booking?.bookingNumber || '-'}</TableCell>
+                        <TableCell>{invoice.booking?.client?.name || '-'}</TableCell>
+                        <TableCell>
+                          {invoice.booking?.vehicle
+                            ? `${invoice.booking.vehicle.brand} ${invoice.booking.vehicle.model}`
+                            : '-'}
+                        </TableCell>
+                        <TableCell className={invoice.totalAmount < 0 ? 'text-red-600' : ''}>
+                          {formatAmount(invoice.totalAmount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge status={getStatusKey(invoice.status)}>
+                            {getStatusLabel(invoice.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {formatDateTimeFr(invoice.issuedAt)}
+                        </TableCell>
+                        <TableCell
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-right"
                         >
-                          {downloadingId === invoice.id ? 'Chargement...' : 'PDF'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadPdf(invoice.id, invoice.invoiceNumber)}
+                            disabled={downloadingId === invoice.id}
+                          >
+                            {downloadingId === invoice.id ? 'Chargement...' : 'PDF'}
+                          </Button>
+                        </TableCell>
+                      </>
+                    );
+                    if (bookingHref) {
+                      return (
+                        <TableRowLink key={invoice.id} href={bookingHref} aria-label="Ouvrir la location liée">
+                          {cells}
+                        </TableRowLink>
+                      );
+                    }
+                    return <TableRow key={invoice.id}>{cells}</TableRow>;
+                  })
                 )}
               </TableBody>
             </Table>

@@ -13,9 +13,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 
 interface Contract {
   id: string;
+  bookingId: string;
   status: 'DRAFT' | 'PENDING_SIGNATURE' | 'SIGNED' | 'EXPIRED' | 'CANCELLED';
   version: number;
   clientSignedAt: string | null;
@@ -73,17 +76,6 @@ export default function ContractsPage() {
       case 'CANCELLED': return 'Annulé';
       default: return status;
     }
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('fr-MA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const getSignatureStatus = (contract: Contract) => {
@@ -185,7 +177,11 @@ export default function ContractsPage() {
                   </TableRow>
                 ) : (
                   filteredContracts.map((contract) => (
-                    <TableRow key={contract.id}>
+                    <TableRowLink
+                      key={contract.id}
+                      href={`/agency/bookings/${contract.bookingId}`}
+                      aria-label="Ouvrir la location liée au contrat"
+                    >
                       <TableCell className="font-mono">
                         {contract.booking?.bookingNumber || '-'}
                       </TableCell>
@@ -202,9 +198,11 @@ export default function ContractsPage() {
                           {getStatusLabel(contract.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(contract.effectiveAt)}</TableCell>
-                      <TableCell>{formatDate(contract.createdAt)}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-xs">
+                        {contract.effectiveAt ? formatDateTimeFr(contract.effectiveAt) : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs">{formatDateTimeFr(contract.createdAt)}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="outline"
                           size="sm"
@@ -214,7 +212,7 @@ export default function ContractsPage() {
                           {downloadingId === contract.id ? 'Chargement...' : 'PDF'}
                         </Button>
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))
                 )}
               </TableBody>

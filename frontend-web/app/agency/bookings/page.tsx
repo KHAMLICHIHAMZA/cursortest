@@ -20,6 +20,8 @@ import { AgencyFilter } from '@/components/ui/agency-filter';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import Cookies from 'js-cookie';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -184,7 +186,8 @@ export default function BookingsPage() {
                       <TableHead>N° Réservation</TableHead>
                       <TableHead>Véhicule</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead>Dates</TableHead>
+                      <TableHead>Période (début → fin)</TableHead>
+                      <TableHead>Création dossier</TableHead>
                       <TableHead>Montant</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -194,7 +197,7 @@ export default function BookingsPage() {
                     {filteredBookings.map((booking) => {
                       const statusInfo = getStatusBadge(booking.status);
                       return (
-                        <TableRow key={booking.id}>
+                        <TableRowLink key={booking.id} href={`/agency/bookings/${booking.id}`} aria-label={`Ouvrir la réservation ${String(booking.bookingNumber || booking.id).slice(0, 12)}`}>
                           <TableCell>
                             <p className="font-medium text-text">
                               #{String(booking.bookingNumber || booking.id.slice(-6)).toUpperCase()}
@@ -216,15 +219,25 @@ export default function BookingsPage() {
                             </p>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              <p className="text-text">
-                                {new Date(booking.startDate).toLocaleDateString('fr-FR')}
-                              </p>
-                              <p className={`${new Date(booking.endDate) < new Date() && (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') ? 'text-orange-500 font-medium' : 'text-text-muted'}`}>
-                                → {new Date(booking.endDate).toLocaleDateString('fr-FR')}
-                                {new Date(booking.endDate) < new Date() && (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') && ' ⚠️'}
+                            <div className="text-sm space-y-0.5">
+                              <p className="text-text">{formatDateTimeFr(booking.startDate)}</p>
+                              <p
+                                className={
+                                  new Date(booking.endDate) < new Date() &&
+                                  (booking.status === 'IN_PROGRESS' || booking.status === 'LATE')
+                                    ? 'text-orange-500 font-medium'
+                                    : 'text-text-muted'
+                                }
+                              >
+                                → {formatDateTimeFr(booking.endDate)}
+                                {new Date(booking.endDate) < new Date() &&
+                                  (booking.status === 'IN_PROGRESS' || booking.status === 'LATE') &&
+                                  ' ⚠️'}
                               </p>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                            {formatDateTimeFr(booking.createdAt)}
                           </TableCell>
                           <TableCell className="font-medium">
                             {booking.totalAmount || booking.totalPrice ? `${booking.totalAmount || booking.totalPrice} MAD` : '-'}
@@ -234,7 +247,11 @@ export default function BookingsPage() {
                               {statusInfo.label}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="text-right"
+                          >
                             {isModuleActive && (
                               <div className="flex flex-wrap items-center justify-end gap-2">
                                 {(booking.status === 'CONFIRMED' || booking.status === 'PICKUP_LATE') && (
@@ -274,7 +291,7 @@ export default function BookingsPage() {
                               </div>
                             )}
                           </TableCell>
-                        </TableRow>
+                        </TableRowLink>
                       );
                     })}
                   </TableBody>

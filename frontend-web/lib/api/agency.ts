@@ -27,6 +27,8 @@ export interface Agency {
   preparationTimeMinutes?: number;
   suspendedAt?: string;
   suspendedReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
   company?: {
     id: string;
     name: string;

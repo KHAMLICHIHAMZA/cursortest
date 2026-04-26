@@ -16,6 +16,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 import { AgencyFilter } from '@/components/ui/agency-filter';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
@@ -152,7 +154,11 @@ export default function MaintenancePage() {
                   {filteredMaintenance.map((m) => {
                     const statusInfo = getStatusBadge(m.status);
                     return (
-                      <TableRow key={m.id}>
+                      <TableRowLink
+                        key={m.id}
+                        href={`/agency/maintenance/${m.id}`}
+                        aria-label={`Ouvrir maintenance ${m.description?.slice(0, 40) || m.id}`}
+                      >
                         <TableCell>
                           <div>
                             <p className="font-medium text-text">
@@ -165,7 +171,7 @@ export default function MaintenancePage() {
                         </TableCell>
                         <TableCell>{m.description}</TableCell>
                         <TableCell className="text-text-muted">
-                          {m.plannedAt ? new Date(m.plannedAt).toLocaleDateString('fr-FR') : '-'}
+                          {m.plannedAt ? formatDateTimeFr(m.plannedAt) : '—'}
                         </TableCell>
                         <TableCell>
                           {m.cost ? `${m.cost} MAD` : '-'}
@@ -175,7 +181,7 @@ export default function MaintenancePage() {
                             {statusInfo.label}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                           {isModuleActive && (
                             <div className="flex items-center justify-end gap-2">
                               <Link href={`/agency/maintenance/${m.id}`}>
@@ -205,7 +211,7 @@ export default function MaintenancePage() {
                             </div>
                           )}
                         </TableCell>
-                      </TableRow>
+                      </TableRowLink>
                     );
                   })}
                 </TableBody>

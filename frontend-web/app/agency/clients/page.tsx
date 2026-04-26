@@ -14,11 +14,15 @@ import { UserCircle, Plus, Edit, Trash2, FileText, Calendar } from 'lucide-react
 import { Badge } from '@/components/ui/badge';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { useDebounce } from '@/lib/hooks/use-debounce';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 
 export default function ClientsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -100,12 +104,17 @@ export default function ClientsPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Téléphone</TableHead>
                     <TableHead>Locations</TableHead>
+                    <TableHead>Créé le</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredClients.map((client) => (
-                    <TableRow key={client.id}>
+                    <TableRowLink
+                      key={client.id}
+                      href={`/agency/clients/${client.id}`}
+                      aria-label={`Ouvrir fiche client ${client.name}`}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -178,19 +187,23 @@ export default function ClientsPage() {
                       <TableCell className="text-text-muted">{client.email || '-'}</TableCell>
                       <TableCell className="text-text-muted">{client.phone || '-'}</TableCell>
                       <TableCell>{client._count?.bookings || 0}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                        {formatDateTimeFr(client.createdAt)}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/agency/clients/${client.id}`}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-9 w-9 p-0"
-                              aria-label="Modifier le client"
-                              title="Modifier le client"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0"
+                            aria-label="Modifier le client"
+                            title="Modifier le client"
+                            onClick={() => {
+                              router.push(`/agency/clients/${client.id}`);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -206,7 +219,7 @@ export default function ClientsPage() {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))}
                 </TableBody>
               </Table>

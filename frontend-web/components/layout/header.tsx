@@ -6,14 +6,25 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { NotificationsDropdown } from '@/components/layout/notifications-dropdown';
 import { useSearch } from '@/contexts/search-context';
 import Link from 'next/link';
+import { cn } from '@/lib/utils/cn';
 
 interface HeaderProps {
   userName?: string;
   userRole?: string;
   onMenuClick?: () => void;
+  /** Aria + title du bouton menu (mobile / repli bandeau). */
+  menuButtonAriaLabel?: string;
+  /** Sur lg+, décale le bandeau de la largeur de la barre (w-64) quand elle est ouverte. */
+  accountForSidebarWidth?: boolean;
 }
 
-export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
+export function Header({
+  userName,
+  userRole,
+  onMenuClick,
+  menuButtonAriaLabel,
+  accountForSidebarWidth = false,
+}: HeaderProps) {
   const { searchTerm, setSearchTerm } = useSearch();
 
   const profileHref =
@@ -24,13 +35,22 @@ export function Header({ userName, userRole, onMenuClick }: HeaderProps) {
         : '/agency/profile';
 
   return (
-    <header className="fixed top-0 left-0 lg:left-64 right-0 h-14 md:h-16 bg-surface-0/85 backdrop-blur-xl border-b border-border flex items-center justify-between px-3 md:px-6 z-10">
+    <header
+      className={cn(
+        'fixed top-0 left-0 right-0 h-14 md:h-16 z-10',
+        'bg-surface-0/85 backdrop-blur-xl border-b border-border',
+        'flex items-center justify-between px-3 md:px-6',
+        'transition-[left] duration-200 ease-out',
+        accountForSidebarWidth && 'lg:left-64',
+      )}
+    >
       <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
         <button
           type="button"
           onClick={onMenuClick}
-          className="lg:hidden flex h-9 w-9 items-center justify-center rounded-md text-foreground-muted hover:text-foreground hover:bg-surface-2 transition-colors flex-shrink-0"
-          aria-label="Ouvrir le menu"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-foreground-muted hover:text-foreground hover:bg-surface-2 transition-colors flex-shrink-0"
+          aria-label={menuButtonAriaLabel ?? 'Menu'}
+          title={menuButtonAriaLabel}
         >
           <Menu className="h-5 w-5" />
         </button>

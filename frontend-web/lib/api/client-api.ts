@@ -31,6 +31,8 @@ export interface Client {
   _count?: {
     bookings: number;
   };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateClientDto {

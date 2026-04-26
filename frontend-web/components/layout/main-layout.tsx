@@ -21,6 +21,8 @@ import { authCookieBase } from '@/lib/auth-cookies';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 
 import type { AuthResponse } from '@/lib/api/auth';
+import { useMediaQuery } from '@/hooks/use-media-query';
+import { cn } from '@/lib/utils/cn';
 
 /** Aligné sur GET /auth/me : adresse stockée en JSON ou texte libre. */
 function parseMeAddressDetails(
@@ -100,6 +102,27 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  /** Barre visible sur viewports lg+ (préférence persistée). */
+  const [sidebarDesktopExpanded, setSidebarDesktopExpanded] = useState(true);
+  const isLg = useMediaQuery('(min-width: 1024px)');
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('maloc-sidebar-expanded') === '0') {
+        setSidebarDesktopExpanded(false);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('maloc-sidebar-expanded', sidebarDesktopExpanded ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [sidebarDesktopExpanded]);
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddressLine1, setProfileAddressLine1] = useState('');
@@ -232,6 +255,22 @@ export function MainLayout({ children }: MainLayoutProps) {
   const isProfileCompletionLocked =
     user?.role !== 'SUPER_ADMIN' && !!user?.profileCompletionRequired;
 
+  const bandeauAvecOffsetBarre = isLg && sidebarDesktopExpanded;
+
+  const handleNavMenuButton = () => {
+    if (isLg) {
+      setSidebarDesktopExpanded((v) => !v);
+    } else {
+      setSidebarOpen(true);
+    }
+  };
+
+  const menuBoutonLabel = !isLg
+    ? 'Ouvrir le menu'
+    : sidebarDesktopExpanded
+      ? 'Masquer le menu latéral'
+      : 'Afficher le menu latéral';
+
   const handleSubmitRequiredProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -273,17 +312,29 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-background relative">
-      <Sidebar 
-        userRole={user?.role} 
+      <Sidebar
+        userRole={user?.role}
         companyId={user?.companyId}
         agencyId={effectiveAgencyId}
         effectiveAgencyRole={effectiveAgencyRole}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        sidebarDesktopExpanded={sidebarDesktopExpanded}
       />
-      <div className="flex-1 lg:ml-64 min-w-0">
+      <div
+        className={cn(
+          'flex-1 min-w-0 transition-[margin] duration-200 ease-out',
+          bandeauAvecOffsetBarre && 'lg:ml-64',
+        )}
+      >
         {isImpersonating && (
-          <div className="fixed top-0 left-0 lg:left-64 right-0 z-50 bg-orange-500 text-white px-3 md:px-4 py-2 flex items-center justify-between text-xs md:text-sm font-medium shadow-lg">
+          <div
+            className={cn(
+              'fixed top-0 right-0 z-50 bg-orange-500 text-white px-3 md:px-4 py-2 flex items-center justify-between text-xs md:text-sm font-medium shadow-lg',
+              'left-0',
+              bandeauAvecOffsetBarre && 'lg:left-64',
+            )}
+          >
             <div className="flex items-center gap-2 min-w-0">
               <ShieldAlert className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">
@@ -306,7 +357,9 @@ export function MainLayout({ children }: MainLayoutProps) {
         <Header
           userName={user?.name}
           userRole={user?.role}
-          onMenuClick={() => setSidebarOpen(true)}
+          onMenuClick={handleNavMenuButton}
+          menuButtonAriaLabel={menuBoutonLabel}
+          accountForSidebarWidth={bandeauAvecOffsetBarre}
         />
         <main
           className={`p-3 md:p-6 lg:p-8 ${

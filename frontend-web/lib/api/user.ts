@@ -7,6 +7,8 @@ export interface User {
   role: 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'AGENCY_MANAGER' | 'AGENT';
   companyId?: string;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   company?: {
     id: string;
     name: string;

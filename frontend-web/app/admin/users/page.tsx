@@ -22,6 +22,8 @@ import { startNewAuthSessionClient } from '@/lib/auth-session.client';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 import { apiClient } from '@/lib/api/client';
 import { authApi } from '@/lib/api/auth';
 
@@ -275,13 +277,18 @@ export default function UsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Agences</TableHead>
+                    <TableHead>Créé le</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRowLink
+                      key={user.id}
+                      href={`/admin/users/${user.id}`}
+                      aria-label={`Ouvrir fiche ${user.name || user.email}`}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -312,12 +319,18 @@ export default function UsersPage() {
                           <span className="text-text-muted text-sm">Aucune</span>
                         )}
                       </TableCell>
+                      <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                        {formatDateTimeFr(user.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <Badge status={user.isActive ? 'active' : 'inactive'}>
                           {user.isActive ? 'Actif' : 'Inactif'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-right"
+                      >
                         <div className="flex items-center justify-end gap-2">
                           {isSuperAdmin && (
                           <Button
@@ -370,7 +383,7 @@ export default function UsersPage() {
                           )}
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))}
                 </TableBody>
               </Table>

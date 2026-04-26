@@ -13,6 +13,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Car, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
 import { toast } from '@/components/ui/toast';
@@ -22,6 +24,7 @@ import { authApi } from '@/lib/api/auth';
 import Cookies from 'js-cookie';
 
 export default function VehiclesPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -104,7 +107,19 @@ export default function VehiclesPage() {
           ) : filteredVehicles && filteredVehicles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredVehicles.map((vehicle) => (
-                <Card key={vehicle.id} className="hover:border-primary transition-colors">
+                <Card
+                  key={vehicle.id}
+                  role="link"
+                  tabIndex={0}
+                  className="hover:border-primary transition-colors cursor-pointer"
+                  onClick={() => router.push(`/agency/vehicles/${vehicle.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      router.push(`/agency/vehicles/${vehicle.id}`);
+                    }
+                  }}
+                >
                   <BackendImage
                     imageUrl={vehicle.imageUrl}
                     alt={`${vehicle.brand} ${vehicle.model}`}
@@ -139,9 +154,15 @@ export default function VehiclesPage() {
                           {vehicle.dailyRate} MAD/jour
                         </p>
                       )}
+                      {vehicle.createdAt && (
+                        <p className="text-xs text-text-muted">Fiche créée le {formatDateTimeFr(vehicle.createdAt)}</p>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div
+                      className="flex items-center gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Link href={`/agency/vehicles/${vehicle.id}`} className="flex-1">
                         <Button
                           variant="ghost"

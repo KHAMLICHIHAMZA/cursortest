@@ -29,16 +29,17 @@ import { Button } from '@/components/ui/button';
 import Cookies from 'js-cookie';
 import { clearAllAuthCookiesClient } from '@/lib/auth-session.client';
 import { useRouter } from 'next/navigation';
-import { 
-  fetchAgencyModules, 
-  fetchCompanyModules, 
-  isModuleActive, 
-  agencyRouteModuleMap, 
+import {
+  fetchAgencyModules,
+  fetchCompanyModules,
+  isModuleActive,
+  agencyRouteModuleMap,
   companyRouteModuleMap,
   clearModulesCache,
   ActiveModule,
-  ModuleCode
+  ModuleCode,
 } from '@/lib/modules';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 // Roles autorisés par route agency (si absent = tous les roles agency)
 const agencyRouteRoleMap: Record<string, string[]> = {
@@ -64,11 +65,23 @@ interface SidebarProps {
   effectiveAgencyRole?: 'AGENCY_MANAGER' | 'AGENT' | 'BOTH' | null;
   isOpen?: boolean;
   onClose?: () => void;
+  /** À partir de lg : barre affichée quand true (tiroir mobile inchangé). */
+  sidebarDesktopExpanded?: boolean;
 }
 
-export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, isOpen, onClose }: SidebarProps) {
+export function Sidebar({
+  userRole,
+  companyId,
+  agencyId,
+  effectiveAgencyRole,
+  isOpen,
+  onClose,
+  sidebarDesktopExpanded = true,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const isLg = useMediaQuery('(min-width: 1024px)');
+  const isSidebarVisible = isLg ? sidebarDesktopExpanded : Boolean(isOpen);
   const [activeModules, setActiveModules] = useState<ActiveModule[]>([]);
   const [modulesLoaded, setModulesLoaded] = useState(false);
 
@@ -241,18 +254,19 @@ export function Sidebar({ userRole, companyId, agencyId, effectiveAgencyRole, is
 
   return (
     <>
-      {/* Mobile overlay */}
-      {isOpen && (
+      {/* Overlay mobile seulement */}
+      {!isLg && isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40"
           onClick={onClose}
+          aria-hidden
         />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 h-screen w-64 bg-surface-0/95 backdrop-blur-md border-r border-border flex flex-col z-50 transition-transform duration-300 lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed left-0 top-0 h-screen w-64 bg-surface-0/95 backdrop-blur-md border-r border-border flex flex-col z-50 transition-transform duration-300 ease-out ${
+          isSidebarVisible ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="p-4 md:p-6 border-b border-border flex items-center justify-between">

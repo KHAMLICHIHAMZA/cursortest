@@ -16,6 +16,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/main-layout';
 import { RouteGuard } from '@/components/auth/route-guard';
+import { formatDateTimeFr } from '@/lib/utils/list-dates';
+import { TableRowLink } from '@/components/ui/table-row-link';
 import { useModuleAccess } from '@/hooks/use-module-access';
 import { ModuleNotIncluded } from '@/components/ui/module-not-included';
 import { toast } from '@/components/ui/toast';
@@ -134,7 +136,7 @@ export default function FinesPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredFines.map((fine) => (
-                    <TableRow key={fine.id}>
+                    <TableRowLink key={fine.id} href={`/agency/fines/${fine.id}`} aria-label="Ouvrir fiche amende">
                       <TableCell>
                         <div>
                           <p className="font-medium text-text">
@@ -155,10 +157,10 @@ export default function FinesPage() {
                           {fine.status === 'RECUE' ? 'Reçue' : fine.status === 'CLIENT_IDENTIFIE' ? 'Client identifié' : fine.status === 'TRANSMISE' ? 'Transmise' : fine.status === 'CONTESTEE' ? 'Contestée' : fine.status === 'CLOTUREE' ? 'Clôturée' : fine.status || 'Reçue'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-text-muted">
-                        {new Date(fine.createdAt).toLocaleDateString('fr-FR')}
+                      <TableCell className="text-text-muted text-xs">
+                        {formatDateTimeFr(fine.createdAt)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                         {isModuleActive && (
                           <div className="flex items-center justify-end gap-2">
                             <Link href={`/agency/fines/${fine.id}`}>
@@ -188,7 +190,7 @@ export default function FinesPage() {
                           </div>
                         )}
                       </TableCell>
-                    </TableRow>
+                    </TableRowLink>
                   ))}
                 </TableBody>
               </Table>
