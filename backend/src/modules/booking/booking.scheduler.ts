@@ -29,7 +29,7 @@ export class BookingScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_6AM)
   async markNoShowBookings() {
-    this.logger.log("Checking for NO_SHOW bookings...");
+    this.logger.log("Vérification des réservations NO_SHOW...");
 
     try {
       const now = new Date();
@@ -80,19 +80,19 @@ export class BookingScheduler {
 
           updatedCount++;
           this.logger.log(
-            `Booking ${booking.bookingNumber || booking.id} marked as NO_SHOW`,
+            `Réservation ${booking.bookingNumber || booking.id} marquée NO_SHOW`,
           );
         } catch (error) {
           this.logger.error(
-            `Error marking booking ${booking.id} as NO_SHOW:`,
+            `Erreur lors du marquage NO_SHOW pour ${booking.id}:`,
             error,
           );
         }
       }
 
-      this.logger.log(`${updatedCount} bookings marked as NO_SHOW`);
+      this.logger.log(`${updatedCount} réservation(s) marquée(s) NO_SHOW`);
     } catch (error) {
-      this.logger.error("Error in markNoShowBookings:", error);
+      this.logger.error("Erreur dans markNoShowBookings:", error);
     }
   }
 
@@ -103,7 +103,7 @@ export class BookingScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_7AM)
   async markLateBookings() {
-    this.logger.log("Checking for LATE bookings...");
+    this.logger.log("Vérification des réservations en RETARD...");
 
     try {
       const now = new Date();
@@ -140,19 +140,19 @@ export class BookingScheduler {
 
           updatedCount++;
           this.logger.log(
-            `Booking ${booking.bookingNumber || booking.id} marked as LATE`,
+            `Réservation ${booking.bookingNumber || booking.id} marquée en RETARD`,
           );
         } catch (error) {
           this.logger.error(
-            `Error marking booking ${booking.id} as LATE:`,
+            `Erreur lors du marquage RETARD pour ${booking.id}:`,
             error,
           );
         }
       }
 
-      this.logger.log(`${updatedCount} bookings marked as LATE`);
+      this.logger.log(`${updatedCount} réservation(s) marquée(s) en RETARD`);
     } catch (error) {
-      this.logger.error("Error in markLateBookings:", error);
+      this.logger.error("Erreur dans markLateBookings:", error);
     }
   }
 
@@ -163,7 +163,7 @@ export class BookingScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async alertUpcomingReturns() {
-    this.logger.log("Checking for upcoming returns (J-1)...");
+    this.logger.log("Vérification des retours prévus demain (J-1)...");
 
     try {
       const now = new Date();
@@ -212,7 +212,7 @@ export class BookingScheduler {
 
       // Log pour le moment - dans une V2, on pourrait créer des InAppNotifications
       this.logger.log(
-        `${upcomingReturns.length} vehicles expected to return tomorrow`,
+        `${upcomingReturns.length} véhicule(s) prévu(s) en retour demain`,
       );
 
       for (const booking of upcomingReturns) {
@@ -224,7 +224,7 @@ export class BookingScheduler {
       // TODO V2: Créer des InAppNotification pour les agents/managers
       // await this.inAppNotificationService.createReturnReminder(upcomingReturns);
     } catch (error) {
-      this.logger.error("Error in alertUpcomingReturns:", error);
+      this.logger.error("Erreur dans alertUpcomingReturns:", error);
     }
   }
 
@@ -233,10 +233,10 @@ export class BookingScheduler {
    * Peut être appelée via un endpoint admin si nécessaire
    */
   async runAllChecks() {
-    this.logger.log("Running all booking status checks manually...");
+    this.logger.log("Exécution manuelle de tous les contrôles de statut...");
     await this.markNoShowBookings();
     await this.markLateBookings();
     await this.alertUpcomingReturns();
-    this.logger.log("All checks completed");
+    this.logger.log("Tous les contrôles terminés");
   }
 }
