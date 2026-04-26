@@ -22,6 +22,7 @@ import {
 } from "@nestjs/swagger";
 import { VehicleService } from "./vehicle.service";
 import { VehicleSearchService } from "./vehicle-search.service";
+import { S3UploadService } from "../../common/services/s3-upload.service";
 import { CreateVehicleDto } from "./dto/create-vehicle.dto";
 import { UpdateVehicleDto } from "./dto/update-vehicle.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -59,6 +60,7 @@ export class VehicleController {
   constructor(
     private readonly vehicleService: VehicleService,
     private readonly vehicleSearchService: VehicleSearchService,
+    private readonly s3UploadService: S3UploadService,
   ) {}
 
   @Get()
@@ -155,7 +157,20 @@ export class VehicleController {
       throw new BadRequestException("Aucun fichier fourni");
     }
 
-    // Retourner l'URL relative de l'image
+    if (this.s3UploadService.isVehicleUploadToObjectStorageEnabled()) {
+      try {
+        const imageUrl =
+          await this.s3UploadService.pushVehicleFileAndReturnPublicUrl(file);
+        return { imageUrl, filename: file.filename };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new BadRequestException(
+          `Échec envoi vers le stockage objet (S3/R2). ${msg}`,
+        );
+      }
+    }
+
+    // Disque local : URL relative servie par main.ts (static /uploads)
     const imageUrl = `/uploads/vehicles/${file.filename}`;
     return { imageUrl, filename: file.filename };
   }

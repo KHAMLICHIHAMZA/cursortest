@@ -52,6 +52,7 @@ Variables **minimales** (liste complète : `backend/.env.example`) :
 | `NODE_ENV` | `production` |
 | `FRONTEND_WEB_URL` / `FRONTEND_URL` | Origine(s) autorisées (CORS + liens e-mail) |
 | SMTP ou `RESEND_*` | Si envoi d’e-mails |
+| `S3_*` (voir `backend/.env.example`) | **Recommandé en prod** pour les **photos véhicules** : si `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` et `S3_PUBLIC_BASE_URL` sont définis, l’API envoie les fichiers sur le bucket (R2/S3) et stocke une **URL HTTPS** ; sinon les fichiers restent sur le **disque** du conteneur (souvent perdu au redéploiement). |
 
 Smoke **après déploiement** (machine locale ou CI externe) :
 

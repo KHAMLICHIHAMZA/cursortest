@@ -11,5 +11,6 @@ Point d’entrée pour **statut préprod / prod**, déploiement et readiness —
 | Checklist préprod | [`PREPROD_CHECKLIST.md`](../../PREPROD_CHECKLIST.md) |
 | Protection des branches | [`GITHUB_BRANCH_PROTECTION.md`](../GITHUB_BRANCH_PROTECTION.md) |
 | Changelog | [`CHANGELOG.md`](../../CHANGELOG.md) |
+| Rollback migrations Prisma | [`ROLLBACK_MIGRATIONS.md`](./ROLLBACK_MIGRATIONS.md) |
 
 Les anciens documents à la racine restent accessibles depuis le dépôt ; à terme, les déplacer sous `docs/archive/` si tu veux une racine plus légère.

@@ -3,10 +3,11 @@ import { VehicleController } from "./vehicle.controller";
 import { VehicleService } from "./vehicle.service";
 import { VehicleSearchService } from "./vehicle-search.service";
 import { PrismaModule } from "../../common/prisma/prisma.module";
+import { ServicesModule } from "../../common/services/services.module";
 import { BusinessEventLogModule } from "../business-event-log/business-event-log.module";
 
 @Module({
-  imports: [PrismaModule, BusinessEventLogModule],
+  imports: [PrismaModule, ServicesModule, BusinessEventLogModule],
   controllers: [VehicleController],
   providers: [VehicleService, VehicleSearchService],
   exports: [VehicleService, VehicleSearchService],

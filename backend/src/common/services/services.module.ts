@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuditService } from "./audit.service";
 import { FileStorageService } from "./file-storage.service";
+import { S3UploadService } from "./s3-upload.service";
 import { AIVisionService } from "./ai-vision.service";
 import { PermissionService } from "./permission.service";
 import { OutboxService } from "./outbox.service";
@@ -23,6 +24,7 @@ import { ConfigModule } from "@nestjs/config";
   providers: [
     AuditService,
     FileStorageService,
+    S3UploadService,
     AIVisionService,
     PermissionService,
     OutboxService,
@@ -32,6 +34,7 @@ import { ConfigModule } from "@nestjs/config";
   exports: [
     AuditService,
     FileStorageService,
+    S3UploadService,
     AIVisionService,
     PermissionService,
     OutboxService,

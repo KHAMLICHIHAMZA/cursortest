@@ -12,6 +12,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 - …
 
+### Ajouté
+
+- **Backend** : upload d’images véhicules vers **S3-compatible** (R2, S3, MinIO) si `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` et `S3_PUBLIC_BASE_URL` sont définis ; sinon comportement inchangé (fichiers sur disque + URL relative `/uploads/vehicles/...`). Voir `backend/.env.example`.
+- **Documentation** : [`docs/ops/ROLLBACK_MIGRATIONS.md`](docs/ops/ROLLBACK_MIGRATIONS.md) (procédure courte rollback / backup).
+
 ### Corrections
 
 - **Backend** : `ChargeService.computeKpi` — requête `Vehicle` pour **SUPER_ADMIN** sans `companyId` : ne plus passer `agency: { companyId: null }` (erreur Prisma en prod sur `/charges/kpi`).
