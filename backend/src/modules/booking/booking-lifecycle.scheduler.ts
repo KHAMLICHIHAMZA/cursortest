@@ -7,6 +7,12 @@ import { JournalService } from "../journal/journal.service";
 import { BusinessEventLogService } from "../business-event-log/business-event-log.service";
 import { BusinessEventType, Role } from "@prisma/client";
 
+/**
+ * Pas de champs `checkInAt` / `checkOutAt` (Prisma) : absence de check-in = CONFIRMED
+ * / PICKUP_LATE ; check-in = IN_PROGRESS ; check-out = RETURNED. Retard de retour quand
+ * `endDate` est passée et statut IN_PROGRESS (ou EXTENDED) → passage en LATE.
+ */
+
 /** 0,5 jour après l’heure de départ prévue (check-in non effectué) → no-show auto. */
 const NO_SHOW_AFTER_MS = 12 * 60 * 60 * 1000;
 /** Passage en PICKUP_LATE : 30 min après l’heure de départ prévue sans check-in. */
@@ -213,6 +219,80 @@ export class BookingLifecycleScheduler {
 
     if (notified > 0) {
       this.logger.log(`Alertes retard départ: ${notified} notification(s)`);
+    }
+  }
+
+  /**
+   * Fin de location (endDate) dépassée alors que le booking est encore en cours
+   * (IN_PROGRESS / EXTENDED) → LATE, sans libérer le véhicule. Persiste le même
+   * régime qu’au chargement des listes (checkAndUpdateLateBookings), en tâche planifiée.
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async runOverdueReturnsToLate(): Promise<void> {
+    const now = new Date();
+    const candidates = await this.prisma.booking.findMany({
+      where: {
+        status: { in: ["IN_PROGRESS", "EXTENDED"] },
+        deletedAt: null,
+        endDate: { lt: now },
+      },
+      include: {
+        client: { select: { name: true } },
+        vehicle: { select: { registrationNumber: true } },
+      },
+      take: 100,
+    });
+
+    for (const b of candidates) {
+      try {
+        await this.prisma.booking.update({
+          where: { id: b.id },
+          data: { status: "LATE" },
+        });
+
+        this.businessEventLogService
+          .logEvent(
+            b.agencyId,
+            "Booking",
+            b.id,
+            BusinessEventType.BOOKING_STATUS_CHANGED,
+            { status: b.status },
+            {
+              status: "LATE",
+              source: "AUTO_LATE_RETURN_AFTER_END_DATE",
+            },
+            undefined,
+            b.companyId,
+          )
+          .catch(() => {});
+
+        this.journalService
+          .appendEntry({
+            agencyId: b.agencyId,
+            companyId: b.companyId,
+            type: "SYSTEM_EVENT",
+            title: "Retard de retour (fin de location dépassée)",
+            content:
+              `Réservation ${b.bookingNumber || b.id.slice(0, 8)} — client ${b.client?.name || "N/A"}, immat. ${b.vehicle?.registrationNumber || "N/A"}. ` +
+              `Fin prévue : ${b.endDate.toLocaleString("fr-FR")}. Passage en LATE (retour non enregistré).`,
+            bookingId: b.id,
+            bookingNumber: b.bookingNumber,
+            vehicleId: b.vehicleId,
+            metadata: { kind: "AUTO_LATE", afterEndDate: true },
+          })
+          .catch((err) =>
+            this.logger.warn(`Journal LATE: ${err?.message || err}`),
+          );
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`LATE auto échoué pour booking ${b.id}: ${msg}`);
+      }
+    }
+
+    if (candidates.length > 0) {
+      this.logger.log(
+        `Retard de retour: ${candidates.length} réservation(s) passée(s) en LATE`,
+      );
     }
   }
 
